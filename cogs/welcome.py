@@ -6,12 +6,14 @@ from discord.ext import commands
 SETTINGS_PATH = os.path.join(os.path.dirname(__file__), '..', 'settings.json')
 
 DEFAULTS = {
+    "welcome_enabled":       True,
     "welcome_channel":       1019608622663209000,
     "welcome_title":         "👋 Willkommen auf {guild}!",
     "welcome_description":   "Schön dass du da bist, {mention}! 🎉\nDu bist unser **{count}. Mitglied** — herzlich willkommen!",
     "welcome_color":         "#5865f2",
     "welcome_rules_channel": 1019184912110211103,
     "welcome_roles_channel": 1019594993226219610,
+    "welcome_paten_channel": 1494054503647805562,
     "welcome_footer":        "{guild} • Viel Spaß!",
     "welcome_show_banner":   True,
 }
@@ -41,6 +43,8 @@ class WelcomeCog(commands.Cog, name="Welcome"):
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         s = _load()
+        if not s.get("welcome_enabled", True):
+            return
         channel = self.bot.get_channel(int(s["welcome_channel"]))
         if channel is None:
             return
@@ -74,7 +78,7 @@ class WelcomeCog(commands.Cog, name="Welcome"):
         )
         embed.add_field(
             name="🤝  Paten-System",
-            value="Neu hier? Wir haben ein **Paten-System**!\nEin erfahrenes Mitglied begleitet dich.\nTicket öffnen: <#1494054503647805562>",
+            value=f"Neu hier? Wir haben ein **Paten-System**!\nEin erfahrenes Mitglied begleitet dich.\nTicket öffnen: <#{int(s['welcome_paten_channel'])}>",
             inline=False,
         )
         embed.set_footer(

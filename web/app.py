@@ -227,11 +227,13 @@ SETTINGS_DEFAULTS = {
     "msg_xp_per_min":         5,
     "voice_xp_per_30s":       1,
     "notify_channel":         1494057689435869485,
+    "welcome_enabled":         True,
     "welcome_title":          "👋 Willkommen auf {guild}!",
     "welcome_description":    "Schön dass du da bist, {mention}! 🎉\nDu bist unser **{count}. Mitglied** — herzlich willkommen!",
     "welcome_color":          "#5865f2",
     "welcome_rules_channel":  1019184912110211103,
     "welcome_roles_channel":  1019594993226219610,
+    "welcome_paten_channel":  1494054503647805562,
     "welcome_footer":         "{guild} • Viel Spaß!",
     "welcome_show_banner":    True,
 }
@@ -531,16 +533,17 @@ def api_template_download(name):
 def willkommen():
     s = load_settings()
     if request.method == "POST":
-        for key in ["welcome_title", "welcome_description", "welcome_color",
-                    "welcome_footer"]:
+        s["welcome_enabled"]    = "welcome_enabled" in request.form
+        s["welcome_show_banner"] = "welcome_show_banner" in request.form
+        for key in ["welcome_title", "welcome_description", "welcome_color", "welcome_footer"]:
             val = request.form.get(key, "").strip()
             if val:
                 s[key] = val
-        for key in ["welcome_channel", "welcome_rules_channel", "welcome_roles_channel"]:
+        for key in ["welcome_channel", "welcome_rules_channel",
+                    "welcome_roles_channel", "welcome_paten_channel"]:
             val = request.form.get(key, "").strip()
             if val.isdigit():
                 s[key] = int(val)
-        s["welcome_show_banner"] = "welcome_show_banner" in request.form
         save_settings(s)
         _discord_log("👋 Willkommens-Nachricht bearbeitet",
                      f"Titel: {s['welcome_title'][:60]}\nKanal: <#{s['welcome_channel']}>")
