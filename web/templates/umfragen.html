@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{% block title %}Umfragen{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-ui-checks me-2" style="color:var(--accent)"></i>Umfragen</h1>
+  <p>Erstelle und verwalte Umfragen direkt aus dem Dashboard</p>
+</div>
+
+<div class="row g-3">
+
+  <!-- ── Formular ── -->
+  <div class="col-12 col-lg-5">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-plus-circle me-2"></i>Neue Umfrage</div>
+      <div class="card-body p-3">
+
+        <!-- Kanal -->
+        <div class="mb-3">
+          <label class="form-label" style="font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Kanal</label>
+          <select id="channelSelect" class="form-select">
+            <option value="">Lade Kanäle…</option>
+          </select>
+        </div>
+
+        <!-- Frage -->
+        <div class="mb-3">
+          <label class="form-label" style="font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Frage</label>
+          <input type="text" id="questionInput" class="form-control"
+                 placeholder="z. B. Was ist eure Lieblingsfarbe?" maxlength="200">
+          <div class="form-text" style="color:var(--muted)">Max. 200 Zeichen</div>
+        </div>
+
+        <!-- Optionen -->
+        <div class="mb-3">
+          <label class="form-label d-flex justify-content-between align-items-center"
+                 style="font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">
+            Optionen
+            <span id="optCount" class="badge badge-accent">2 / 5</span>
+          </label>
+          <div id="optionsContainer">
+            <div class="input-group mb-2 option-row">
+              <span class="input-group-text" style="background:var(--border);border-color:var(--border);color:var(--muted);min-width:36px">1️⃣</span>
+              <input type="text" class="form-control opt-input" placeholder="Option 1" maxlength="80">
+            </div>
+            <div class="input-group mb-2 option-row">
+              <span class="input-group-text" style="background:var(--border);border-color:var(--border);color:var(--muted);min-width:36px">2️⃣</span>
+              <input type="text" class="form-control opt-input" placeholder="Option 2" maxlength="80">
+              <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none" onclick="removeOption(this)"><i class="bi bi-x"></i></button>
+            </div>
+          </div>
+          <button id="addOptBtn" class="btn btn-sm w-100 mt-1"
+                  style="background:var(--border);color:var(--muted);border:1px dashed var(--faint)"
+                  onclick="addOption()">
+            <i class="bi bi-plus me-1"></i>Option hinzufügen
+          </button>
+        </div>
+
+        <div id="formError" class="alert alert-danger d-none py-2" style="font-size:.85rem"></div>
+
+        <button class="btn btn-accent w-100" onclick="createPoll()">
+          <i class="bi bi-send me-2"></i>Umfrage senden
+        </button>
+      </div>
+    </div>
+
+    <!-- Vorschau -->
+    <div class="card mt-3">
+      <div class="card-header"><i class="bi bi-eye me-2"></i>Vorschau</div>
+      <div class="card-body p-3" id="previewBox">
+        <div class="text-muted" style="font-size:.85rem">Fülle das Formular aus um eine Vorschau zu sehen.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Aktive Umfragen ── -->
+  <div class="col-12 col-lg-7">
+    <div class="card h-100">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-activity me-2"></i>Aktive Umfragen</span>
+        <button class="btn btn-sm" style="background:var(--border);color:var(--muted);font-size:.78rem"
+                onclick="loadPolls()">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+      </div>
+      <div class="card-body p-3" id="pollsList">
+        <div class="text-center text-muted py-4" style="font-size:.85rem">Lade…</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const EMOJIS = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣'];
+
+// ── Kanäle laden ──
+async function loadChannels() {
+  const sel = document.getElementById('channelSelect');
+  try {
+    const res  = await fetch('/api/channels');
+    const data = await res.json();
+    if (!Array.isArray(data)) throw new Error();
+    sel.innerHTML = '<option value="">— Kanal wählen —</option>';
+    let lastCat = null;
+    data.forEach(ch => {
+      if (ch.category !== lastCat) {
+        sel.insertAdjacentHTML('beforeend', `<optgroup label="${ch.guild} › ${ch.category}">`);
+        lastCat = ch.category;
+      }
+      sel.insertAdjacentHTML('beforeend',
+        `<option value="${ch.id}">#${ch.name}</option>`);
+    });
+  } catch {
+    sel.innerHTML = '<option value="">Fehler beim Laden</option>';
+  }
+}
+
+// ── Optionen dynamisch ──
+function getOptCount() {
+  return document.querySelectorAll('.opt-input').length;
+}
+
+function updateOptCount() {
+  const n = getOptCount();
+  document.getElementById('optCount').textContent = `${n} / 5`;
+  document.getElementById('addOptBtn').disabled = n >= 5;
+  // Update emojis and remove buttons
+  document.querySelectorAll('.option-row').forEach((row, i) => {
+    row.querySelector('.input-group-text').textContent = EMOJIS[i];
+    row.querySelector('.opt-input').placeholder = `Option ${i+1}`;
+    const rmBtn = row.querySelector('button');
+    if (rmBtn) rmBtn.style.display = i < 2 ? 'none' : '';
+  });
+  updatePreview();
+}
+
+function addOption() {
+  if (getOptCount() >= 5) return;
+  const i   = getOptCount();
+  const row = document.createElement('div');
+  row.className = 'input-group mb-2 option-row';
+  row.innerHTML = `
+    <span class="input-group-text" style="background:var(--border);border-color:var(--border);color:var(--muted);min-width:36px">${EMOJIS[i]}</span>
+    <input type="text" class="form-control opt-input" placeholder="Option ${i+1}" maxlength="80" oninput="updatePreview()">
+    <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none" onclick="removeOption(this)"><i class="bi bi-x"></i></button>
+  `;
+  document.getElementById('optionsContainer').appendChild(row);
+  updateOptCount();
+}
+
+function removeOption(btn) {
+  if (getOptCount() <= 2) return;
+  btn.closest('.option-row').remove();
+  updateOptCount();
+}
+
+// ── Vorschau ──
+function updatePreview() {
+  const q    = document.getElementById('questionInput').value.trim();
+  const opts = [...document.querySelectorAll('.opt-input')]
+               .map(i => i.value.trim()).filter(Boolean);
+  const box  = document.getElementById('previewBox');
+  if (!q && !opts.length) {
+    box.innerHTML = '<div class="text-muted" style="font-size:.85rem">Fülle das Formular aus um eine Vorschau zu sehen.</div>';
+    return;
+  }
+  const lines = opts.map((o,i) => `
+    <div class="mb-2">
+      <div style="font-size:.85rem;margin-bottom:3px">${EMOJIS[i] || ''} <strong>${o}</strong></div>
+      <div style="font-size:.75rem;color:var(--muted);font-family:monospace">░░░░░░░░░░ 0 Stimmen (0%)</div>
+    </div>`).join('');
+  box.innerHTML = `
+    <div style="border-left:4px solid var(--accent);padding-left:12px">
+      <div style="font-size:.9rem;font-weight:700;color:#fff;margin-bottom:10px">📊 ${q || '(Frage)'}</div>
+      ${lines || '<div class="text-muted" style="font-size:.8rem">Keine Optionen</div>'}
+      <div style="font-size:.72rem;color:var(--muted);margin-top:8px">Aktiv · 0 Stimmen · Von Dashboard</div>
+    </div>`;
+}
+
+// ── Umfrage erstellen ──
+async function createPoll() {
+  const errBox  = document.getElementById('formError');
+  const channel = document.getElementById('channelSelect').value;
+  const question = document.getElementById('questionInput').value.trim();
+  const options  = [...document.querySelectorAll('.opt-input')]
+                   .map(i => i.value.trim()).filter(Boolean);
+
+  errBox.classList.add('d-none');
+
+  if (!channel)         return showErr('Bitte einen Kanal auswählen.');
+  if (!question)        return showErr('Bitte eine Frage eingeben.');
+  if (options.length < 2) return showErr('Mindestens 2 Optionen erforderlich.');
+
+  const btn = document.querySelector('[onclick="createPoll()"]');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sende…';
+
+  try {
+    const res  = await fetch('/api/umfragen/erstellen', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({channel_id: channel, question, options}),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Fehler');
+    // Reset form
+    document.getElementById('questionInput').value = '';
+    document.querySelectorAll('.opt-input').forEach(i => i.value = '');
+    updatePreview();
+    loadPolls();
+    showSuccess(`✅ Umfrage in #${data.channel} gesendet!`);
+  } catch(e) {
+    showErr(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-send me-2"></i>Umfrage senden';
+  }
+}
+
+function showErr(msg) {
+  const el = document.getElementById('formError');
+  el.textContent = msg;
+  el.classList.remove('d-none');
+}
+
+function showSuccess(msg) {
+  const el = document.getElementById('formError');
+  el.textContent = msg;
+  el.className = 'alert alert-success py-2';
+  el.style.fontSize = '.85rem';
+  el.classList.remove('d-none');
+  setTimeout(() => el.classList.add('d-none'), 4000);
+}
+
+// ── Aktive Umfragen laden ──
+async function loadPolls() {
+  const box = document.getElementById('pollsList');
+  try {
+    const res   = await fetch('/api/umfragen/aktiv');
+    const polls = await res.json();
+    if (!polls.length) {
+      box.innerHTML = '<div class="text-center text-muted py-4" style="font-size:.85rem"><i class="bi bi-inbox me-2"></i>Keine aktiven Umfragen</div>';
+      return;
+    }
+    box.innerHTML = polls.map(p => {
+      const max = Math.max(...p.options.map(o => o.count), 1);
+      const opts = p.options.map((o,i) => `
+        <div class="mb-2">
+          <div class="d-flex justify-content-between" style="font-size:.82rem;margin-bottom:3px">
+            <span>${EMOJIS[i]} ${o.text}</span>
+            <span class="text-muted">${o.count} (${o.pct}%)</span>
+          </div>
+          <div class="progress">
+            <div class="progress-bar" style="width:${o.count/max*100}%"></div>
+          </div>
+        </div>`).join('');
+      return `
+        <div class="p-3 mb-3 rounded" style="background:rgba(255,255,255,.03);border:1px solid var(--border)">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <div style="font-weight:600;color:#fff;font-size:.9rem">📊 ${p.question}</div>
+              <div style="font-size:.75rem;color:var(--muted)">${p.total_votes} Stimmen · Von ${p.author}</div>
+            </div>
+            <button class="btn btn-sm ms-2"
+                    style="background:var(--danger);color:#fff;font-size:.75rem;white-space:nowrap"
+                    onclick="closePoll('${p.message_id}', this)">
+              <i class="bi bi-lock me-1"></i>Schließen
+            </button>
+          </div>
+          ${opts}
+        </div>`;
+    }).join('');
+  } catch {
+    box.innerHTML = '<div class="text-center text-muted py-4">Fehler beim Laden</div>';
+  }
+}
+
+async function closePoll(messageId, btn) {
+  if (!confirm('Umfrage wirklich schließen?')) return;
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/umfragen/${messageId}/schliessen`, {method:'POST'});
+    const d   = await res.json();
+    if (!res.ok) throw new Error(d.error);
+    loadPolls();
+  } catch(e) {
+    alert('Fehler: ' + e.message);
+    btn.disabled = false;
+  }
+}
+
+// Init
+document.getElementById('questionInput').addEventListener('input', updatePreview);
+loadChannels();
+loadPolls();
+</script>
+{% endblock %}

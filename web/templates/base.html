@@ -269,6 +269,10 @@
       <i class="bi bi-people"></i> Nutzer
     </a>
 
+    <a class="sb-link {% if request.endpoint == 'umfragen' %}active{% endif %}" href="/umfragen">
+      <i class="bi bi-ui-checks"></i> Umfragen
+    </a>
+
     <div class="sb-section" style="margin-top:1rem">Verwaltung</div>
     <a class="sb-link {% if request.endpoint == 'broadcast' %}active{% endif %}" href="/broadcast">
       <i class="bi bi-send"></i> Nachrichten

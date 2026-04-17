@@ -496,6 +496,81 @@ def api_template_download(name):
     return send_file(path, as_attachment=True, download_name=f"{name}.json", mimetype="application/json")
 
 
+# ── Umfragen ──────────────────────────────────────────────────────────────────
+
+@app.route("/umfragen")
+@login_required
+def umfragen():
+    return render_template("umfragen.html")
+
+
+@app.route("/api/umfragen/aktiv")
+@login_required
+def api_umfragen_aktiv():
+    bot = current_app.config.get("BOT")
+    if not bot:
+        return jsonify([])
+    cog = bot.cogs.get("Polls")
+    if not cog:
+        return jsonify([])
+    return jsonify(cog.list_polls())
+
+
+@app.route("/api/umfragen/erstellen", methods=["POST"])
+@login_required
+def api_umfragen_erstellen():
+    bot  = current_app.config.get("BOT")
+    loop = current_app.config.get("LOOP")
+    if not bot or not loop:
+        return jsonify({"error": "Bot nicht verfügbar"}), 503
+    cog = bot.cogs.get("Polls")
+    if not cog:
+        return jsonify({"error": "Polls-Modul nicht geladen"}), 503
+
+    data       = request.get_json() or {}
+    channel_id = data.get("channel_id", "")
+    question   = data.get("question", "").strip()
+    options    = [o.strip() for o in data.get("options", []) if str(o).strip()][:5]
+
+    if not channel_id or not question:
+        return jsonify({"error": "Kanal und Frage erforderlich"}), 400
+    if len(options) < 2:
+        return jsonify({"error": "Mindestens 2 Optionen erforderlich"}), 400
+
+    try:
+        future = asyncio.run_coroutine_threadsafe(
+            cog.create_poll(int(channel_id), question, options, "Dashboard"), loop
+        )
+        result = future.result(timeout=15)
+        _discord_log("📊 Umfrage erstellt",
+                     f"**Frage:** {question}\n**Optionen:** {', '.join(options)}\n**Kanal:** #{result['channel']}")
+        return jsonify({"ok": True, **result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/umfragen/<message_id>/schliessen", methods=["POST"])
+@login_required
+def api_umfragen_schliessen(message_id):
+    bot  = current_app.config.get("BOT")
+    loop = current_app.config.get("LOOP")
+    if not bot or not loop:
+        return jsonify({"error": "Bot nicht verfügbar"}), 503
+    cog = bot.cogs.get("Polls")
+    if not cog:
+        return jsonify({"error": "Polls-Modul nicht geladen"}), 503
+    try:
+        future = asyncio.run_coroutine_threadsafe(
+            cog.close_poll(int(message_id)), loop
+        )
+        result = future.result(timeout=15)
+        _discord_log("🔒 Umfrage geschlossen",
+                     f"**Frage:** {result['question']} | **Stimmen:** {result['total_votes']}")
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ── Statistiken ───────────────────────────────────────────────────────────────
 
 @app.route("/statistiken")
