@@ -108,12 +108,20 @@ def _build_embed(roles: list, guild: discord.Guild) -> discord.Embed:
 async def scan_channel(channel: discord.TextChannel) -> list[dict]:
     """
     Scannt einen Channel nach Selfrole-Nachrichten.
-    Erkennt: Rollenmention <@&ID>, Button-custom_ids, Button-Labels (Namensabgleich).
+    Erkennt: Rollenmention <@&ID>, Button/SelectMenu-custom_ids, Label-Namensabgleich.
     Gibt eine Liste mit role_id, role_name, emoji, description zurück.
+    Wirft PermissionError wenn der Bot keine Leserechte hat.
     """
     guild    = channel.guild
     found    = []
     seen_ids : set[int] = set()
+
+    # Berechtigungen prüfen
+    perms = channel.permissions_for(guild.me)
+    if not perms.view_channel:
+        raise PermissionError(f"Bot hat kein VIEW_CHANNEL in #{channel.name}")
+    if not perms.read_message_history:
+        raise PermissionError(f"Bot hat kein READ_MESSAGE_HISTORY in #{channel.name}")
 
     def _add(role: discord.Role, emoji: str = "", desc: str = ""):
         if role.id not in seen_ids and not role.is_default() and not role.managed:
@@ -125,49 +133,89 @@ async def scan_channel(channel: discord.TextChannel) -> list[dict]:
             })
             seen_ids.add(role.id)
 
-    # Rollenname-Index für Namensabgleich
-    role_by_name = {r.name.lower(): r for r in guild.roles if not r.is_default() and not r.managed}
+    # Rollenname-Index: exakt + normalisiert (ohne Sonderzeichen)
+    role_by_name: dict[str, discord.Role] = {}
+    for r in guild.roles:
+        if r.is_default() or r.managed:
+            continue
+        role_by_name[r.name.lower()] = r
+        # normalisiert (Leerzeichen → bindestrich, ohne emojis)
+        norm = re.sub(r"[^\w\s-]", "", r.name).strip().lower()
+        if norm:
+            role_by_name[norm] = r
 
-    async for msg in channel.history(limit=50, oldest_first=True):
-        # Rollenerwähnungen im Content und Embeds
-        texts = [msg.content]
+    def _emoji_str(btn) -> str:
+        e = getattr(btn, "emoji", None)
+        if not e:
+            return ""
+        return str(e)
+
+    def _label_stripped(label: str) -> str:
+        """Entfernt führende Emojis/Sonderzeichen aus Labels für Matching."""
+        return re.sub(r"^[\W_]+", "", label or "").strip().lower()
+
+    async for msg in channel.history(limit=100, oldest_first=True):
+        # 1) Rollenerwähnungen im Text und Embeds
+        texts = [msg.content or ""]
         for emb in msg.embeds:
+            texts.append(emb.title or "")
             texts.append(emb.description or "")
             for field in emb.fields:
-                texts.append(field.value)
+                texts.append(field.name or "")
+                texts.append(field.value or "")
         for text in texts:
             for rid_str in re.findall(r"<@&(\d+)>", text):
                 role = guild.get_role(int(rid_str))
                 if role:
                     _add(role)
 
-        # Buttons scannen
+        # 2) Components (Buttons + SelectMenus)
         for row in msg.components:
-            buttons = getattr(row, "children", [row])
-            for btn in buttons:
-                if not hasattr(btn, "label"):
-                    continue
-                label     = (btn.label or "").strip()
-                custom_id = getattr(btn, "custom_id", "") or ""
-                emoji_str = str(btn.emoji) if getattr(btn, "emoji", None) else ""
+            items = getattr(row, "children", [row])
+            for item in items:
+                emoji = _emoji_str(item)
+                label = getattr(item, "label", "") or ""
+                custom_id = getattr(item, "custom_id", "") or ""
 
-                # custom_id → Rollen-ID
-                matched_via_id = False
-                for part in custom_id.split(":"):
+                # a) Zahlen aus custom_id als mögliche Rollen-IDs testen
+                matched = False
+                for part in re.split(r"[:\-_]", custom_id):
                     try:
                         rid  = int(part)
+                        if rid < 10**15:   # zu klein für Discord Snowflake
+                            continue
                         role = guild.get_role(rid)
                         if role:
-                            _add(role, emoji_str)
-                            matched_via_id = True
+                            _add(role, emoji)
+                            matched = True
                     except ValueError:
                         pass
 
-                # Label → Rollenname (Fallback)
-                if not matched_via_id and label:
-                    role = role_by_name.get(label.lower())
+                # b) Options in SelectMenus (haben value mit Rollen-IDs)
+                for opt in getattr(item, "options", []):
+                    opt_val   = getattr(opt, "value", "") or ""
+                    opt_label = getattr(opt, "label", "") or ""
+                    opt_emoji = _emoji_str(opt)
+                    for part in re.split(r"[:\-_]", opt_val):
+                        try:
+                            rid  = int(part)
+                            role = guild.get_role(rid)
+                            if role:
+                                _add(role, opt_emoji or emoji, "")
+                                matched = True
+                        except ValueError:
+                            pass
+                    if not matched and opt_label:
+                        role = role_by_name.get(opt_label.lower()) or role_by_name.get(_label_stripped(opt_label))
+                        if role:
+                            _add(role, opt_emoji or emoji)
+
+                # c) Label-Abgleich (Fallback)
+                if not matched and label:
+                    role = (role_by_name.get(label.lower())
+                            or role_by_name.get(_label_stripped(label)))
                     if role:
-                        _add(role, emoji_str)
+                        _add(role, emoji)
 
     return found
 
@@ -200,7 +248,15 @@ class SelfRolesCog(commands.Cog, name="SelfRoles"):
 
             try:
                 roles = await scan_channel(channel)
+                from utils import send_log
                 if not roles:
+                    await send_log(
+                        self.bot, "⚠️ Selfrole-Scan: Keine Rollen erkannt",
+                        f"**Channel:** #{channel.name}\n"
+                        f"Der Bot kann den Channel lesen, aber keine Rollen-Zuweisungen erkennen.\n"
+                        f"Bitte Selfroles manuell im Dashboard konfigurieren.",
+                        discord.Color.yellow(),
+                    )
                     continue
 
                 new_cfg = {
@@ -210,17 +266,19 @@ class SelfRolesCog(commands.Cog, name="SelfRoles"):
                 }
                 set_cfg(guild.id, new_cfg)
                 self.bot.add_view(SelfRoleView(roles))
-
-                # Neues Panel senden
                 await self.send_or_update_panel(guild)
 
-                from utils import send_log
                 await send_log(
                     self.bot, "🎭 Selfroles automatisch importiert",
                     f"**Channel:** #{channel.name}\n"
                     f"**Importierte Rollen:** {', '.join(r['role_name'] for r in roles)}",
                     discord.Color.green(),
                 )
+            except PermissionError as e:
+                from utils import send_log
+                await send_log(self.bot, "❌ Selfrole-Import: Keine Berechtigung",
+                               f"{e}\n\nBitte dem Bot die Berechtigung **Nachrichtenhistorie lesen** "
+                               f"im Channel geben.", discord.Color.red())
             except Exception as e:
                 from utils import send_log
                 await send_log(self.bot, "❌ Selfrole-Import fehlgeschlagen",

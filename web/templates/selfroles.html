@@ -154,78 +154,97 @@
 let currentRoles = [];
 
 async function loadData() {
-  const [cfgRes, rolesRes, chRes] = await Promise.all([
-    fetch('/api/selfroles'),
-    fetch('/api/roles'),
-    fetch('/api/channels'),
-  ]);
-  const cfg      = await cfgRes.json();
-  const allRoles = await rolesRes.json();
-  const channels = await chRes.json();
+  try {
+    const [cfgRes, rolesRes, chRes] = await Promise.all([
+      fetch('/api/selfroles'),
+      fetch('/api/roles'),
+      fetch('/api/channels'),
+    ]);
+    const cfg      = await cfgRes.json();
+    const allRoles = await rolesRes.json();
+    const channels = await chRes.json();
 
-  currentRoles = cfg.roles || [];
+    currentRoles = Array.isArray(cfg.roles) ? cfg.roles : [];
 
-  // Rollen-Dropdown
-  const sel = document.getElementById('roleSelect');
-  sel.innerHTML = '<option value="">— Rolle wählen —</option>';
-  allRoles.forEach(r => {
-    const already = currentRoles.some(sr => String(sr.role_id) === r.id);
-    if (already) return;
-    const opt = document.createElement('option');
-    opt.value = r.id;
-    opt.textContent = r.name;
-    if (r.color) opt.style.color = r.color;
-    sel.appendChild(opt);
-  });
+    // Rollen-Dropdown
+    const sel = document.getElementById('roleSelect');
+    sel.innerHTML = '<option value="">— Rolle wählen —</option>';
+    if (Array.isArray(allRoles) && allRoles.length) {
+      allRoles.forEach(r => {
+        if (currentRoles.some(sr => String(sr.role_id) === r.id)) return;
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.textContent = r.name;
+        if (r.color) opt.style.color = r.color;
+        sel.appendChild(opt);
+      });
+    } else {
+      sel.innerHTML = '<option value="" disabled>Keine Rollen verfügbar</option>';
+    }
 
-  // Scan-Channel-Dropdown
-  const scsel = document.getElementById('scanChannelSelect');
-  scsel.innerHTML = '<option value="">— Channel wählen —</option>';
-  Object.entries(grouped).forEach(([cat, chs]) => {
-    const grp = document.createElement('optgroup');
-    grp.label = '📁 ' + cat;
-    chs.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = '# ' + c.name;
-      if (String(c.id) === '1019594993226219610') opt.selected = true;
-      grp.appendChild(opt);
+    // Channels gruppieren
+    const grouped = {};
+    if (Array.isArray(channels)) {
+      channels.forEach(c => {
+        if (!grouped[c.category]) grouped[c.category] = [];
+        grouped[c.category].push(c);
+      });
+    }
+
+    // Scan-Channel-Dropdown
+    const scsel = document.getElementById('scanChannelSelect');
+    scsel.innerHTML = '<option value="">— Channel wählen —</option>';
+    Object.entries(grouped).forEach(([cat, chs]) => {
+      const grp = document.createElement('optgroup');
+      grp.label = '📁 ' + cat;
+      chs.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = '# ' + c.name;
+        if (String(c.id) === '1019594993226219610') opt.selected = true;
+        grp.appendChild(opt);
+      });
+      scsel.appendChild(grp);
     });
-    scsel.appendChild(grp);
-  });
+    if (!Object.keys(grouped).length) {
+      scsel.innerHTML = '<option value="" disabled>Keine Channels verfügbar</option>';
+    }
 
-  // Channel-Dropdown (gruppiert)
-  const csel = document.getElementById('panelChannelSelect');
-  csel.innerHTML = '<option value="">— Channel wählen —</option>';
-  const grouped = {};
-  channels.forEach(c => {
-    if (!grouped[c.category]) grouped[c.category] = [];
-    grouped[c.category].push(c);
-  });
-  Object.entries(grouped).forEach(([cat, chs]) => {
-    const grp = document.createElement('optgroup');
-    grp.label = '📁 ' + cat;
-    chs.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = '# ' + c.name;
-      if (cfg.panel_channel_id && String(cfg.panel_channel_id) === c.id) opt.selected = true;
-      grp.appendChild(opt);
+    // Panel-Channel-Dropdown
+    const csel = document.getElementById('panelChannelSelect');
+    csel.innerHTML = '<option value="">— Channel wählen —</option>';
+    Object.entries(grouped).forEach(([cat, chs]) => {
+      const grp = document.createElement('optgroup');
+      grp.label = '📁 ' + cat;
+      chs.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = '# ' + c.name;
+        if (cfg.panel_channel_id && String(cfg.panel_channel_id) === c.id) opt.selected = true;
+        grp.appendChild(opt);
+      });
+      csel.appendChild(grp);
     });
-    csel.appendChild(grp);
-  });
+    if (!Object.keys(grouped).length) {
+      csel.innerHTML = '<option value="" disabled>Keine Channels verfügbar — Bot hat keinen Zugriff</option>';
+    }
 
-  // Aktuelles Panel
-  const panelInfo = document.getElementById('currentPanel');
-  if (cfg.panel_channel_id) {
-    const ch = channels.find(c => String(c.id) === String(cfg.panel_channel_id));
-    panelInfo.innerHTML = `<i class="bi bi-info-circle me-1"></i>Aktuelles Panel: <strong>#${ch ? ch.name : cfg.panel_channel_id}</strong>`;
-  } else {
-    panelInfo.innerHTML = '';
+    // Aktuelles Panel Info
+    const panelInfo = document.getElementById('currentPanel');
+    if (cfg.panel_channel_id) {
+      const ch = Array.isArray(channels) ? channels.find(c => String(c.id) === String(cfg.panel_channel_id)) : null;
+      panelInfo.innerHTML = `<i class="bi bi-info-circle me-1"></i>Aktuelles Panel: <strong>#${ch ? ch.name : cfg.panel_channel_id}</strong>`;
+    } else {
+      panelInfo.innerHTML = '';
+    }
+
+    renderRoleList();
+    renderPreview();
+  } catch(e) {
+    console.error('loadData Fehler:', e);
+    document.getElementById('roleList').innerHTML =
+      '<div class="text-center py-4" style="color:var(--danger); font-size:.85rem">Fehler beim Laden der Daten.</div>';
   }
-
-  renderRoleList();
-  renderPreview();
 }
 
 function renderRoleList() {
