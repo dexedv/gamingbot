@@ -8,7 +8,6 @@ os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 class Database:
     def __init__(self):
         self.db_path = DB_PATH
-        self.protected_user_ids: set[int] = set()  # Nutzer deren Name nie geändert wird
 
     async def init(self):
         async with aiosqlite.connect(self.db_path) as db:
@@ -36,6 +35,7 @@ class Database:
                 ("message_count",    "INTEGER DEFAULT 0"),
                 ("voice_minutes",    "INTEGER DEFAULT 0"),
                 ("voice_seconds",    "INTEGER DEFAULT 0"),
+                ("name_protected",   "INTEGER DEFAULT 0"),
             ]:
                 try:
                     await db.execute(f"ALTER TABLE users ADD COLUMN {col} {definition}")
@@ -57,7 +57,7 @@ class Database:
                     (user_id, username),
                 )
                 await db.commit()
-            elif user_id not in self.protected_user_ids and dict(row)["username"] != username:
+            elif not dict(row).get("name_protected", 0) and dict(row)["username"] != username:
                 await db.execute(
                     "UPDATE users SET username = ? WHERE user_id = ?",
                     (username, user_id),
@@ -66,6 +66,14 @@ class Database:
             cur = await db.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
             row = await cur.fetchone()
             return dict(row)
+
+    async def set_name_protected(self, user_id: int, protected: bool):
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                "UPDATE users SET name_protected = ? WHERE user_id = ?",
+                (1 if protected else 0, user_id),
+            )
+            await db.commit()
 
     async def get_coins(self, user_id: int) -> int:
         async with aiosqlite.connect(self.db_path) as db:

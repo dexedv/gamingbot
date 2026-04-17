@@ -64,17 +64,15 @@ async def on_ready():
     synced = await bot.tree.sync()
     print(f"⚡  {len(synced)} Slash-Commands synchronisiert")
 
-    # Alle Server-Mitglieder in die Datenbank eintragen + geschützte IDs erfassen
+    # Alle Server-Mitglieder in die Datenbank eintragen
     count = 0
     for guild in bot.guilds:
         async for member in guild.fetch_members(limit=None):
             if not member.bot:
-                if is_name_protected(member):
-                    bot.db.protected_user_ids.add(member.id)
                 await bot.db.get_user(member.id, base_name(member.display_name))
+                await bot.db.set_name_protected(member.id, is_name_protected(member))
                 count += 1
     print(f"👥  {count} Mitglieder synchronisiert")
-    print(f"🔒  {len(bot.db.protected_user_ids)} Nutzer mit Namensschutz")
 
     await bot.change_presence(
         activity=discord.Activity(
@@ -86,19 +84,16 @@ async def on_ready():
 @bot.event
 async def on_member_join(member: discord.Member):
     if not member.bot:
-        if is_name_protected(member):
-            bot.db.protected_user_ids.add(member.id)
         await bot.db.get_user(member.id, base_name(member.display_name))
+        await bot.db.set_name_protected(member.id, is_name_protected(member))
 
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member):
     if after.bot:
         return
-    # Geschützte IDs aktuell halten wenn sich Rollen ändern
-    if is_name_protected(after):
-        bot.db.protected_user_ids.add(after.id)
-    else:
-        bot.db.protected_user_ids.discard(after.id)
+    # DB-Schutzflag aktualisieren wenn sich Rollen geändert haben
+    if before.roles != after.roles:
+        await bot.db.set_name_protected(after.id, is_name_protected(after))
     if before.display_name != after.display_name:
         await bot.db.get_user(after.id, base_name(after.display_name))
 
