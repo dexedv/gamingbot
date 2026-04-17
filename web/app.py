@@ -245,7 +245,7 @@ def trigger_nickname_update():
     if not cog:
         return jsonify({"error": "Streak-Modul nicht geladen"}), 503
     try:
-        future = asyncio.run_coroutine_threadsafe(cog.run_nickname_update(), loop)
+        future = asyncio.run_coroutine_threadsafe(cog.run_nickname_update(force=True), loop)
         future.result(timeout=60)
         return jsonify({"ok": True})
     except Exception as e:

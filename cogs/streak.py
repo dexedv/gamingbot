@@ -56,8 +56,8 @@ def streak_rank(streak: int) -> tuple[str, str]:
 STREAK_EMOJI = "🔥"
 
 
-async def update_nickname(member: discord.Member, streak: int):
-    if not _nickname_updates_enabled():
+async def update_nickname(member: discord.Member, streak: int, force: bool = False):
+    if not force and not _nickname_updates_enabled():
         return
     try:
         new_nick = f"{base_name(member.display_name)} | {STREAK_EMOJI}{streak}"
@@ -78,7 +78,7 @@ class StreakCog(commands.Cog, name="Streak"):
     def cog_unload(self):
         self.nickname_loop.cancel()
 
-    async def run_nickname_update(self):
+    async def run_nickname_update(self, force: bool = False):
         """Aktualisiert alle Nicknames sofort (auch manuell aufrufbar)."""
         import aiosqlite
         async with aiosqlite.connect(self.bot.db.db_path) as db:
@@ -90,7 +90,7 @@ class StreakCog(commands.Cog, name="Streak"):
                 if member.bot:
                     continue
                 streak = streaks.get(member.id, 0)
-                await update_nickname(member, streak)
+                await update_nickname(member, streak, force=force)
 
     @tasks.loop(hours=24)
     async def nickname_loop(self):
@@ -164,7 +164,7 @@ class StreakCog(commands.Cog, name="Streak"):
         if ctx.author.id != 307210134856400908:
             return
         msg = await ctx.send("⏳ Aktualisiere alle Nicknames…")
-        await self.run_nickname_update()
+        await self.run_nickname_update(force=True)
         await msg.edit(content="✅ Alle Nicknames wurden aktualisiert.")
 
     @commands.hybrid_command(name="streak", aliases=["tage", "aktivität"])
