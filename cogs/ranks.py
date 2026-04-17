@@ -84,6 +84,7 @@ class RanksCog(commands.Cog, name="Ranks"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self._voice_sessions: dict[int, float] = {}
+        self._xp_cooldown: set[int] = set()
         self.save_voice_loop.start()
 
     def cog_unload(self):
@@ -114,6 +115,7 @@ class RanksCog(commands.Cog, name="Ranks"):
             secs = int(now - start)
             if secs > 0:
                 await self.bot.db.add_voice_seconds(user_id, secs)
+                await self.bot.db.add_xp(user_id, 1)  # 1 XP pro 30s Voice
                 self._voice_sessions[user_id] = now  # Timer zurücksetzen
 
     @save_voice_loop.before_loop
@@ -128,6 +130,20 @@ class RanksCog(commands.Cog, name="Ranks"):
             return
         await self.bot.db.get_user(message.author.id, message.author.display_name)
         await self.bot.db.add_message(message.author.id)
+
+        # 5 XP pro Nachricht, max. 1× pro Minute
+        if message.author.id not in self._xp_cooldown:
+            self._xp_cooldown.add(message.author.id)
+            old_level, new_level = await self.bot.db.add_xp(message.author.id, 5)
+            if new_level > old_level:
+                from utils import level_up_embed
+                await message.channel.send(embed=level_up_embed(message.author, old_level, new_level))
+
+            async def _remove(uid=message.author.id):
+                import asyncio
+                await asyncio.sleep(60)
+                self._xp_cooldown.discard(uid)
+            self.bot.loop.create_task(_remove())
 
     # ── Voice tracking ────────────────────────────────────────────────────────
 
