@@ -5,10 +5,12 @@
 .env
 settings.json
 
-# Datenbank (bleibt auf dem Server)
-*.db
+# Alte Datenbank im Root
+gamingbot.db
 *.db-shm
 *.db-wal
+
+# data/ NICHT ignorieren (für initialen Transfer)
 
 # Python
 __pycache__/
