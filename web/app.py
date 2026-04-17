@@ -262,6 +262,7 @@ def api_stats():
 # ── Cog Management ────────────────────────────────────────────────────────────
 
 COGS_INFO = {
+    "cogs.selfroles":  {"label": "Selfroles",            "icon": "🎭", "desc": "Selbst-zuweisbare Rollen"},
     "cogs.economy":   {"label": "Wirtschaft",       "icon": "💰", "desc": "Münzen, Daily, Bestenliste, Hilfe"},
     "cogs.levels":    {"label": "Level-System",      "icon": "⭐", "desc": "XP, Level-Up, Level-Rangliste"},
     "cogs.streak":    {"label": "Streak-System",     "icon": "🔥", "desc": "Tages-Streak, Meilensteine"},
@@ -519,6 +520,145 @@ def api_template_upload():
         return jsonify({"ok": True, "name": name})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+
+# ── Selfroles ─────────────────────────────────────────────────────────────────
+
+def _sr_module():
+    import sys as _sys, os as _os
+    root = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), '..'))
+    if root not in _sys.path:
+        _sys.path.insert(0, root)
+    from cogs import selfroles as m
+    return m
+
+
+@app.route("/selfroles")
+@login_required
+def selfroles():
+    return render_template("selfroles.html")
+
+
+@app.route("/api/selfroles")
+@login_required
+def api_selfroles_get():
+    bot = current_app.config.get("BOT")
+    if not bot or not bot.guilds:
+        return jsonify({"roles": [], "panel_channel_id": None, "panel_message_id": None})
+    m   = _sr_module()
+    cfg = m.get_cfg(bot.guilds[0].id)
+    # Rollenname aus Discord aktualisieren
+    guild = bot.guilds[0]
+    for r in cfg.get("roles", []):
+        role = guild.get_role(r["role_id"])
+        if role:
+            r["role_name"] = role.name
+    return jsonify(cfg)
+
+
+@app.route("/api/roles")
+@login_required
+def api_roles():
+    bot = current_app.config.get("BOT")
+    if not bot or not bot.guilds:
+        return jsonify([])
+    guild = bot.guilds[0]
+    roles = []
+    for role in sorted(guild.roles, key=lambda r: r.position, reverse=True):
+        if role.is_default() or role.managed:
+            continue
+        color = "#" + format(role.color.value, "06x") if role.color.value else None
+        roles.append({"id": str(role.id), "name": role.name, "color": color})
+    return jsonify(roles)
+
+
+@app.route("/api/selfroles/add", methods=["POST"])
+@login_required
+def api_selfroles_add():
+    bot  = current_app.config.get("BOT")
+    loop = current_app.config.get("LOOP")
+    if not bot or not bot.guilds:
+        return jsonify({"error": "Bot nicht verfügbar"}), 503
+    data    = request.get_json() or {}
+    role_id = data.get("role_id")
+    emoji   = data.get("emoji", "").strip()
+    desc    = data.get("description", "").strip()
+    if not role_id:
+        return jsonify({"error": "role_id fehlt"}), 400
+    guild = bot.guilds[0]
+    role  = guild.get_role(int(role_id))
+    if not role:
+        return jsonify({"error": "Rolle nicht gefunden"}), 404
+    m   = _sr_module()
+    cfg = m.get_cfg(guild.id)
+    if any(r["role_id"] == role.id for r in cfg["roles"]):
+        return jsonify({"error": "Rolle bereits vorhanden"}), 400
+    cfg["roles"].append({"role_id": role.id, "role_name": role.name, "emoji": emoji, "description": desc})
+    m.set_cfg(guild.id, cfg)
+    _discord_log("🎭 Selfrole hinzugefügt",
+                 f"**Rolle:** {role.name} | **Emoji:** {emoji or '—'} | **Beschreibung:** {desc or '—'}")
+    if cfg.get("panel_channel_id") and loop:
+        cog = bot.cogs.get("SelfRoles")
+        if cog:
+            asyncio.run_coroutine_threadsafe(cog.send_or_update_panel(guild), loop)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/selfroles/remove", methods=["POST"])
+@login_required
+def api_selfroles_remove():
+    bot  = current_app.config.get("BOT")
+    loop = current_app.config.get("LOOP")
+    if not bot or not bot.guilds:
+        return jsonify({"error": "Bot nicht verfügbar"}), 503
+    data    = request.get_json() or {}
+    role_id = int(data.get("role_id", 0))
+    guild   = bot.guilds[0]
+    m       = _sr_module()
+    cfg     = m.get_cfg(guild.id)
+    before  = len(cfg["roles"])
+    cfg["roles"] = [r for r in cfg["roles"] if r["role_id"] != role_id]
+    if len(cfg["roles"]) == before:
+        return jsonify({"error": "Rolle nicht gefunden"}), 404
+    m.set_cfg(guild.id, cfg)
+    _discord_log("🗑️ Selfrole entfernt", f"**Rollen-ID:** {role_id}")
+    if cfg.get("panel_channel_id") and loop:
+        cog = bot.cogs.get("SelfRoles")
+        if cog:
+            asyncio.run_coroutine_threadsafe(cog.send_or_update_panel(guild), loop)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/selfroles/panel", methods=["POST"])
+@login_required
+def api_selfroles_panel():
+    bot  = current_app.config.get("BOT")
+    loop = current_app.config.get("LOOP")
+    if not bot or not loop or not bot.guilds:
+        return jsonify({"error": "Bot nicht verfügbar"}), 503
+    data       = request.get_json() or {}
+    channel_id = data.get("channel_id")
+    if not channel_id:
+        return jsonify({"error": "channel_id fehlt"}), 400
+    guild   = bot.guilds[0]
+    channel = bot.get_channel(int(channel_id))
+    if not channel:
+        return jsonify({"error": "Channel nicht gefunden"}), 404
+    m   = _sr_module()
+    cfg = m.get_cfg(guild.id)
+    cfg["panel_channel_id"] = int(channel_id)
+    cfg["panel_message_id"] = None
+    m.set_cfg(guild.id, cfg)
+    cog = bot.cogs.get("SelfRoles")
+    if not cog:
+        return jsonify({"error": "Selfroles-Modul nicht geladen"}), 503
+    try:
+        future = asyncio.run_coroutine_threadsafe(cog.send_or_update_panel(guild), loop)
+        future.result(timeout=15)
+        _discord_log("📨 Selfrole-Panel gesendet", f"**Channel:** #{channel.name}")
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
