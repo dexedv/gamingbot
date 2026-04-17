@@ -1,7 +1,6 @@
 import discord
 import time
 from discord.ext import commands, tasks
-from utils import is_name_protected
 
 # ── Chat-Ränge ────────────────────────────────────────────────────────────────
 CHAT_RANKS = [
@@ -129,8 +128,7 @@ class RanksCog(commands.Cog, name="Ranks"):
     async def on_message(self, message: discord.Message):
         if message.author.bot:
             return
-        await self.bot.db.get_user(message.author.id, message.author.display_name,
-                                   update_name=not is_name_protected(message.author))
+        await self.bot.db.get_user(message.author.id, message.author.display_name)
         await self.bot.db.add_message(message.author.id)
 
         # 2 XP pro Nachricht, max. 5× pro Minute
@@ -164,8 +162,7 @@ class RanksCog(commands.Cog, name="Ranks"):
                 self._voice_sessions[member.id] = time.time()
 
             # Streak beim Voice-Beitritt aktualisieren (unabhängig vom Mute)
-            await self.bot.db.get_user(member.id, member.display_name,
-                                       update_name=not is_name_protected(member))
+            await self.bot.db.get_user(member.id, member.display_name)
             old_streak, new_streak = await self.bot.db.update_streak(member.id)
             if new_streak != old_streak:
                 from cogs.streak import update_nickname, MILESTONES
@@ -180,8 +177,7 @@ class RanksCog(commands.Cog, name="Ranks"):
             if start:
                 secs = int(time.time() - start)
                 if secs > 0:
-                    await self.bot.db.get_user(member.id, member.display_name,
-                                               update_name=not is_name_protected(member))
+                    await self.bot.db.get_user(member.id, member.display_name)
                     await self.bot.db.add_voice_seconds(member.id, secs)
 
         elif before.channel is not None and after.channel is not None:

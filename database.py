@@ -8,6 +8,7 @@ os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 class Database:
     def __init__(self):
         self.db_path = DB_PATH
+        self.protected_user_ids: set[int] = set()  # Nutzer deren Name nie geändert wird
 
     async def init(self):
         async with aiosqlite.connect(self.db_path) as db:
@@ -45,7 +46,7 @@ class Database:
 
     # ── helpers ──────────────────────────────────────────────────────────────
 
-    async def get_user(self, user_id: int, username: str, update_name: bool = True) -> dict:
+    async def get_user(self, user_id: int, username: str) -> dict:
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
             cur = await db.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
@@ -56,7 +57,7 @@ class Database:
                     (user_id, username),
                 )
                 await db.commit()
-            elif update_name and dict(row)["username"] != username:
+            elif user_id not in self.protected_user_ids and dict(row)["username"] != username:
                 await db.execute(
                     "UPDATE users SET username = ? WHERE user_id = ?",
                     (username, user_id),

@@ -2,7 +2,7 @@ import json
 import os
 import discord
 from discord.ext import commands, tasks
-from utils import base_name, is_name_protected
+from utils import base_name
 
 SETTINGS_PATH = os.path.join(os.path.dirname(__file__), '..', 'settings.json')
 
@@ -125,8 +125,7 @@ class StreakCog(commands.Cog, name="Streak"):
         user = message.author
 
         # Sicherstellen dass User in DB ist
-        await db.get_user(user.id, user.display_name,
-                          update_name=not is_name_protected(user))
+        await db.get_user(user.id, user.display_name)
 
         old_streak, new_streak = await db.update_streak(user.id)
 
