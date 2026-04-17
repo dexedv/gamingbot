@@ -23,6 +23,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 from database import Database
+from utils import base_name
 
 load_dotenv()
 
@@ -68,7 +69,7 @@ async def on_ready():
     for guild in bot.guilds:
         async for member in guild.fetch_members(limit=None):
             if not member.bot:
-                await bot.db.get_user(member.id, member.display_name)
+                await bot.db.get_user(member.id, base_name(member.display_name))
                 count += 1
     print(f"👥  {count} Mitglieder synchronisiert")
 
@@ -82,12 +83,12 @@ async def on_ready():
 @bot.event
 async def on_member_join(member: discord.Member):
     if not member.bot:
-        await bot.db.get_user(member.id, member.display_name)
+        await bot.db.get_user(member.id, base_name(member.display_name))
 
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member):
     if not after.bot and before.display_name != after.display_name:
-        await bot.db.get_user(after.id, after.display_name)
+        await bot.db.get_user(after.id, base_name(after.display_name))
 
 
 async def main():

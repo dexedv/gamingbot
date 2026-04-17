@@ -1,5 +1,18 @@
+import json
+import os
 import discord
 from discord.ext import commands, tasks
+from utils import base_name
+
+SETTINGS_PATH = os.path.join(os.path.dirname(__file__), '..', 'settings.json')
+
+
+def _nickname_updates_enabled() -> bool:
+    try:
+        with open(SETTINGS_PATH, encoding="utf-8") as f:
+            return json.load(f).get("nickname_updates", False)
+    except Exception:
+        return False
 
 # Meilensteine: Tage → (Emoji, Name, Bonus-Münzen)
 MILESTONES = {
@@ -43,26 +56,8 @@ def streak_rank(streak: int) -> tuple[str, str]:
 STREAK_EMOJI = "🔥"
 
 
-def base_name(display_name: str) -> str:
-    """Entfernt Streak-Suffix und alle vorhandenen 🔥 aus dem Namen."""
-    # Alles ab dem letzten ' | ' abschneiden
-    if ' | ' in display_name:
-        name = display_name[:display_name.rfind(' | ')].strip()
-    elif STREAK_EMOJI in display_name:
-        name = display_name[:display_name.rfind(STREAK_EMOJI)].strip().rstrip('|').strip()
-    else:
-        name = display_name.strip()
-    # Alle 🔥 und ・Zahl🔥 Muster entfernen
-    import re
-    name = re.sub(r'[\s・]*\d*🔥\d*', '', name).strip()
-    name = re.sub(r'\s{2,}', ' ', name).strip()
-    return name
-
-
-NICKNAME_UPDATES_ENABLED = False  # Namensänderung deaktiviert
-
 async def update_nickname(member: discord.Member, streak: int):
-    if not NICKNAME_UPDATES_ENABLED:
+    if not _nickname_updates_enabled():
         return
     try:
         new_nick = f"{base_name(member.display_name)} | {STREAK_EMOJI}{streak}"

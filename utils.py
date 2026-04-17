@@ -1,5 +1,19 @@
 import math
+import re
 import discord
+
+
+# ── Nickname-Hilfsfunktion ────────────────────────────────────────────────────
+
+def base_name(display_name: str) -> str:
+    """Entfernt den Streak-Suffix (| 🔥N) aus einem Anzeigenamen."""
+    if ' | ' in display_name:
+        display_name = display_name[:display_name.rfind(' | ')].strip()
+    elif '🔥' in display_name:
+        display_name = display_name[:display_name.rfind('🔥')].strip().rstrip('|').strip()
+    display_name = re.sub(r'[\s・]*\d*🔥\d*', '', display_name).strip()
+    display_name = re.sub(r'\s{2,}', ' ', display_name).strip()
+    return display_name
 
 
 # ── Level-Formeln ─────────────────────────────────────────────────────────────
