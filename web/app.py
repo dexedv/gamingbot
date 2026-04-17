@@ -199,7 +199,7 @@ def edit_user(user_id):
 SETTINGS_PATH = os.path.join(os.path.dirname(__file__), '..', 'settings.json')
 
 SETTINGS_DEFAULTS = {
-    "nickname_updates":  False,
+    "nickname_updates":  True,
     "daily_xp":          30,
     "welcome_channel":   1019608622663209000,
     "msg_xp":            2,

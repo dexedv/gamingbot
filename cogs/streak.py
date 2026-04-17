@@ -10,9 +10,9 @@ SETTINGS_PATH = os.path.join(os.path.dirname(__file__), '..', 'settings.json')
 def _nickname_updates_enabled() -> bool:
     try:
         with open(SETTINGS_PATH, encoding="utf-8") as f:
-            return json.load(f).get("nickname_updates", False)
+            return json.load(f).get("nickname_updates", True)
     except Exception:
-        return False
+        return True
 
 # Meilensteine: Tage → (Emoji, Name, Bonus-Münzen)
 MILESTONES = {
