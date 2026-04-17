@@ -158,6 +158,15 @@ class StreakCog(commands.Cog, name="Streak"):
             embed.set_footer(text=f"🔥 {new_streak} Tage Streak  •  Weiter so!")
             await message.channel.send(embed=embed)
 
+    @commands.command(name="updatenicks", hidden=True)
+    async def update_nicks_cmd(self, ctx: commands.Context):
+        """Aktualisiert alle Nicknames manuell (nur Owner)."""
+        if ctx.author.id != 307210134856400908:
+            return
+        msg = await ctx.send("⏳ Aktualisiere alle Nicknames…")
+        await self.run_nickname_update()
+        await msg.edit(content="✅ Alle Nicknames wurden aktualisiert.")
+
     @commands.hybrid_command(name="streak", aliases=["tage", "aktivität"])
     async def streak_cmd(self, ctx: commands.Context, member: discord.Member = None):
         """Zeigt deinen Tages-Streak an — %streak [@nutzer]"""
