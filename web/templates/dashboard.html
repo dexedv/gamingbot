@@ -1,128 +1,164 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
 
+{% block head %}
+<style>
+  @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+  @keyframes countup { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+  .kpi { background:var(--card); border:1px solid var(--border); border-radius:16px;
+    padding:1.4rem 1.5rem; position:relative; overflow:hidden;
+    transition:transform .2s,box-shadow .2s; }
+  .kpi:hover { transform:translateY(-3px); box-shadow:0 10px 30px rgba(0,0,0,.35); }
+  .kpi::after { content:''; position:absolute; top:0;left:0;right:0; height:3px;
+    background:var(--kc); border-radius:16px 16px 0 0; }
+  .kpi-ico { position:absolute; right:1.1rem; top:50%; transform:translateY(-50%);
+    font-size:2.6rem; opacity:.055; color:var(--kc); pointer-events:none; }
+  .kpi-lbl { font-size:.69rem; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--muted); font-weight:600; margin-bottom:.4rem; }
+  .kpi-val { font-size:2.1rem; font-weight:800; color:#fff; line-height:1; letter-spacing:-.025em; }
+  .kpi-sub { font-size:.74rem; color:var(--muted); margin-top:.35rem; }
+
+  .chart-card { background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
+  .chart-card .ch { background:transparent; border-bottom:1px solid var(--border);
+    padding:.9rem 1.4rem; font-weight:600; color:#c8d0dc; font-size:.88rem;
+    display:flex; align-items:center; gap:.5rem; }
+  .chart-card .cb { padding:1.25rem 1.4rem; }
+
+  .u-row { display:flex; align-items:center; gap:.8rem; padding:.6rem 1rem;
+    border-radius:10px; transition:background .15s; }
+  .u-row:hover { background:rgba(255,255,255,.03); }
+  .ava { width:36px; height:36px; border-radius:50%; display:flex; align-items:center;
+    justify-content:center; font-size:.75rem; font-weight:700; flex-shrink:0; }
+  .pill { display:inline-flex; align-items:center; padding:.15rem .55rem;
+    border-radius:20px; font-size:.68rem; font-weight:600; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-  <h1>Dashboard</h1>
-  <p>Echtzeit-Übersicht deines Discord-Servers</p>
-</div>
 
-<!-- Stat Cards -->
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md-4 col-xl-2">
-    <div class="stat-card" style="--card-accent:#5865f2">
-      <div class="s-label">Nutzer</div>
-      <div class="s-value">{{ stats.total_users }}</div>
-      <i class="bi bi-people s-icon"></i>
-    </div>
+<!-- Header -->
+<div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+  <div>
+    <h1 style="font-size:1.7rem;font-weight:800;color:#fff;margin:0;letter-spacing:-.02em">
+      Willkommen zurück 👋
+    </h1>
+    <p style="color:var(--muted);margin:.3rem 0 0;font-size:.85rem">
+      Echtzeit-Übersicht deines Discord-Servers
+    </p>
   </div>
-  <div class="col-6 col-md-4 col-xl-2">
-    <div class="stat-card" style="--card-accent:#f59e0b">
-      <div class="s-label">Münzen gesamt</div>
-      <div class="s-value" style="font-size:1.4rem">{{ "{:,}".format(stats.total_coins) }}</div>
-      <i class="bi bi-coin s-icon"></i>
-    </div>
-  </div>
-  <div class="col-6 col-md-4 col-xl-2">
-    <div class="stat-card" style="--card-accent:#06b6d4">
-      <div class="s-label">Nachrichten</div>
-      <div class="s-value" style="font-size:1.4rem">{{ "{:,}".format(stats.total_messages) }}</div>
-      <i class="bi bi-chat-dots s-icon"></i>
-    </div>
-  </div>
-  <div class="col-6 col-md-4 col-xl-2">
-    <div class="stat-card" style="--card-accent:#10b981">
-      <div class="s-label">Sprachzeit</div>
-      <div class="s-value" style="font-size:1.3rem">{{ stats.total_voice }}</div>
-      <i class="bi bi-mic s-icon"></i>
-    </div>
-  </div>
-  <div class="col-6 col-md-4 col-xl-2">
-    <div class="stat-card" style="--card-accent:#8b5cf6">
-      <div class="s-label">Höchstes Level</div>
-      <div class="s-value">{{ stats.max_level }}</div>
-      <i class="bi bi-star s-icon"></i>
-    </div>
-  </div>
-  <div class="col-6 col-md-4 col-xl-2">
-    <div class="stat-card" style="--card-accent:#ef4444">
-      <div class="s-label">Längster Streak</div>
-      <div class="s-value">{{ stats.max_streak }}<small style="font-size:.95rem"> T</small></div>
-      <i class="bi bi-fire s-icon"></i>
-    </div>
+  <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-3"
+       style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.18)">
+    <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;
+                 box-shadow:0 0 8px #22c55e;display:inline-block;
+                 animation:pulse-dot 2s ease infinite"></span>
+    <span style="font-size:.82rem;color:#22c55e;font-weight:600">Bot Online</span>
+    <span style="color:var(--muted);font-size:.8rem">· {{ stats.uptime }}</span>
   </div>
 </div>
 
-<!-- Charts -->
+<!-- KPI Row -->
+<div class="row g-3 mb-4">
+  {% set kpis = [
+    ('#5865f2', 'bi-people-fill',   'Nutzer',          stats.total_users,    'registriert',   True),
+    ('#f59e0b', 'bi-coin',          'Münzen',          stats.total_coins,    'im Umlauf',     True),
+    ('#06b6d4', 'bi-chat-dots-fill','Nachrichten',     stats.total_messages, 'gesamt',        True),
+    ('#10b981', 'bi-mic-fill',      'Sprachzeit',      none,                 stats.total_voice, False),
+    ('#8b5cf6', 'bi-star-fill',     'Höchstes Level',  stats.max_level,      'erreicht',      True),
+    ('#ef4444', 'bi-fire',          'Längster Streak', stats.max_streak,     'Tage',          True),
+  ] %}
+  {% for color, icon, label, val, sub, animated in kpis %}
+  <div class="col-6 col-xl-2">
+    <div class="kpi" style="--kc:{{ color }}">
+      <div class="kpi-lbl">{{ label }}</div>
+      {% if animated and val is not none %}
+      <div class="kpi-val" data-count="{{ val }}" style="{% if val > 9999 %}font-size:1.55rem{% endif %}">
+        {{ "{:,}".format(val) }}
+      </div>
+      <div class="kpi-sub">{{ sub }}</div>
+      {% else %}
+      <div class="kpi-val" style="font-size:1.45rem">{{ sub if not animated else val }}</div>
+      <div class="kpi-sub">gesamt</div>
+      {% endif %}
+      <i class="bi {{ icon }} kpi-ico"></i>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Activity Chart -->
+<div class="chart-card mb-4">
+  <div class="ch">
+    <i class="bi bi-activity" style="color:#5865f2"></i>
+    Serveraktivität — letzte 7 Tage
+    <span class="ms-auto pill" id="actBadge"
+          style="background:rgba(88,101,242,.14);color:var(--accent2)">Lade…</span>
+  </div>
+  <div class="cb" style="padding-top:.75rem">
+    <canvas id="activityChart" style="height:170px;max-height:170px"></canvas>
+  </div>
+</div>
+
+<!-- 3 Charts -->
 <div class="row g-3 mb-4">
   <div class="col-lg-4">
-    <div class="card h-100">
-      <div class="card-header d-flex align-items-center gap-2">
-        <span style="color:#f59e0b">●</span> Top 5 Münzen
-      </div>
-      <div class="card-body d-flex align-items-center">
-        <canvas id="coinsChart"></canvas>
-      </div>
+    <div class="chart-card h-100">
+      <div class="ch"><i class="bi bi-coin" style="color:#f59e0b"></i> Top 5 Münzen</div>
+      <div class="cb"><canvas id="coinsChart" style="max-height:220px"></canvas></div>
     </div>
   </div>
   <div class="col-lg-4">
-    <div class="card h-100">
-      <div class="card-header d-flex align-items-center gap-2">
-        <span style="color:#8b5cf6">●</span> Top 5 Level
-      </div>
-      <div class="card-body d-flex align-items-center">
-        <canvas id="levelChart"></canvas>
-      </div>
+    <div class="chart-card h-100">
+      <div class="ch"><i class="bi bi-star-fill" style="color:#8b5cf6"></i> Top 5 Level</div>
+      <div class="cb"><canvas id="levelChart" style="max-height:220px"></canvas></div>
     </div>
   </div>
   <div class="col-lg-4">
-    <div class="card h-100">
-      <div class="card-header d-flex align-items-center gap-2">
-        <span style="color:#ef4444">●</span> Top 5 Streak
-      </div>
-      <div class="card-body d-flex align-items-center">
-        <canvas id="streakChart"></canvas>
-      </div>
+    <div class="chart-card h-100">
+      <div class="ch"><i class="bi bi-fire" style="color:#ef4444"></i> Top 5 Streak</div>
+      <div class="cb"><canvas id="streakChart" style="max-height:220px"></canvas></div>
     </div>
   </div>
 </div>
 
 <!-- Recent Users -->
-<div class="card">
-  <div class="card-header d-flex align-items-center justify-content-between">
-    <span>Zuletzt registriert</span>
-    <a href="/users" class="btn btn-sm btn-accent px-3">Alle anzeigen</a>
+<div class="chart-card">
+  <div class="ch">
+    <i class="bi bi-clock-history" style="color:var(--accent2)"></i>
+    Zuletzt registriert
+    <a href="/users" class="ms-auto btn btn-sm btn-accent px-3" style="font-size:.78rem;border-radius:8px">
+      Alle anzeigen <i class="bi bi-arrow-right ms-1"></i>
+    </a>
   </div>
-  <div class="card-body p-0">
-    <table class="table mb-0">
-      <thead>
-        <tr>
-          <th>Nutzer</th>
-          <th>Münzen</th>
-          <th>Level</th>
-          <th>Streak</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for u in recent %}
-        <tr>
-          <td>
-            <div class="d-flex align-items-center gap-2">
-              <div class="avatar" style="background:{{ loop.cycle('rgba(88,101,242,.2)','rgba(245,158,11,.2)','rgba(6,182,212,.2)','rgba(16,185,129,.2)') }}; color:{{ loop.cycle('#7289da','#f59e0b','#06b6d4','#10b981') }}">
-                {{ u.username[0].upper() if u.username else '?' }}
-              </div>
-              <span class="fw-500">{{ u.username }}</span>
-            </div>
-          </td>
-          <td><span style="color:#f59e0b">{{ "{:,}".format(u.coins or 0) }}</span> <small class="text-muted">💰</small></td>
-          <td><span class="badge badge-accent">Lv. {{ u.level or 0 }}</span></td>
-          <td><span style="color:#ef4444">{{ u.streak or 0 }}</span> <small class="text-muted">Tage</small></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="cb" style="padding:.5rem">
+    {% set ac = ['#5865f2','#f59e0b','#06b6d4','#10b981','#8b5cf6','#ef4444','#ec4899','#14b8a6'] %}
+    {% for u in recent %}
+    {% set c = ac[loop.index0 % 8] %}
+    <div class="u-row">
+      <div class="ava" style="background:{{ c }}1a;color:{{ c }}">
+        {{ (u.username or '?')[0].upper() }}
+      </div>
+      <div class="flex-grow-1 min-w-0">
+        <div style="font-weight:600;color:#fff;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          {{ u.username }}
+        </div>
+        <div class="d-flex gap-1 mt-1 flex-wrap">
+          <span class="pill" style="background:rgba(245,158,11,.12);color:#f59e0b">
+            {{ "{:,}".format(u.coins or 0) }} 💰
+          </span>
+          <span class="pill" style="background:rgba(139,92,246,.12);color:#8b5cf6">
+            Lv.&nbsp;{{ u.level or 0 }}
+          </span>
+          <span class="pill" style="background:rgba(239,68,68,.12);color:#ef4444">
+            {{ u.streak or 0 }}🔥
+          </span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
   </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -130,45 +166,124 @@
 Chart.defaults.color = '#8892a4';
 Chart.defaults.borderColor = '#1b1f2e';
 
-const opts = (color) => ({
-  plugins: { legend: { display: false } },
-  scales: {
-    x: { ticks: { color: '#8892a4', font: { size: 11 } }, grid: { color: '#1b1f2e' } },
-    y: { ticks: { color: '#8892a4', font: { size: 11 } }, grid: { color: '#1b1f2e' } }
+// ── Animated counters ──────────────────────────────────────────────────────────
+document.querySelectorAll('[data-count]').forEach(el => {
+  const target = parseInt(el.dataset.count) || 0;
+  const dur = 1100;
+  const start = performance.now();
+  const fmt = n => n.toLocaleString('de');
+  function tick(now) {
+    const p = Math.min((now - start) / dur, 1);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmt(Math.round(target * eased));
+    if (p < 1) requestAnimationFrame(tick);
   }
+  requestAnimationFrame(tick);
 });
 
-new Chart(document.getElementById('coinsChart'), {
-  type: 'bar',
-  data: {
-    labels: {{ top_coins | map(attribute='username') | list | tojson }},
-    datasets: [{ data: {{ top_coins | map(attribute='coins') | list | tojson }},
-      backgroundColor: 'rgba(245,158,11,.25)', borderColor: '#f59e0b',
-      borderWidth: 1.5, borderRadius: 7 }]
-  },
-  options: opts('#f59e0b')
-});
+// ── Activity chart ─────────────────────────────────────────────────────────────
+(async () => {
+  let data = [];
+  try {
+    const r = await fetch('/api/statistiken/aktivitaet?days=7');
+    data = await r.json();
+  } catch {}
 
-new Chart(document.getElementById('levelChart'), {
-  type: 'bar',
-  data: {
-    labels: {{ top_level | map(attribute='username') | list | tojson }},
-    datasets: [{ data: {{ top_level | map(attribute='level') | list | tojson }},
-      backgroundColor: 'rgba(139,92,246,.25)', borderColor: '#8b5cf6',
-      borderWidth: 1.5, borderRadius: 7 }]
-  },
-  options: opts('#8b5cf6')
-});
+  const labels = data.map(d => {
+    const [, m, day] = d.date.split('-');
+    return `${day}.${m}.`;
+  });
+  const counts = data.map(d => d.count);
+  const total  = counts.reduce((a, b) => a + b, 0);
+  document.getElementById('actBadge').textContent =
+    `${total.toLocaleString('de')} Nachrichten diese Woche`;
 
-new Chart(document.getElementById('streakChart'), {
-  type: 'bar',
-  data: {
-    labels: {{ top_streak | map(attribute='username') | list | tojson }},
-    datasets: [{ data: {{ top_streak | map(attribute='streak') | list | tojson }},
-      backgroundColor: 'rgba(239,68,68,.25)', borderColor: '#ef4444',
-      borderWidth: 1.5, borderRadius: 7 }]
-  },
-  options: opts('#ef4444')
-});
+  const ctx  = document.getElementById('activityChart').getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 170);
+  grad.addColorStop(0, 'rgba(88,101,242,.38)');
+  grad.addColorStop(1, 'rgba(88,101,242,.0)');
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: counts,
+        fill: true,
+        backgroundColor: grad,
+        borderColor: '#5865f2',
+        borderWidth: 2.5,
+        tension: 0.42,
+        pointBackgroundColor: '#5865f2',
+        pointBorderColor: '#0f1119',
+        pointBorderWidth: 2.5,
+        pointRadius: 5,
+        pointHoverRadius: 8,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 900, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0c0d16', borderColor: '#1b1f2e', borderWidth: 1,
+          padding: 10, cornerRadius: 10,
+          callbacks: { label: c => ` ${c.parsed.y.toLocaleString('de')} Nachrichten` }
+        }
+      },
+      scales: {
+        x: { grid: { color: '#1b1f2e' }, ticks: { color: '#8892a4', font: { size: 11 } } },
+        y: { grid: { color: '#1b1f2e' }, ticks: { color: '#8892a4', font: { size: 11 } }, beginAtZero: true }
+      }
+    }
+  });
+})();
+
+// ── Horizontal bar charts ──────────────────────────────────────────────────────
+function makeHBar(id, labels, values, color) {
+  const ctx = document.getElementById(id).getContext('2d');
+  return new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: color + '44',
+        borderColor: color,
+        borderWidth: 1.5,
+        borderRadius: 8,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 1000, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0c0d16', borderColor: '#1b1f2e', borderWidth: 1, cornerRadius: 10,
+        }
+      },
+      scales: {
+        x: { grid: { color: '#1b1f2e' }, ticks: { color: '#8892a4', font: { size: 10 } } },
+        y: { grid: { display: false }, ticks: { color: '#dde2ea', font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+makeHBar('coinsChart',
+  {{ top_coins  | map(attribute='username') | list | tojson }},
+  {{ top_coins  | map(attribute='coins')    | list | tojson }}, '#f59e0b');
+
+makeHBar('levelChart',
+  {{ top_level  | map(attribute='username') | list | tojson }},
+  {{ top_level  | map(attribute='level')    | list | tojson }}, '#8b5cf6');
+
+makeHBar('streakChart',
+  {{ top_streak | map(attribute='username') | list | tojson }},
+  {{ top_streak | map(attribute='streak')   | list | tojson }}, '#ef4444');
 </script>
 {% endblock %}

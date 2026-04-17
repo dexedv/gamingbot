@@ -1,149 +1,234 @@
 {% extends "base.html" %}
 {% block title %}Ranglisten{% endblock %}
 
+{% block head %}
+<style>
+  .sort-pill {
+    cursor:pointer; padding:.4rem 1rem; border-radius:20px;
+    font-size:.78rem; font-weight:600; border:1px solid var(--border);
+    background:var(--card); color:var(--muted); transition:all .15s;
+    white-space:nowrap; display:inline-flex; align-items:center; gap:.35rem;
+  }
+  .sort-pill:hover { border-color:var(--accent); color:var(--accent2); }
+  .sort-pill.active { background:var(--glow); border-color:var(--accent); color:#fff; box-shadow:0 0 14px rgba(88,101,242,.2); }
+
+  #lbTable th { cursor:pointer; user-select:none; white-space:nowrap; }
+  #lbTable th:hover { background:rgba(255,255,255,.025); }
+  #lbTable th .si { font-size:.7rem; color:var(--faint); margin-left:.3rem; transition:color .15s; }
+  #lbTable th.active .si { color:var(--accent2); }
+
+  .medal { width:28px;height:28px;border-radius:50%;display:inline-flex;
+    align-items:center;justify-content:center;font-size:.72rem;font-weight:800; }
+  .m1 { background:linear-gradient(135deg,#ffd700,#f59e0b); color:#000; box-shadow:0 2px 8px rgba(255,215,0,.4); }
+  .m2 { background:linear-gradient(135deg,#e8e8e8,#9ca3af); color:#000; box-shadow:0 2px 8px rgba(200,200,200,.2); }
+  .m3 { background:linear-gradient(135deg,#cd7f32,#92400e); color:#fff; box-shadow:0 2px 8px rgba(205,127,50,.3); }
+  .mn { background:var(--border); color:var(--muted); }
+
+  tr.r1 td:first-child { border-left:3px solid #ffd700; }
+  tr.r2 td:first-child { border-left:3px solid #9ca3af; }
+  tr.r3 td:first-child { border-left:3px solid #cd7f32; }
+  tr.r1 { background:rgba(255,215,0,.035); }
+  tr.r2 { background:rgba(200,200,200,.02); }
+  tr.r3 { background:rgba(205,127,50,.025); }
+
+  .lb-bar-wrap { width:70px; height:4px; background:var(--border); border-radius:99px; overflow:hidden; display:inline-block; vertical-align:middle; margin-left:.5rem; }
+  .lb-bar-fill { height:100%; border-radius:99px; transition:width .8s cubic-bezier(.25,.46,.45,.94); }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-  <h1>Ranglisten</h1>
-  <p>Top 10 aller Kategorien</p>
+
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+  <div>
+    <h1 style="font-size:1.65rem;font-weight:800;color:#fff;margin:0;letter-spacing:-.02em">
+      <i class="bi bi-trophy-fill me-2" style="color:#f59e0b"></i>Ranglisten
+    </h1>
+    <p style="color:var(--muted);margin:.3rem 0 0;font-size:.85rem">
+      Alle Nutzer sortierbar nach beliebigen Kriterien
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <input id="searchBox" type="text" class="form-control form-control-sm"
+           placeholder="🔍 Nutzer suchen…" style="width:180px" oninput="renderTable()">
+    <select id="limitSel" class="form-select form-select-sm" style="width:100px" onchange="renderTable()">
+      <option value="10">Top 10</option>
+      <option value="25">Top 25</option>
+      <option value="50">Top 50</option>
+      <option value="9999">Alle</option>
+    </select>
+  </div>
 </div>
 
-<ul class="nav nav-pills mb-4 gap-1" id="lbTabs">
-  <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-coins">💰 Münzen</button></li>
-  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-level">⭐ Level</button></li>
-  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-streak">🔥 Streak</button></li>
-  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-chat">💬 Chat</button></li>
-  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-voice">🎙️ Voice</button></li>
-</ul>
-
-<div class="tab-content">
-
-  {% macro lb_row(idx, name, val_html, bar_pct, bar_color) %}
-  <tr>
-    <td style="width:50px">
-      {% if idx == 1 %}<span class="rank-badge rank-1">1</span>
-      {% elif idx == 2 %}<span class="rank-badge rank-2">2</span>
-      {% elif idx == 3 %}<span class="rank-badge rank-3">3</span>
-      {% else %}<span class="rank-badge rank-n">{{ idx }}</span>{% endif %}
-    </td>
-    <td>
-      <div class="d-flex align-items-center gap-2">
-        <div class="avatar" style="background:{{ bar_color }}22; color:{{ bar_color }}; font-size:.7rem">
-          {{ name[0].upper() if name else '?' }}
-        </div>
-        {{ name }}
-      </div>
-    </td>
-    <td>{{ val_html | safe }}</td>
-    <td style="width:180px">
-      <div class="d-flex align-items-center gap-2">
-        <div class="progress flex-grow-1">
-          <div class="progress-bar" style="width:{{ bar_pct }}%; background:{{ bar_color }}"></div>
-        </div>
-        <small style="color:var(--muted); width:30px; text-align:right">{{ bar_pct }}%</small>
-      </div>
-    </td>
-  </tr>
-  {% endmacro %}
-
-  <!-- Coins -->
-  <div class="tab-pane fade show active" id="tab-coins">
-    <div class="card">
-      <div class="card-header">💰 Münzen-Rangliste</div>
-      <div class="card-body p-0">
-        <table class="table mb-0">
-          <thead><tr><th>#</th><th>Nutzer</th><th>Münzen</th><th>Fortschritt</th></tr></thead>
-          <tbody>
-            {% set top = (coins[0].coins if coins else 1) or 1 %}
-            {% for u in coins %}
-            {{ lb_row(loop.index, u.username,
-               '<strong style="color:#f59e0b">' ~ "{:,}".format(u.coins or 0) ~ '</strong> <small class="text-muted">💰</small>',
-               [(u.coins or 0) / top * 100, 1] | max | int, '#f59e0b') }}
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Level -->
-  <div class="tab-pane fade" id="tab-level">
-    <div class="card">
-      <div class="card-header">⭐ Level-Rangliste</div>
-      <div class="card-body p-0">
-        <table class="table mb-0">
-          <thead><tr><th>#</th><th>Nutzer</th><th>Level / XP</th><th>Fortschritt</th></tr></thead>
-          <tbody>
-            {% set top_xp = (levels[0].xp if levels else 1) or 1 %}
-            {% for u in levels %}
-            {{ lb_row(loop.index, u.username,
-               '<span class="badge badge-accent me-2">Lv. ' ~ (u.level or 0) ~ '</span><small class="text-muted">' ~ "{:,}".format(u.xp or 0) ~ ' XP</small>',
-               [(u.xp or 0) / top_xp * 100, 1] | max | int, '#8b5cf6') }}
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Streak -->
-  <div class="tab-pane fade" id="tab-streak">
-    <div class="card">
-      <div class="card-header">🔥 Streak-Rangliste</div>
-      <div class="card-body p-0">
-        <table class="table mb-0">
-          <thead><tr><th>#</th><th>Nutzer</th><th>Streak / Rekord</th><th>Fortschritt</th></tr></thead>
-          <tbody>
-            {% set top_str = (streaks[0].streak if streaks else 1) or 1 %}
-            {% for u in streaks %}
-            {{ lb_row(loop.index, u.username,
-               '<strong style="color:#ef4444">' ~ (u.streak or 0) ~ ' Tage</strong> <small class="text-muted">Rekord: ' ~ (u.max_streak or 0) ~ '</small>',
-               [(u.streak or 0) / top_str * 100, 1] | max | int, '#ef4444') }}
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Chat -->
-  <div class="tab-pane fade" id="tab-chat">
-    <div class="card">
-      <div class="card-header">💬 Chat-Rangliste</div>
-      <div class="card-body p-0">
-        <table class="table mb-0">
-          <thead><tr><th>#</th><th>Nutzer</th><th>Nachrichten</th><th>Fortschritt</th></tr></thead>
-          <tbody>
-            {% set top_msg = (chat[0].message_count if chat else 1) or 1 %}
-            {% for u in chat %}
-            {{ lb_row(loop.index, u.username,
-               '<strong style="color:#06b6d4">' ~ "{:,}".format(u.message_count or 0) ~ '</strong> <small class="text-muted">💬</small>',
-               [(u.message_count or 0) / top_msg * 100, 1] | max | int, '#06b6d4') }}
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Voice -->
-  <div class="tab-pane fade" id="tab-voice">
-    <div class="card">
-      <div class="card-header">🎙️ Voice-Rangliste</div>
-      <div class="card-body p-0">
-        <table class="table mb-0">
-          <thead><tr><th>#</th><th>Nutzer</th><th>Sprachzeit</th><th>Fortschritt</th></tr></thead>
-          <tbody>
-            {% set top_v = (voice[0].voice_seconds if voice else 1) or 1 %}
-            {% for u in voice %}
-            {{ lb_row(loop.index, u.username,
-               '<strong style="color:#10b981">' ~ u.voice_fmt ~ '</strong> <small class="text-muted">🎙️</small>',
-               [(u.voice_seconds or 0) / top_v * 100, 1] | max | int, '#10b981') }}
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
+<!-- Sort pills -->
+<div class="d-flex flex-wrap gap-2 mb-3" id="pillRow">
+  <span class="sort-pill active" data-key="coins"         onclick="quickSort('coins')">        💰 Münzen</span>
+  <span class="sort-pill"        data-key="level"         onclick="quickSort('level')">        ⭐ Level</span>
+  <span class="sort-pill"        data-key="xp"            onclick="quickSort('xp')">           ✨ XP</span>
+  <span class="sort-pill"        data-key="streak"        onclick="quickSort('streak')">       🔥 Streak</span>
+  <span class="sort-pill"        data-key="max_streak"    onclick="quickSort('max_streak')">   🏆 Rekord</span>
+  <span class="sort-pill"        data-key="message_count" onclick="quickSort('message_count')">💬 Nachrichten</span>
+  <span class="sort-pill"        data-key="voice_seconds" onclick="quickSort('voice_seconds')">🎙️ Voice</span>
 </div>
+
+<!-- Table -->
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table mb-0" id="lbTable">
+        <thead>
+          <tr>
+            <th style="width:50px;text-align:center">#</th>
+            <th onclick="colSort('username')">Nutzer<i class="bi bi-arrow-down-up si" id="si-username"></i></th>
+            <th onclick="colSort('coins')" class="active">💰 Münzen<i class="bi bi-caret-down-fill si" id="si-coins"></i></th>
+            <th onclick="colSort('level')">⭐ Level<i class="bi bi-arrow-down-up si" id="si-level"></i></th>
+            <th onclick="colSort('xp')">✨ XP<i class="bi bi-arrow-down-up si" id="si-xp"></i></th>
+            <th onclick="colSort('streak')">🔥 Streak<i class="bi bi-arrow-down-up si" id="si-streak"></i></th>
+            <th onclick="colSort('max_streak')">🏆 Rekord<i class="bi bi-arrow-down-up si" id="si-max_streak"></i></th>
+            <th onclick="colSort('message_count')">💬 Nachrichten<i class="bi bi-arrow-down-up si" id="si-message_count"></i></th>
+            <th onclick="colSort('voice_seconds')">🎙️ Voice<i class="bi bi-arrow-down-up si" id="si-voice_seconds"></i></th>
+          </tr>
+        </thead>
+        <tbody id="lbBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div id="countLbl" class="mt-2 text-muted" style="font-size:.78rem"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const DATA  = {{ users | tojson }};
+let sortKey = 'coins';
+let sortDir = 'desc';
+
+const COLORS = ['#5865f2','#f59e0b','#06b6d4','#10b981','#8b5cf6','#ef4444','#ec4899','#14b8a6'];
+const COL_COLOR = {
+  coins:'#f59e0b', level:'#8b5cf6', xp:'#8b5cf6',
+  streak:'#ef4444', max_streak:'#ef4444',
+  message_count:'#06b6d4', voice_seconds:'#10b981', username:'#5865f2'
+};
+
+function fmtVoice(s) {
+  s = s||0;
+  if (s < 60)   return s+'s';
+  const m = Math.floor(s/60);
+  if (m < 60)   return m+'m';
+  const h = Math.floor(m/60), rm = m%60;
+  return h+'h '+(rm?rm+'m':'');
+}
+
+function updateHeaders() {
+  document.querySelectorAll('#lbTable th').forEach(th => th.classList.remove('active'));
+  document.querySelectorAll('[id^="si-"]').forEach(si => {
+    si.className = 'bi bi-arrow-down-up si';
+  });
+  const activeEl = document.getElementById(`si-${sortKey}`);
+  if (activeEl) {
+    activeEl.className = `bi si ${sortDir==='asc'?'bi-caret-up-fill':'bi-caret-down-fill'}`;
+    activeEl.parentElement.classList.add('active');
+  }
+  document.querySelectorAll('.sort-pill').forEach(p => {
+    p.classList.toggle('active', p.dataset.key === sortKey);
+  });
+}
+
+function quickSort(key) {
+  sortKey = key;
+  sortDir = 'desc';
+  updateHeaders();
+  renderTable();
+}
+
+function colSort(key) {
+  if (sortKey === key) sortDir = sortDir==='desc'?'asc':'desc';
+  else { sortKey = key; sortDir = key==='username'?'asc':'desc'; }
+  updateHeaders();
+  renderTable();
+}
+
+function renderTable() {
+  const q     = (document.getElementById('searchBox').value||'').toLowerCase();
+  const limit = parseInt(document.getElementById('limitSel').value)||10;
+
+  let rows = DATA.filter(u => !q || (u.username||'').toLowerCase().includes(q));
+
+  rows.sort((a, b) => {
+    const av = a[sortKey] ?? (sortKey==='username'?'':0);
+    const bv = b[sortKey] ?? (sortKey==='username'?'':0);
+    if (typeof av === 'string') return sortDir==='asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+    return sortDir==='asc' ? av-bv : bv-av;
+  });
+
+  const shown  = rows.slice(0, limit);
+  const topVal = typeof shown[0]?.[sortKey] === 'number' ? (shown[0][sortKey]||1) : 1;
+  const barC   = COL_COLOR[sortKey]||'#5865f2';
+
+  const medals = ['m1','m2','m3'];
+  const rClass = ['r1','r2','r3'];
+
+  document.getElementById('lbBody').innerHTML = shown.map((u, i) => {
+    const rank = i+1;
+    const mc   = rank<=3 ? medals[rank-1] : 'mn';
+    const rc   = rank<=3 ? rClass[rank-1] : '';
+    const ac   = COLORS[i%8];
+    const val  = u[sortKey];
+    const pct  = (typeof val==='number' && topVal>0) ? Math.max(2, Math.round(val/topVal*100)) : 0;
+
+    return `<tr class="${rc}">
+      <td style="text-align:center;padding:.75rem .5rem">
+        <div class="medal ${mc}">${rank}</div>
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:.6rem">
+          <div style="width:33px;height:33px;border-radius:50%;flex-shrink:0;
+                      background:${ac}1a;color:${ac};
+                      display:flex;align-items:center;justify-content:center;
+                      font-size:.73rem;font-weight:700">
+            ${(u.username||'?')[0].toUpperCase()}
+          </div>
+          <span style="font-weight:600;color:#fff">${u.username||'—'}</span>
+        </div>
+      </td>
+      <td>
+        <span style="color:#f59e0b;font-weight:700">${(u.coins||0).toLocaleString('de')}</span>
+        ${sortKey==='coins'?`<span class="lb-bar-wrap"><span class="lb-bar-fill" style="width:${pct}%;background:${barC}"></span></span>`:''}
+      </td>
+      <td>
+        <span class="badge" style="background:rgba(139,92,246,.14);color:#8b5cf6;border-radius:8px;font-size:.75rem">
+          Lv.&nbsp;${u.level||0}
+        </span>
+        ${sortKey==='level'?`<span class="lb-bar-wrap"><span class="lb-bar-fill" style="width:${pct}%;background:${barC}"></span></span>`:''}
+      </td>
+      <td>
+        <span style="color:var(--muted)">${(u.xp||0).toLocaleString('de')}</span>
+        ${sortKey==='xp'?`<span class="lb-bar-wrap"><span class="lb-bar-fill" style="width:${pct}%;background:${barC}"></span></span>`:''}
+      </td>
+      <td>
+        <span style="color:#ef4444;font-weight:700">${u.streak||0}</span>
+        <small style="color:var(--muted)"> T</small>
+        ${sortKey==='streak'?`<span class="lb-bar-wrap"><span class="lb-bar-fill" style="width:${pct}%;background:${barC}"></span></span>`:''}
+      </td>
+      <td>
+        <span style="color:var(--muted)">${u.max_streak||0} T</span>
+        ${sortKey==='max_streak'?`<span class="lb-bar-wrap"><span class="lb-bar-fill" style="width:${pct}%;background:${barC}"></span></span>`:''}
+      </td>
+      <td>
+        <span style="color:#06b6d4">${(u.message_count||0).toLocaleString('de')}</span>
+        ${sortKey==='message_count'?`<span class="lb-bar-wrap"><span class="lb-bar-fill" style="width:${pct}%;background:${barC}"></span></span>`:''}
+      </td>
+      <td>
+        <span style="color:#10b981">${fmtVoice(u.voice_seconds)}</span>
+        ${sortKey==='voice_seconds'?`<span class="lb-bar-wrap"><span class="lb-bar-fill" style="width:${pct}%;background:${barC}"></span></span>`:''}
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('countLbl').textContent =
+    `${shown.length} von ${rows.length} Nutzer${rows.length!==1?'n':''} · sortiert nach ${sortKey} (${sortDir==='desc'?'absteigend':'aufsteigend'})`;
+}
+
+renderTable();
+</script>
 {% endblock %}

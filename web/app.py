@@ -129,15 +129,17 @@ def dashboard():
 @login_required
 def leaderboards():
     db = get_db()
-    coins   = [dict(r) for r in db.execute("SELECT username, coins FROM users ORDER BY coins DESC LIMIT 10").fetchall()]
-    levels  = [dict(r) for r in db.execute("SELECT username, level, xp FROM users ORDER BY xp DESC LIMIT 10").fetchall()]
-    streaks = [dict(r) for r in db.execute("SELECT username, streak, max_streak FROM users ORDER BY streak DESC LIMIT 10").fetchall()]
-    chat    = [dict(r) for r in db.execute("SELECT username, message_count FROM users ORDER BY message_count DESC LIMIT 10").fetchall()]
-    voice_r = db.execute("SELECT username, voice_seconds FROM users ORDER BY voice_seconds DESC LIMIT 10").fetchall()
-    voice   = [{"username": r["username"], "voice_seconds": r["voice_seconds"], "voice_fmt": fmt_seconds(r["voice_seconds"])} for r in voice_r]
+    rows = db.execute(
+        "SELECT username, coins, level, xp, streak, max_streak, message_count, voice_seconds "
+        "FROM users ORDER BY coins DESC"
+    ).fetchall()
+    users = []
+    for r in rows:
+        u = dict(r)
+        u["voice_fmt"] = fmt_seconds(u.get("voice_seconds") or 0)
+        users.append(u)
     db.close()
-    return render_template("leaderboards.html",
-        coins=coins, levels=levels, streaks=streaks, chat=chat, voice=voice)
+    return render_template("leaderboards.html", users=users)
 
 
 # ── Users ─────────────────────────────────────────────────────────────────────
