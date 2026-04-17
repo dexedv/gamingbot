@@ -2,7 +2,7 @@ import json
 import os
 import discord
 from discord.ext import commands, tasks
-from utils import base_name
+from utils import base_name, is_name_protected
 
 SETTINGS_PATH = os.path.join(os.path.dirname(__file__), '..', 'settings.json')
 
@@ -58,6 +58,8 @@ STREAK_EMOJI = "🔥"
 
 async def update_nickname(member: discord.Member, streak: int, force: bool = False):
     if not force and not _nickname_updates_enabled():
+        return
+    if is_name_protected(member):
         return
     try:
         new_nick = f"{base_name(member.display_name)} | {STREAK_EMOJI}{streak}"
