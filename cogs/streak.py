@@ -158,7 +158,8 @@ class StreakCog(commands.Cog, name="Streak"):
             embed.add_field(name="💳  Guthaben", value=f"{new_coins:,} Münzen", inline=True)
             embed.set_thumbnail(url=user.display_avatar.url)
             embed.set_footer(text=f"🔥 {new_streak} Tage Streak  •  Weiter so!")
-            await message.channel.send(embed=embed)
+            from utils import send_notify
+            await send_notify(self.bot, embed)
 
     @commands.command(name="updatenicks", hidden=True)
     async def update_nicks_cmd(self, ctx: commands.Context):

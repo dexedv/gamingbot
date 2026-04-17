@@ -108,8 +108,8 @@ class EconomyCog(commands.Cog, name="Economy"):
         await ctx.send(embed=embed)
 
         if new_level > old_level:
-            from utils import level_up_embed
-            await ctx.send(embed=level_up_embed(ctx.author, old_level, new_level))
+            from utils import level_up_embed, send_notify
+            await send_notify(self.bot, level_up_embed(ctx.author, old_level, new_level))
 
     # ── %bestenliste ──────────────────────────────────────────────────────────
 

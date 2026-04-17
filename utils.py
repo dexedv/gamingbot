@@ -3,6 +3,18 @@ import re
 import discord
 
 
+# ── Benachrichtigungskanal ────────────────────────────────────────────────────
+
+NOTIFY_CHANNEL_ID = 1494057689435869485
+
+
+async def send_notify(bot, embed) -> None:
+    """Sendet Level-Up / Streak-Benachrichtigungen in den dedizierten Kanal."""
+    channel = bot.get_channel(NOTIFY_CHANNEL_ID)
+    if channel:
+        await channel.send(embed=embed)
+
+
 # ── Geschützte Rolle ──────────────────────────────────────────────────────────
 
 PROTECTED_ROLE_ID = 1494612383899975781

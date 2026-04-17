@@ -171,8 +171,8 @@ class SlotsView(discord.ui.View):
         await interaction.edit_original_response(content=None, embed=embed, view=self)
 
         if new_level > old_level:
-            from utils import level_up_embed
-            await interaction.followup.send(embed=level_up_embed(self.user, old_level, new_level))
+            from utils import level_up_embed, send_notify
+            await send_notify(self.cog.bot, level_up_embed(self.user, old_level, new_level))
 
     @discord.ui.button(label="🔄  Nochmal spielen", style=discord.ButtonStyle.success,
                        disabled=True, row=1)

@@ -138,8 +138,8 @@ class RanksCog(commands.Cog, name="Ranks"):
             self._msg_xp_count[uid] = remaining - 1
             old_level, new_level = await self.bot.db.add_xp(uid, 2)
             if new_level > old_level:
-                from utils import level_up_embed
-                await message.channel.send(embed=level_up_embed(message.author, old_level, new_level))
+                from utils import level_up_embed, send_notify
+                await send_notify(self.bot, level_up_embed(message.author, old_level, new_level))
             if remaining == 5:  # Erstes Grant dieser Minute → Reset planen
                 async def _reset(u=uid):
                     import asyncio

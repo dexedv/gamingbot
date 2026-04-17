@@ -61,8 +61,8 @@ class RoulettePlayAgainView(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=new_view)
 
         if new_level > old_level:
-            from utils import level_up_embed
-            await interaction.followup.send(embed=level_up_embed(self.user, old_level, new_level))
+            from utils import level_up_embed, send_notify
+            await send_notify(self.cog.bot, level_up_embed(self.user, old_level, new_level))
 
 # Roulette-Zahlen Farben (europäisches Roulette)
 RED_NUMS = {1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36}
@@ -205,8 +205,8 @@ class RouletteCog(commands.Cog, name="Roulette"):
         await ctx.send(embed=embed, view=view)
 
         if new_level > old_level:
-            from utils import level_up_embed
-            await ctx.send(embed=level_up_embed(ctx.author, old_level, new_level))
+            from utils import level_up_embed, send_notify
+            await send_notify(self.bot, level_up_embed(ctx.author, old_level, new_level))
 
     @roulette.error
     async def rl_error(self, ctx, error):

@@ -69,11 +69,11 @@ class TicTacToeButton(discord.ui.Button):
             view.stop()
             await interaction.response.edit_message(content=None, embed=embed, view=view)
 
-            from utils import level_up_embed
+            from utils import level_up_embed, send_notify
             if win_new_lv > win_old_lv:
-                await interaction.followup.send(embed=level_up_embed(win_player, win_old_lv, win_new_lv))
+                await send_notify(self.cog.bot, level_up_embed(win_player, win_old_lv, win_new_lv))
             if lose_new_lv > lose_old_lv:
-                await interaction.followup.send(embed=level_up_embed(lose_player, lose_old_lv, lose_new_lv))
+                await send_notify(self.cog.bot, level_up_embed(lose_player, lose_old_lv, lose_new_lv))
 
         elif view.is_board_full():
             for child in view.children:
@@ -92,11 +92,11 @@ class TicTacToeButton(discord.ui.Button):
             view.stop()
             await interaction.response.edit_message(content=None, embed=embed, view=view)
 
-            from utils import level_up_embed
+            from utils import level_up_embed, send_notify
             if x_new_lv > x_old_lv:
-                await interaction.followup.send(embed=level_up_embed(view.player_x, x_old_lv, x_new_lv))
+                await send_notify(self.cog.bot, level_up_embed(view.player_x, x_old_lv, x_new_lv))
             if o_new_lv > o_old_lv:
-                await interaction.followup.send(embed=level_up_embed(view.player_o, o_old_lv, o_new_lv))
+                await send_notify(self.cog.bot, level_up_embed(view.player_o, o_old_lv, o_new_lv))
 
         else:
             view.current_player = (

@@ -68,8 +68,8 @@ class CoinflipView(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=self)
 
         if new_level > old_level:
-            from utils import level_up_embed
-            await interaction.followup.send(embed=level_up_embed(self.user, old_level, new_level))
+            from utils import level_up_embed, send_notify
+            await send_notify(self.cog.bot, level_up_embed(self.user, old_level, new_level))
 
     @discord.ui.button(label="🪙 Kopf", style=discord.ButtonStyle.primary)
     async def kopf(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -177,8 +177,8 @@ class DiceView(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=self)
 
         if new_level > old_level:
-            from utils import level_up_embed
-            await interaction.followup.send(embed=level_up_embed(self.user, old_level, new_level))
+            from utils import level_up_embed, send_notify
+            await send_notify(self.cog.bot, level_up_embed(self.user, old_level, new_level))
 
     @discord.ui.button(label="🔄  Nochmal spielen", style=discord.ButtonStyle.success,
                        disabled=True, row=1)
@@ -331,8 +331,8 @@ class HiLoView(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=self)
 
         if new_level > old_level:
-            from utils import level_up_embed
-            await interaction.followup.send(embed=level_up_embed(self.user, old_level, new_level))
+            from utils import level_up_embed, send_notify
+            await send_notify(self.cog.bot, level_up_embed(self.user, old_level, new_level))
 
     @discord.ui.button(label="⬆️ Höher", style=discord.ButtonStyle.success)
     async def higher(self, interaction: discord.Interaction, button: discord.ui.Button):
