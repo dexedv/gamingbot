@@ -1,0 +1,29 @@
+# Claude Code
+.claude/
+
+# Secrets
+.env
+settings.json
+
+# Datenbank (bleibt auf dem Server)
+*.db
+*.db-shm
+*.db-wal
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+*.egg-info/
+
+# Systemd (nur lokal relevant)
+gamingbot.service
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

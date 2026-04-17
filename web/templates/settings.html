@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Einstellungen{% endblock %}
+
+{% block content %}
+<div class="page-title">Einstellungen <small>— Bot-Konfiguration</small></div>
+
+<!-- Module -->
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    🧩 Module
+    <small class="text-secondary" id="moduleStatus">Laden…</small>
+  </div>
+  <div class="card-body">
+    <div class="row g-3" id="cogList">
+      <div class="text-secondary text-center py-3">Lade Module…</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">⚙️ Bot-Einstellungen</div>
+      <div class="card-body">
+        <form method="post">
+
+          <!-- Nickname Updates -->
+          <div class="d-flex justify-content-between align-items-start mb-4 pb-3" style="border-bottom:1px solid #1e2229">
+            <div>
+              <div class="fw-semibold text-white">🏷️ Nickname-Updates</div>
+              <div class="text-secondary" style="font-size:.85rem">
+                Automatisch den Streak-Suffix im Nicknamen aktualisieren.<br>
+                <span class="text-warning">Erfordert Bot-Rolle über allen anderen Rollen.</span>
+              </div>
+            </div>
+            <div class="form-check form-switch ms-3 mt-1">
+              <input class="form-check-input" type="checkbox" name="nickname_updates" id="nickSwitch"
+                style="width:3em; height:1.5em; cursor:pointer"
+                {% if settings.nickname_updates %}checked{% endif %}>
+            </div>
+          </div>
+
+          <!-- Daily XP -->
+          <div class="mb-4 pb-3" style="border-bottom:1px solid #1e2229">
+            <label class="fw-semibold text-white d-block mb-1">⭐ Daily XP-Bonus</label>
+            <div class="text-secondary mb-2" style="font-size:.85rem">XP die ein Nutzer täglich durch %daily erhält.</div>
+            <div class="d-flex align-items-center gap-3">
+              <input type="number" name="daily_xp" class="form-control" style="max-width:120px"
+                min="1" max="500" value="{{ settings.daily_xp }}">
+              <span class="text-secondary">XP pro Tag</span>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-accent px-4">
+            <i class="bi bi-check-lg me-1"></i> Speichern
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">📊 System-Info</div>
+      <div class="card-body">
+        <table class="table table-sm mb-0">
+          <tbody>
+            <tr>
+              <td class="text-secondary">Welcome Channel</td>
+              <td><code>#{{ settings.welcome_channel }}</code></td>
+            </tr>
+            <tr>
+              <td class="text-secondary">Datenbank</td>
+              <td><code>gamingbot.db</code></td>
+            </tr>
+            <tr>
+              <td class="text-secondary">Prefix</td>
+              <td><code>%</code> und <code>/</code></td>
+            </tr>
+            <tr>
+              <td class="text-secondary">Nickname-Updates</td>
+              <td>
+                {% if settings.nickname_updates %}
+                  <span class="badge bg-success">Aktiv</span>
+                {% else %}
+                  <span class="badge bg-secondary">Deaktiviert</span>
+                {% endif %}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header">⚠️ Gefahrenzone</div>
+      <div class="card-body">
+        <p class="text-secondary" style="font-size:.85rem">
+          Direkte Datenbankoperationen. Nur ausführen wenn du weißt was du tust.
+        </p>
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="/users" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-people me-1"></i> Alle Nutzer anzeigen
+          </a>
+          <a href="/api/stats" class="btn btn-outline-secondary btn-sm" target="_blank">
+            <i class="bi bi-code-slash me-1"></i> API Stats
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadCogs() {
+  const res = await fetch('/api/cogs');
+  const cogs = await res.json();
+  const list = document.getElementById('cogList');
+  const status = document.getElementById('moduleStatus');
+  const active = cogs.filter(c => c.loaded).length;
+  status.textContent = `${active} / ${cogs.length} aktiv`;
+
+  list.innerHTML = cogs.map(cog => `
+    <div class="col-md-6 col-lg-4" id="cog-${cog.name.replace('.','_')}">
+      <div class="cog-card d-flex align-items-start gap-3 p-3 rounded-3"
+           style="background:#0d0f13; border:1px solid ${cog.loaded ? '#5865F2' : '#1e2229'}; transition:border-color .2s">
+        <div style="font-size:1.6rem; line-height:1">${cog.icon}</div>
+        <div class="flex-grow-1">
+          <div class="fw-semibold text-white" style="font-size:.95rem">${cog.label}</div>
+          <div class="text-secondary" style="font-size:.78rem">${cog.desc}</div>
+        </div>
+        <div class="form-check form-switch ms-2 mt-1">
+          <input class="form-check-input cog-toggle" type="checkbox"
+            style="width:2.5em; height:1.3em; cursor:pointer"
+            data-cog="${cog.name}"
+            ${cog.loaded ? 'checked' : ''}>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  document.querySelectorAll('.cog-toggle').forEach(toggle => {
+    toggle.addEventListener('change', async function() {
+      const cogName = this.dataset.cog;
+      const card = document.querySelector(`#cog-${cogName.replace('.','_')} .cog-card`);
+      this.disabled = true;
+
+      try {
+        const res = await fetch(`/api/cogs/${cogName}/toggle`, { method: 'POST' });
+        const data = await res.json();
+        if (data.error) {
+          alert('Fehler: ' + data.error);
+          this.checked = !this.checked;
+        } else {
+          card.style.borderColor = data.loaded ? '#5865F2' : '#1e2229';
+          const total  = document.querySelectorAll('.cog-toggle').length;
+          const active = document.querySelectorAll('.cog-toggle:checked').length;
+          document.getElementById('moduleStatus').textContent = `${active} / ${total} aktiv`;
+        }
+      } catch(e) {
+        alert('Verbindungsfehler');
+        this.checked = !this.checked;
+      }
+      this.disabled = false;
+    });
+  });
+}
+
+loadCogs();
+</script>
+{% endblock %}

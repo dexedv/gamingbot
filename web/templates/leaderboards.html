@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Leaderboards{% endblock %}
+
+{% block content %}
+<div class="page-title">Leaderboards <small>— Top 10 aller Kategorien</small></div>
+
+<!-- Tabs -->
+<ul class="nav nav-pills mb-4" id="lbTabs">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-coins">💰 Münzen</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-level">⭐ Level</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-streak">🔥 Streak</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-chat">💬 Chat</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-voice">🎙️ Voice</button></li>
+</ul>
+
+<div class="tab-content">
+
+  <!-- Coins -->
+  <div class="tab-pane fade show active" id="tab-coins">
+    <div class="card">
+      <div class="card-header">💰 Münzen-Rangliste</div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead><tr><th>#</th><th>Nutzer</th><th>Münzen</th><th>Fortschritt</th></tr></thead>
+          <tbody>
+            {% set top = coins[0].coins if coins else 1 %}
+            {% for u in coins %}
+            <tr>
+              <td>
+                {% if loop.index == 1 %}<span class="rank-badge rank-1">1</span>
+                {% elif loop.index == 2 %}<span class="rank-badge rank-2">2</span>
+                {% elif loop.index == 3 %}<span class="rank-badge rank-3">3</span>
+                {% else %}<span class="rank-badge rank-n">{{ loop.index }}</span>{% endif %}
+              </td>
+              <td>{{ u.username }}</td>
+              <td><strong>{{ "{:,}".format(u.coins or 0) }}</strong> 💰</td>
+              <td style="width:200px">
+                <div class="progress"><div class="progress-bar" style="width:{{ [(u.coins or 0) / top * 100, 1] | max | int }}%"></div></div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Level -->
+  <div class="tab-pane fade" id="tab-level">
+    <div class="card">
+      <div class="card-header">⭐ Level-Rangliste</div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead><tr><th>#</th><th>Nutzer</th><th>Level</th><th>XP</th><th>Fortschritt</th></tr></thead>
+          <tbody>
+            {% set top_xp = levels[0].xp if levels else 1 %}
+            {% for u in levels %}
+            <tr>
+              <td>
+                {% if loop.index == 1 %}<span class="rank-badge rank-1">1</span>
+                {% elif loop.index == 2 %}<span class="rank-badge rank-2">2</span>
+                {% elif loop.index == 3 %}<span class="rank-badge rank-3">3</span>
+                {% else %}<span class="rank-badge rank-n">{{ loop.index }}</span>{% endif %}
+              </td>
+              <td>{{ u.username }}</td>
+              <td><span class="badge badge-accent">Lv. {{ u.level or 0 }}</span></td>
+              <td>{{ "{:,}".format(u.xp or 0) }} XP</td>
+              <td style="width:200px">
+                <div class="progress"><div class="progress-bar" style="background:#FFD700;width:{{ [(u.xp or 0) / top_xp * 100, 1] | max | int }}%"></div></div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Streak -->
+  <div class="tab-pane fade" id="tab-streak">
+    <div class="card">
+      <div class="card-header">🔥 Streak-Rangliste</div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead><tr><th>#</th><th>Nutzer</th><th>Streak</th><th>Rekord</th><th>Fortschritt</th></tr></thead>
+          <tbody>
+            {% set top_str = streaks[0].streak if streaks else 1 %}
+            {% for u in streaks %}
+            <tr>
+              <td>
+                {% if loop.index == 1 %}<span class="rank-badge rank-1">1</span>
+                {% elif loop.index == 2 %}<span class="rank-badge rank-2">2</span>
+                {% elif loop.index == 3 %}<span class="rank-badge rank-3">3</span>
+                {% else %}<span class="rank-badge rank-n">{{ loop.index }}</span>{% endif %}
+              </td>
+              <td>{{ u.username }}</td>
+              <td><strong>{{ u.streak or 0 }}</strong> 🔥 Tage</td>
+              <td class="text-secondary">{{ u.max_streak or 0 }} Tage</td>
+              <td style="width:200px">
+                <div class="progress"><div class="progress-bar" style="background:#ff6400;width:{{ [(u.streak or 0) / top_str * 100, 1] | max | int }}%"></div></div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat -->
+  <div class="tab-pane fade" id="tab-chat">
+    <div class="card">
+      <div class="card-header">💬 Chat-Rangliste</div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead><tr><th>#</th><th>Nutzer</th><th>Nachrichten</th><th>Fortschritt</th></tr></thead>
+          <tbody>
+            {% set top_msg = chat[0].message_count if chat else 1 %}
+            {% for u in chat %}
+            <tr>
+              <td>
+                {% if loop.index == 1 %}<span class="rank-badge rank-1">1</span>
+                {% elif loop.index == 2 %}<span class="rank-badge rank-2">2</span>
+                {% elif loop.index == 3 %}<span class="rank-badge rank-3">3</span>
+                {% else %}<span class="rank-badge rank-n">{{ loop.index }}</span>{% endif %}
+              </td>
+              <td>{{ u.username }}</td>
+              <td><strong>{{ "{:,}".format(u.message_count or 0) }}</strong> 💬</td>
+              <td style="width:200px">
+                <div class="progress"><div class="progress-bar" style="background:#00b4d8;width:{{ [(u.message_count or 0) / top_msg * 100, 1] | max | int }}%"></div></div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Voice -->
+  <div class="tab-pane fade" id="tab-voice">
+    <div class="card">
+      <div class="card-header">🎙️ Voice-Rangliste</div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead><tr><th>#</th><th>Nutzer</th><th>Sprachzeit</th><th>Fortschritt</th></tr></thead>
+          <tbody>
+            {% set top_v = voice[0].voice_seconds if voice else 1 %}
+            {% for u in voice %}
+            <tr>
+              <td>
+                {% if loop.index == 1 %}<span class="rank-badge rank-1">1</span>
+                {% elif loop.index == 2 %}<span class="rank-badge rank-2">2</span>
+                {% elif loop.index == 3 %}<span class="rank-badge rank-3">3</span>
+                {% else %}<span class="rank-badge rank-n">{{ loop.index }}</span>{% endif %}
+              </td>
+              <td>{{ u.username }}</td>
+              <td><strong>{{ u.voice_fmt }}</strong> 🎙️</td>
+              <td style="width:200px">
+                <div class="progress"><div class="progress-bar" style="background:#9b59b6;width:{{ [(u.voice_seconds or 0) / top_v * 100, 1] | max | int }}%"></div></div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

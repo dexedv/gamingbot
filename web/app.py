@@ -1,0 +1,225 @@
+import sqlite3
+import os
+import time
+import asyncio
+from datetime import timedelta
+from flask import Flask, render_template, request, jsonify, redirect, url_for, current_app
+
+app = Flask(__name__)
+
+DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'gamingbot.db')
+_bot_start_time = time.time()
+
+
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def fmt_seconds(s):
+    s = int(s or 0)
+    if s < 60:
+        return f"{s}s"
+    m, sec = divmod(s, 60)
+    if m < 60:
+        return f"{m}m {sec}s"
+    h, m = divmod(m, 60)
+    return f"{h}h {m}m"
+
+
+def fmt_uptime(seconds):
+    d = timedelta(seconds=int(seconds))
+    parts = []
+    if d.days:
+        parts.append(f"{d.days}d")
+    h, rem = divmod(d.seconds, 3600)
+    m = rem // 60
+    if h:
+        parts.append(f"{h}h")
+    if m:
+        parts.append(f"{m}m")
+    return " ".join(parts) or "< 1m"
+
+
+# ── Dashboard ─────────────────────────────────────────────────────────────────
+
+@app.route("/")
+def dashboard():
+    db = get_db()
+    stats = {
+        "total_users":    db.execute("SELECT COUNT(*) FROM users").fetchone()[0],
+        "total_coins":    db.execute("SELECT SUM(coins) FROM users").fetchone()[0] or 0,
+        "total_messages": db.execute("SELECT SUM(message_count) FROM users").fetchone()[0] or 0,
+        "total_voice":    fmt_seconds(db.execute("SELECT SUM(voice_seconds) FROM users").fetchone()[0] or 0),
+        "max_level":      db.execute("SELECT MAX(level) FROM users").fetchone()[0] or 0,
+        "max_streak":     db.execute("SELECT MAX(streak) FROM users").fetchone()[0] or 0,
+        "uptime":         fmt_uptime(time.time() - _bot_start_time),
+    }
+    top_coins  = db.execute("SELECT username, coins FROM users ORDER BY coins DESC LIMIT 5").fetchall()
+    top_level  = db.execute("SELECT username, level, xp FROM users ORDER BY xp DESC LIMIT 5").fetchall()
+    top_streak = db.execute("SELECT username, streak FROM users ORDER BY streak DESC LIMIT 5").fetchall()
+    recent     = db.execute("SELECT username, coins, level, streak FROM users ORDER BY rowid DESC LIMIT 8").fetchall()
+    db.close()
+    return render_template("dashboard.html",
+        stats=stats,
+        top_coins=[dict(r) for r in top_coins],
+        top_level=[dict(r) for r in top_level],
+        top_streak=[dict(r) for r in top_streak],
+        recent=[dict(r) for r in recent],
+    )
+
+
+# ── Leaderboards ──────────────────────────────────────────────────────────────
+
+@app.route("/leaderboards")
+def leaderboards():
+    db = get_db()
+    coins   = [dict(r) for r in db.execute("SELECT username, coins FROM users ORDER BY coins DESC LIMIT 10").fetchall()]
+    levels  = [dict(r) for r in db.execute("SELECT username, level, xp FROM users ORDER BY xp DESC LIMIT 10").fetchall()]
+    streaks = [dict(r) for r in db.execute("SELECT username, streak, max_streak FROM users ORDER BY streak DESC LIMIT 10").fetchall()]
+    chat    = [dict(r) for r in db.execute("SELECT username, message_count FROM users ORDER BY message_count DESC LIMIT 10").fetchall()]
+    voice_r = db.execute("SELECT username, voice_seconds FROM users ORDER BY voice_seconds DESC LIMIT 10").fetchall()
+    voice   = [{"username": r["username"], "voice_seconds": r["voice_seconds"], "voice_fmt": fmt_seconds(r["voice_seconds"])} for r in voice_r]
+    db.close()
+    return render_template("leaderboards.html",
+        coins=coins, levels=levels, streaks=streaks, chat=chat, voice=voice)
+
+
+# ── Users ─────────────────────────────────────────────────────────────────────
+
+@app.route("/users")
+def users():
+    db   = get_db()
+    search = request.args.get("q", "").strip()
+    if search:
+        rows = db.execute(
+            "SELECT * FROM users WHERE username LIKE ? ORDER BY coins DESC",
+            (f"%{search}%",)
+        ).fetchall()
+    else:
+        rows = db.execute("SELECT * FROM users ORDER BY coins DESC").fetchall()
+    users_list = []
+    for r in rows:
+        d = dict(r)
+        d["voice_fmt"] = fmt_seconds(d.get("voice_seconds", 0))
+        users_list.append(d)
+    db.close()
+    return render_template("users.html", users=users_list, search=search)
+
+
+@app.route("/users/<int:user_id>/edit", methods=["POST"])
+def edit_user(user_id):
+    coins  = request.form.get("coins",  type=int)
+    streak = request.form.get("streak", type=int)
+    level  = request.form.get("level",  type=int)
+    db = get_db()
+    if coins  is not None: db.execute("UPDATE users SET coins=? WHERE user_id=?",  (max(0, coins),  user_id))
+    if streak is not None: db.execute("UPDATE users SET streak=? WHERE user_id=?", (max(0, streak), user_id))
+    if level  is not None: db.execute("UPDATE users SET level=? WHERE user_id=?",  (max(0, level),  user_id))
+    db.commit()
+    db.close()
+    return redirect(url_for("users"))
+
+
+# ── Settings ──────────────────────────────────────────────────────────────────
+
+SETTINGS_PATH = os.path.join(os.path.dirname(__file__), '..', 'settings.json')
+
+def load_settings():
+    import json
+    if os.path.exists(SETTINGS_PATH):
+        return json.load(open(SETTINGS_PATH, encoding="utf-8"))
+    return {"nickname_updates": False, "daily_xp": 30, "welcome_channel": 1019608622663209000}
+
+def save_settings(s):
+    import json
+    json.dump(s, open(SETTINGS_PATH, "w", encoding="utf-8"), indent=2)
+
+@app.route("/settings", methods=["GET", "POST"])
+def settings():
+    s = load_settings()
+    if request.method == "POST":
+        s["nickname_updates"] = "nickname_updates" in request.form
+        daily_xp = request.form.get("daily_xp", type=int)
+        if daily_xp and 1 <= daily_xp <= 500:
+            s["daily_xp"] = daily_xp
+        save_settings(s)
+        return redirect(url_for("settings"))
+    return render_template("settings.html", settings=s)
+
+
+# ── API ───────────────────────────────────────────────────────────────────────
+
+@app.route("/api/stats")
+def api_stats():
+    db = get_db()
+    data = {
+        "users":    db.execute("SELECT COUNT(*) FROM users").fetchone()[0],
+        "coins":    db.execute("SELECT SUM(coins) FROM users").fetchone()[0] or 0,
+        "messages": db.execute("SELECT SUM(message_count) FROM users").fetchone()[0] or 0,
+        "voice_s":  db.execute("SELECT SUM(voice_seconds) FROM users").fetchone()[0] or 0,
+    }
+    db.close()
+    return jsonify(data)
+
+
+# ── Cog Management ────────────────────────────────────────────────────────────
+
+COGS_INFO = {
+    "cogs.economy":   {"label": "Wirtschaft",       "icon": "💰", "desc": "Münzen, Daily, Bestenliste, Hilfe"},
+    "cogs.levels":    {"label": "Level-System",      "icon": "⭐", "desc": "XP, Level-Up, Level-Rangliste"},
+    "cogs.streak":    {"label": "Streak-System",     "icon": "🔥", "desc": "Tages-Streak, Meilensteine"},
+    "cogs.ranks":     {"label": "Aktivitäts-Ränge",  "icon": "📊", "desc": "Chat- & Voice-Tracking, Ranglisten"},
+    "cogs.tictactoe": {"label": "Tic-Tac-Toe",       "icon": "❌", "desc": "PvP Tic-Tac-Toe Spiel"},
+    "cogs.slots":     {"label": "Spielautomat",       "icon": "🎰", "desc": "Slot-Machine mit Jackpot"},
+    "cogs.blackjack": {"label": "Blackjack",          "icon": "🃏", "desc": "Blackjack gegen den Dealer"},
+    "cogs.roulette":  {"label": "Roulette",           "icon": "🎡", "desc": "Roulette mit Zahlen & Farben"},
+    "cogs.minigames": {"label": "Minispiele",         "icon": "🎲", "desc": "Coinflip, Würfeln, Higher or Lower"},
+    "cogs.welcome":   {"label": "Willkommensnachrichten", "icon": "👋", "desc": "Begrüßt neue Mitglieder"},
+}
+
+
+@app.route("/api/cogs")
+def api_cogs():
+    bot = current_app.config.get("BOT")
+    if not bot:
+        return jsonify({"error": "Bot nicht verfügbar"}), 503
+    loaded = set(bot.extensions.keys())
+    result = []
+    for cog_name, info in COGS_INFO.items():
+        result.append({
+            "name":    cog_name,
+            "label":   info["label"],
+            "icon":    info["icon"],
+            "desc":    info["desc"],
+            "loaded":  cog_name in loaded,
+        })
+    return jsonify(result)
+
+
+@app.route("/api/cogs/<path:cog_name>/toggle", methods=["POST"])
+def toggle_cog(cog_name):
+    bot  = current_app.config.get("BOT")
+    loop = current_app.config.get("LOOP")
+    if not bot or not loop:
+        return jsonify({"error": "Bot nicht verfügbar"}), 503
+    if cog_name not in COGS_INFO:
+        return jsonify({"error": "Unbekanntes Modul"}), 400
+
+    try:
+        if cog_name in bot.extensions:
+            future = asyncio.run_coroutine_threadsafe(bot.unload_extension(cog_name), loop)
+            future.result(timeout=10)
+            loaded = False
+        else:
+            future = asyncio.run_coroutine_threadsafe(bot.load_extension(cog_name), loop)
+            future.result(timeout=10)
+            loaded = True
+        return jsonify({"name": cog_name, "loaded": loaded})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+if __name__ == "__main__":
+    app.run(host="127.0.0.1", port=5000, debug=False)
