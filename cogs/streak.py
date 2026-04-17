@@ -89,7 +89,7 @@ class StreakCog(commands.Cog, name="Streak"):
         import aiosqlite
         if scheduled:
             await send_log(self.bot, "🔄 Nickname-Update gestartet",
-                           "Täglicher Lauf um 17:00 Uhr", discord.Color.orange())
+                           "Täglicher Lauf um 01:00 Uhr", discord.Color.orange())
 
         async with aiosqlite.connect(self.bot.db.db_path) as db:
             cur = await db.execute("SELECT user_id, streak FROM users")
@@ -109,7 +109,7 @@ class StreakCog(commands.Cog, name="Streak"):
                     skipped += 1
 
         if scheduled or force:
-            label = "17:00-Lauf" if scheduled else "Manueller Lauf"
+            label = "01:00-Lauf" if scheduled else "Manueller Lauf"
             await send_log(
                 self.bot,
                 "✅ Nickname-Update abgeschlossen",
@@ -119,17 +119,17 @@ class StreakCog(commands.Cog, name="Streak"):
 
     @tasks.loop(hours=24)
     async def nickname_loop(self):
-        """Täglich um 17:00 Uhr alle Nicknames aktualisieren."""
+        """Täglich um 01:00 Uhr alle Nicknames aktualisieren."""
         await self.run_nickname_update(scheduled=True)
 
     @nickname_loop.before_loop
     async def before_nickname_loop(self):
-        """Warte bis täglich 17:00 Uhr."""
+        """Warte bis täglich 01:00 Uhr."""
         await self.bot.wait_until_ready()
         from datetime import datetime, timedelta
         import asyncio
         now = datetime.now()
-        target = now.replace(hour=17, minute=0, second=0, microsecond=0)
+        target = now.replace(hour=1, minute=0, second=0, microsecond=0)
         if now >= target:
             target += timedelta(days=1)
         await asyncio.sleep((target - now).total_seconds())
