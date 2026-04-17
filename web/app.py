@@ -393,5 +393,89 @@ def api_send_message():
         return jsonify({"error": str(e)}), 500
 
 
+# ── Templates ─────────────────────────────────────────────────────────────────
+
+def _tpl_module():
+    import sys as _sys, os as _os
+    root = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), '..'))
+    if root not in _sys.path:
+        _sys.path.insert(0, root)
+    from cogs import templates as m
+    return m
+
+
+@app.route("/templates")
+@login_required
+def templates():
+    return render_template("templates.html")
+
+
+@app.route("/api/templates")
+@login_required
+def api_templates_list():
+    return jsonify(_tpl_module().list_templates())
+
+
+@app.route("/api/templates/create", methods=["POST"])
+@login_required
+def api_templates_create():
+    bot = current_app.config.get("BOT")
+    if not bot or not bot.guilds:
+        return jsonify({"error": "Bot nicht verfügbar"}), 503
+    data = request.get_json() or {}
+    name = data.get("name", "").strip()
+    if not name:
+        from datetime import datetime as _dt
+        name = _dt.now().strftime("%Y-%m-%d_%H-%M")
+    name = name.replace(" ", "_").replace("/", "-")[:50]
+    try:
+        meta = _tpl_module().save_template(name, bot.guilds[0], "Dashboard")
+        _discord_log("📋 Template erstellt",
+                     f"**Name:** {name} | **Via:** Dashboard\n"
+                     f"Rollen: {meta['role_count']} | Kategorien: {meta['category_count']} | Channels: {meta['channel_count']}")
+        return jsonify({"ok": True, "meta": meta})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/templates/<name>/restore", methods=["POST"])
+@login_required
+def api_templates_restore(name):
+    bot  = current_app.config.get("BOT")
+    loop = current_app.config.get("LOOP")
+    if not bot or not loop or not bot.guilds:
+        return jsonify({"error": "Bot nicht verfügbar"}), 503
+    m = _tpl_module()
+    import os as _os
+    if not _os.path.exists(_os.path.join(m.TEMPLATES_DIR, f"{name}.json")):
+        return jsonify({"error": "Template nicht gefunden"}), 404
+    cog = bot.cogs.get("Templates")
+    if not cog:
+        return jsonify({"error": "Templates-Modul nicht geladen"}), 503
+    try:
+        data  = m.load_template(name)
+        guild = bot.guilds[0]
+        future = asyncio.run_coroutine_threadsafe(cog.restore(guild, data), loop)
+        stats  = future.result(timeout=120)
+        _discord_log("🔄 Template wiederhergestellt",
+                     f"**Name:** {name} | **Via:** Dashboard\n"
+                     f"Neue Rollen: {stats['created_roles']} | Neue Kategorien: {stats['created_cats']} | "
+                     f"Neue Channels: {stats['created_channels']} | Aktualisierte: {stats['updated_channels']}",
+                     0x22c55e)
+        return jsonify({"ok": True, "stats": stats})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/templates/<name>", methods=["DELETE"])
+@login_required
+def api_templates_delete(name):
+    m = _tpl_module()
+    if m.delete_template(name):
+        _discord_log("🗑️ Template gelöscht", f"**Name:** {name} | **Via:** Dashboard")
+        return jsonify({"ok": True})
+    return jsonify({"error": "Template nicht gefunden"}), 404
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)

@@ -38,6 +38,7 @@ COGS = [
     "cogs.welcome",
     "cogs.streak",
     "cogs.ranks",
+    "cogs.templates",
 ]
 
 

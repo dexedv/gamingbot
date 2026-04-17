@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}Templates{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Server-Templates</h1>
+  <p>Backup der Discord-Serverstruktur erstellen und wiederherstellen</p>
+</div>
+
+<div class="row g-4">
+
+  <!-- Create -->
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header">📋 Template erstellen</div>
+      <div class="card-body" style="padding:1.5rem">
+        <p style="font-size:.85rem; color:var(--muted); margin-bottom:1.25rem">
+          Erstellt einen vollständigen Snapshot der aktuellen Serverstruktur:
+          Rollen, Kategorien und Channels.
+        </p>
+
+        <div class="mb-3">
+          <label style="font-size:.78rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em; display:block; margin-bottom:.5rem">
+            Template-Name <span style="font-weight:400">(optional)</span>
+          </label>
+          <input id="tplName" type="text" class="form-control"
+            placeholder="z.B. vor-umbau-2025-04"
+            style="border-radius:9px">
+          <div style="font-size:.75rem; color:var(--muted); margin-top:.35rem">
+            Leer lassen für automatischen Zeitstempel.
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-3 mt-3">
+          <button id="createBtn" class="btn btn-accent px-4 d-flex align-items-center gap-2"
+            onclick="createTemplate()">
+            <i class="bi bi-archive"></i> Erstellen
+          </button>
+          <span id="createStatus" style="font-size:.85rem"></span>
+        </div>
+
+        <div style="margin-top:1.5rem; padding:1rem; background:rgba(88,101,242,.07); border:1px solid rgba(88,101,242,.2); border-radius:9px">
+          <div style="font-size:.78rem; font-weight:600; color:var(--accent2); margin-bottom:.5rem">Was wird gesichert?</div>
+          <ul style="font-size:.8rem; color:var(--muted); margin:0; padding-left:1.1rem; line-height:1.8">
+            <li>Alle Rollen (Name, Farbe, Berechtigungen)</li>
+            <li>Alle Kategorien (Name, Position)</li>
+            <li>Alle Channels (Name, Typ, Topic, Slowmode, NSFW)</li>
+            <li>Channel-Zuordnungen zu Kategorien</li>
+          </ul>
+          <div style="font-size:.78rem; font-weight:600; color:var(--warning); margin-top:.75rem; margin-bottom:.25rem">Nicht gesichert:</div>
+          <ul style="font-size:.8rem; color:var(--muted); margin:0; padding-left:1.1rem; line-height:1.8">
+            <li>Nachrichten & Medien</li>
+            <li>Mitglieder & Rollenzuweisungen</li>
+            <li>Bans & Einladungen</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Template List -->
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>🗂️ Gespeicherte Templates</span>
+        <button onclick="loadTemplates()" style="background:none; border:none; color:var(--muted); cursor:pointer; font-size:.8rem">
+          <i class="bi bi-arrow-clockwise"></i> Aktualisieren
+        </button>
+      </div>
+      <div id="templateList" style="min-height:120px">
+        <div class="text-center py-5" style="color:var(--muted); font-size:.85rem">
+          <div class="spinner-border spinner-border-sm mb-2" role="status"></div><br>
+          Lade Templates…
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Restore Confirm Modal -->
+<div id="restoreModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:500; align-items:center; justify-content:center">
+  <div style="background:var(--card); border:1px solid var(--border); border-radius:14px; padding:2rem; max-width:440px; width:90%">
+    <h5 style="color:#fff; margin:0 0 .75rem">🔄 Template wiederherstellen</h5>
+    <p style="font-size:.875rem; color:var(--muted); margin-bottom:1.25rem">
+      Template <strong id="restoreName" style="color:var(--text)"></strong> wird angewendet.<br>
+      Fehlende Rollen, Kategorien und Channels werden erstellt.
+      Bestehende werden <strong>nicht gelöscht</strong>.
+    </p>
+    <div style="background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.2); border-radius:9px; padding:.75rem 1rem; font-size:.8rem; color:#f87171; margin-bottom:1.5rem">
+      <i class="bi bi-exclamation-triangle me-1"></i>
+      Das kann mehrere Minuten dauern je nach Servergröße.
+    </div>
+    <div class="d-flex gap-2">
+      <button id="confirmRestoreBtn" class="btn btn-accent flex-fill" onclick="confirmRestore()">
+        <i class="bi bi-check2"></i> Wiederherstellen
+      </button>
+      <button class="btn" style="background:var(--border); color:var(--muted); border:none; border-radius:9px; flex:1"
+        onclick="closeModal()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let pendingRestore = null;
+
+async function loadTemplates() {
+  const list = document.getElementById('templateList');
+  list.innerHTML = '<div class="text-center py-5" style="color:var(--muted); font-size:.85rem"><div class="spinner-border spinner-border-sm mb-2" role="status"></div><br>Lade Templates…</div>';
+  try {
+    const res = await fetch('/api/templates');
+    const tpls = await res.json();
+    if (!tpls.length) {
+      list.innerHTML = '<div class="text-center py-5" style="color:var(--muted); font-size:.85rem"><i class="bi bi-archive" style="font-size:2rem; display:block; margin-bottom:.5rem; opacity:.3"></i>Noch keine Templates vorhanden.</div>';
+      return;
+    }
+    list.innerHTML = tpls.map(t => {
+      const dt = (t.created_at || '').slice(0,16).replace('T', ' ');
+      return `
+        <div style="padding:1rem 1.25rem; border-bottom:1px solid var(--border)">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div style="font-size:.9rem; font-weight:600; color:var(--text)">${escHtml(t.name)}</div>
+              <div style="font-size:.75rem; color:var(--muted); margin-top:.2rem">
+                ${dt ? `<i class="bi bi-calendar3 me-1"></i>${dt}` : ''}
+                ${t.created_by ? `<span class="ms-2"><i class="bi bi-person me-1"></i>${escHtml(t.created_by)}</span>` : ''}
+              </div>
+              <div style="margin-top:.5rem; display:flex; gap:.5rem; flex-wrap:wrap">
+                ${badge('bi-shield-check', t.role_count ?? '?', 'Rollen')}
+                ${badge('bi-folder', t.category_count ?? '?', 'Kategorien')}
+                ${badge('bi-hash', t.channel_count ?? '?', 'Channels')}
+              </div>
+            </div>
+            <div class="d-flex gap-2 ms-3 flex-shrink-0">
+              <button onclick="openRestoreModal('${escHtml(t.name)}')"
+                style="background:rgba(88,101,242,.15); color:var(--accent2); border:1px solid rgba(88,101,242,.3); border-radius:8px; padding:.35rem .75rem; font-size:.8rem; cursor:pointer; white-space:nowrap">
+                <i class="bi bi-arrow-counterclockwise"></i> Wiederherstellen
+              </button>
+              <button onclick="deleteTemplate('${escHtml(t.name)}')"
+                style="background:rgba(239,68,68,.1); color:#f87171; border:1px solid rgba(239,68,68,.2); border-radius:8px; padding:.35rem .65rem; font-size:.8rem; cursor:pointer">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<div class="text-center py-4" style="color:var(--danger)">Fehler beim Laden.</div>';
+  }
+}
+
+function badge(icon, val, label) {
+  return `<span style="background:var(--border); color:var(--muted); border-radius:6px; padding:.15rem .5rem; font-size:.73rem">
+    <i class="bi ${icon} me-1"></i>${val} ${label}
+  </span>`;
+}
+
+async function createTemplate() {
+  const name = document.getElementById('tplName').value.trim();
+  const btn  = document.getElementById('createBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Erstelle…';
+  try {
+    const res  = await fetch('/api/templates/create', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({name})
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showCreateStatus(`✓ Template "${data.meta.name}" erstellt!`, 'success');
+      document.getElementById('tplName').value = '';
+      loadTemplates();
+    } else {
+      showCreateStatus('✗ ' + (data.error || 'Fehler'), 'danger');
+    }
+  } catch(e) {
+    showCreateStatus('✗ Verbindungsfehler', 'danger');
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-archive"></i> Erstellen';
+}
+
+function showCreateStatus(msg, type) {
+  const el = document.getElementById('createStatus');
+  el.innerHTML = `<span style="color:var(--${type === 'success' ? 'success' : 'danger'})">${msg}</span>`;
+  setTimeout(() => el.innerHTML = '', 5000);
+}
+
+function openRestoreModal(name) {
+  pendingRestore = name;
+  document.getElementById('restoreName').textContent = name;
+  document.getElementById('restoreModal').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('restoreModal').style.display = 'none';
+  pendingRestore = null;
+}
+
+async function confirmRestore() {
+  if (!pendingRestore) return;
+  const btn = document.getElementById('confirmRestoreBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Läuft…';
+  try {
+    const res  = await fetch(`/api/templates/${encodeURIComponent(pendingRestore)}/restore`, {method:'POST'});
+    const data = await res.json();
+    closeModal();
+    if (data.ok) {
+      const s = data.stats;
+      alert(`✅ Template wiederhergestellt!\n\n` +
+            `Neue Rollen: ${s.created_roles}\n` +
+            `Neue Kategorien: ${s.created_cats}\n` +
+            `Neue Channels: ${s.created_channels}\n` +
+            `Aktualisierte Channels: ${s.updated_channels}`);
+    } else {
+      alert('❌ Fehler: ' + (data.error || 'Unbekannt'));
+    }
+  } catch(e) {
+    closeModal();
+    alert('❌ Verbindungsfehler');
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-check2"></i> Wiederherstellen';
+}
+
+async function deleteTemplate(name) {
+  if (!confirm(`Template "${name}" wirklich löschen?`)) return;
+  try {
+    const res = await fetch(`/api/templates/${encodeURIComponent(name)}`, {method:'DELETE'});
+    const data = await res.json();
+    if (data.ok) loadTemplates();
+    else alert('Fehler: ' + data.error);
+  } catch(e) {
+    alert('Verbindungsfehler');
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Modal schließen bei Klick außerhalb
+document.getElementById('restoreModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+loadTemplates();
+</script>
+{% endblock %}
