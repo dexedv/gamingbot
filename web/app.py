@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, c
 
 app = Flask(__name__)
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'gamingbot.db')
+DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'gamingbot.db')
 _bot_start_time = time.time()
 
 
