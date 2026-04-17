@@ -616,9 +616,27 @@ def api_willkommen_test():
             description=fmt(s["welcome_description"]),
             color=color,
         )
-        embed.add_field(name="📜 Regeln", value=f"<#{int(s['welcome_rules_channel'])}>", inline=True)
-        embed.add_field(name="🎭 Rollen", value=f"<#{int(s['welcome_roles_channel'])}>", inline=True)
-        embed.set_footer(text=fmt(s["welcome_footer"]))
+        if s.get("welcome_show_banner") and channel.guild.banner:
+            embed.set_image(url=channel.guild.banner.url)
+        embed.add_field(
+            name="📜  Regeln",
+            value=f"{fmt(s.get('welcome_rules_text', 'Lies unsere Regeln durch bevor du loslegst!'))}\n<#{int(s['welcome_rules_channel'])}>",
+            inline=True,
+        )
+        embed.add_field(
+            name="🎭  Rollen",
+            value=f"{fmt(s.get('welcome_roles_text', 'Such dir deine Rollen aus!'))}\n<#{int(s['welcome_roles_channel'])}>",
+            inline=True,
+        )
+        embed.add_field(
+            name="🤝  Paten-System",
+            value=f"{fmt(s.get('welcome_paten_text', 'Neu hier? Wir haben ein **Paten-System**!'))}\nTicket öffnen: <#{int(s['welcome_paten_channel'])}>",
+            inline=False,
+        )
+        embed.set_footer(
+            text=fmt(s["welcome_footer"]),
+            icon_url=channel.guild.icon.url if channel.guild.icon else None,
+        )
         embed.set_author(name="⚠️ TEST-Nachricht vom Dashboard")
         await channel.send(embed=embed)
 
