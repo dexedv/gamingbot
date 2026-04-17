@@ -3,6 +3,16 @@ import re
 import discord
 
 
+# ── Geschützte Rolle ──────────────────────────────────────────────────────────
+
+PROTECTED_ROLE_ID = 1494612383899975781
+
+
+def is_name_protected(member) -> bool:
+    """True wenn der Nutzer die geschützte Rolle hat (Benutzername nicht ändern)."""
+    return any(r.id == PROTECTED_ROLE_ID for r in getattr(member, "roles", []))
+
+
 # ── Nickname-Hilfsfunktion ────────────────────────────────────────────────────
 
 def base_name(display_name: str) -> str:
