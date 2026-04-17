@@ -14,6 +14,7 @@ DEFAULTS = {
     "welcome_rules_channel": 1019184912110211103,
     "welcome_roles_channel": 1019594993226219610,
     "welcome_paten_channel": 1494054503647805562,
+    "welcome_paten_text":    "Neu hier? Wir haben ein **Paten-System**!\nEin erfahrenes Mitglied begleitet dich.",
     "welcome_footer":        "{guild} • Viel Spaß!",
     "welcome_show_banner":   True,
 }
@@ -95,7 +96,7 @@ class WelcomeCog(commands.Cog, name="Welcome"):
         )
         embed.add_field(
             name="🤝  Paten-System",
-            value=f"Neu hier? Wir haben ein **Paten-System**!\nEin erfahrenes Mitglied begleitet dich.\nTicket öffnen: <#{int(s['welcome_paten_channel'])}>",
+            value=f"{fmt(s.get('welcome_paten_text', 'Neu hier? Wir haben ein **Paten-System**!'))}\nTicket öffnen: <#{int(s['welcome_paten_channel'])}>",
             inline=False,
         )
         embed.set_footer(

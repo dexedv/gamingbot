@@ -236,6 +236,7 @@ SETTINGS_DEFAULTS = {
     "welcome_roles_channel":  1019594993226219610,
     "welcome_roles_text":     "Such dir deine Rollen aus!",
     "welcome_paten_channel":  1494054503647805562,
+    "welcome_paten_text":     "Neu hier? Wir haben ein **Paten-System**!\nEin erfahrenes Mitglied begleitet dich.",
     "welcome_footer":         "{guild} • Viel Spaß!",
     "welcome_show_banner":    True,
 }
@@ -569,7 +570,7 @@ def willkommen():
         s["welcome_enabled"]    = "welcome_enabled" in request.form
         s["welcome_show_banner"] = "welcome_show_banner" in request.form
         for key in ["welcome_title", "welcome_description", "welcome_color",
-                    "welcome_footer", "welcome_rules_text", "welcome_roles_text"]:
+                    "welcome_footer", "welcome_rules_text", "welcome_roles_text", "welcome_paten_text"]:
             val = request.form.get(key, "").strip()
             if val:
                 s[key] = val

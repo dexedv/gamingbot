@@ -138,6 +138,11 @@
             </div>
           </div>
           <div>
+            <label class="form-label" style="font-size:.78rem;color:var(--muted)">🤝 Paten-System Text</label>
+            <textarea name="welcome_paten_text" id="inp_paten_text" class="form-control form-control-sm"
+                      rows="2" maxlength="300" oninput="updatePreview()">{{ s.welcome_paten_text }}</textarea>
+          </div>
+          <div>
             <label class="form-label" style="font-size:.78rem;color:var(--muted)">Fußzeile</label>
             <input type="text" name="welcome_footer" id="inp_footer" class="form-control"
                    value="{{ s.welcome_footer }}" oninput="updatePreview()">
@@ -210,6 +215,7 @@
               </div>
               <div class="embed-field" style="flex-basis:100%">
                 <div class="field-name">🤝 Paten-System</div>
+                <div class="field-val" id="prev_paten_text" style="white-space:pre-wrap">{{ s.welcome_paten_text }}</div>
                 <div class="field-val" id="prev_paten">Ticket öffnen: #paten-kanal</div>
               </div>
             </div>
@@ -310,6 +316,7 @@ function updatePreview() {
   document.getElementById('prev_footer').textContent   = fmt(document.getElementById('inp_footer').value);
   document.getElementById('prev_rules_text').textContent = document.getElementById('inp_rules_text').value;
   document.getElementById('prev_roles_text').textContent = document.getElementById('inp_roles_text').value;
+  document.getElementById('prev_paten_text').textContent = document.getElementById('inp_paten_text').value;
 }
 
 function syncColorFromPicker() {
