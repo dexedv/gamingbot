@@ -56,19 +56,22 @@ def streak_rank(streak: int) -> tuple[str, str]:
 STREAK_EMOJI = "🔥"
 
 
-async def update_nickname(member: discord.Member, streak: int, force: bool = False):
+async def update_nickname(member: discord.Member, streak: int, force: bool = False) -> bool:
+    """Gibt True zurück wenn der Nickname tatsächlich geändert wurde."""
     if not force and not _nickname_updates_enabled():
-        return
+        return False
     if is_name_protected(member):
-        return
+        return False
     try:
         new_nick = f"{base_name(member.display_name)} | {STREAK_EMOJI}{streak}"
         if len(new_nick) > 32:
             new_nick = new_nick[:32]
         if member.display_name != new_nick:
             await member.edit(nick=new_nick)
+            return True
     except discord.Forbidden:
         pass
+    return False
 
 
 class StreakCog(commands.Cog, name="Streak"):
@@ -80,24 +83,44 @@ class StreakCog(commands.Cog, name="Streak"):
     def cog_unload(self):
         self.nickname_loop.cancel()
 
-    async def run_nickname_update(self, force: bool = False):
+    async def run_nickname_update(self, force: bool = False, scheduled: bool = False):
         """Aktualisiert alle Nicknames sofort (auch manuell aufrufbar)."""
+        from utils import send_log
         import aiosqlite
+        if scheduled:
+            await send_log(self.bot, "🔄 Nickname-Update gestartet",
+                           "Täglicher Lauf um 17:00 Uhr", discord.Color.orange())
+
         async with aiosqlite.connect(self.bot.db.db_path) as db:
             cur = await db.execute("SELECT user_id, streak FROM users")
             streaks = {row[0]: row[1] for row in await cur.fetchall()}
 
+        updated = 0
+        skipped = 0
         for guild in self.bot.guilds:
             async for member in guild.fetch_members(limit=None):
                 if member.bot:
                     continue
                 streak = streaks.get(member.id, 0)
-                await update_nickname(member, streak, force=force)
+                result = await update_nickname(member, streak, force=force)
+                if result:
+                    updated += 1
+                else:
+                    skipped += 1
+
+        if scheduled or force:
+            label = "17:00-Lauf" if scheduled else "Manueller Lauf"
+            await send_log(
+                self.bot,
+                "✅ Nickname-Update abgeschlossen",
+                f"**{label}**\nAktualisiert: **{updated}** | Übersprungen: **{skipped}**",
+                discord.Color.green(),
+            )
 
     @tasks.loop(hours=24)
     async def nickname_loop(self):
         """Täglich um 17:00 Uhr alle Nicknames aktualisieren."""
-        await self.run_nickname_update()
+        await self.run_nickname_update(scheduled=True)
 
     @nickname_loop.before_loop
     async def before_nickname_loop(self):

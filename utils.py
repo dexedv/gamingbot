@@ -6,6 +6,7 @@ import discord
 # ── Benachrichtigungskanal ────────────────────────────────────────────────────
 
 NOTIFY_CHANNEL_ID = 1494057689435869485
+LOG_CHANNEL_ID    = 1494676015459471450
 
 
 def _read_settings() -> dict:
@@ -24,6 +25,25 @@ async def send_notify(bot, embed) -> None:
     channel = bot.get_channel(int(channel_id))
     if channel:
         await channel.send(embed=embed)
+
+
+async def send_log(bot, title: str, description: str = "", color: discord.Color = None) -> None:
+    """Sendet eine Log-Nachricht in den dedizierten Log-Kanal."""
+    from datetime import datetime, timezone
+    channel = bot.get_channel(LOG_CHANNEL_ID)
+    if not channel:
+        return
+    embed = discord.Embed(
+        title=title,
+        color=color or discord.Color.blurple(),
+        timestamp=datetime.now(timezone.utc),
+    )
+    if description:
+        embed.description = description
+    try:
+        await channel.send(embed=embed)
+    except Exception:
+        pass
 
 
 # ── Geschützte Rolle ──────────────────────────────────────────────────────────

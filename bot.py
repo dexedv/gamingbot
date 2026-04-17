@@ -19,11 +19,11 @@ def start_webpanel(bot_instance, loop):
     app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from dotenv import load_dotenv
 
 from database import Database
-from utils import base_name, is_name_protected
+from utils import base_name, is_name_protected, send_log
 
 load_dotenv()
 
@@ -55,6 +55,18 @@ def create_bot() -> commands.Bot:
 bot = create_bot()
 
 
+@tasks.loop(hours=1)
+async def hourly_status():
+    """Stündlicher Online-Status-Log."""
+    member_count = sum(g.member_count for g in bot.guilds)
+    await send_log(
+        bot,
+        "✅ Bot Online",
+        f"**Server:** {len(bot.guilds)}\n**Nutzer:** {member_count}",
+        discord.Color.green(),
+    )
+
+
 @bot.event
 async def on_ready():
     print(f"✅  Eingeloggt als {bot.user}  (ID: {bot.user.id})")
@@ -79,6 +91,26 @@ async def on_ready():
             type=discord.ActivityType.playing,
             name="%hilfe | %slots | %tictactoe",
         )
+    )
+
+    if not hourly_status.is_running():
+        hourly_status.start()
+
+
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, (commands.CommandNotFound, commands.CheckFailure)):
+        return
+    import traceback
+    tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+    await send_log(
+        bot,
+        "❌ Befehlsfehler",
+        f"**Befehl:** `{ctx.message.content[:100]}`\n"
+        f"**Nutzer:** {ctx.author} (`{ctx.author.id}`)\n"
+        f"**Fehler:** {type(error).__name__}: {error}\n"
+        f"```{tb[-500:]}```",
+        discord.Color.red(),
     )
 
 @bot.event

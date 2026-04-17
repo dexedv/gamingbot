@@ -71,6 +71,27 @@ def fmt_uptime(seconds):
     return " ".join(parts) or "< 1m"
 
 
+# ── Discord-Log ───────────────────────────────────────────────────────────────
+
+def _discord_log(title: str, description: str = "", color: int = 0x5865f2):
+    """Sendet eine Log-Nachricht asynchron in den Log-Kanal."""
+    bot  = current_app.config.get("BOT")
+    loop = current_app.config.get("LOOP")
+    if not bot or not loop:
+        return
+    try:
+        import sys, os as _os
+        sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), '..'))
+        from utils import send_log
+        import discord
+        asyncio.run_coroutine_threadsafe(
+            send_log(bot, title, description, discord.Color(color)),
+            loop
+        )
+    except Exception:
+        pass
+
+
 # ── Dashboard ─────────────────────────────────────────────────────────────────
 
 @app.route("/")
@@ -148,12 +169,26 @@ def edit_user(user_id):
     level  = request.form.get("level",  type=int)
     xp     = request.form.get("xp",     type=int)
     db = get_db()
-    if coins  is not None: db.execute("UPDATE users SET coins=?  WHERE user_id=?", (max(0, coins),  user_id))
-    if streak is not None: db.execute("UPDATE users SET streak=? WHERE user_id=?", (max(0, streak), user_id))
-    if level  is not None: db.execute("UPDATE users SET level=?  WHERE user_id=?", (max(0, level),  user_id))
-    if xp     is not None: db.execute("UPDATE users SET xp=?     WHERE user_id=?", (max(0, xp),     user_id))
+    changes = []
+    if coins  is not None:
+        db.execute("UPDATE users SET coins=?  WHERE user_id=?", (max(0, coins),  user_id))
+        changes.append(f"Münzen: {max(0, coins)}")
+    if streak is not None:
+        db.execute("UPDATE users SET streak=? WHERE user_id=?", (max(0, streak), user_id))
+        changes.append(f"Streak: {max(0, streak)}")
+    if level  is not None:
+        db.execute("UPDATE users SET level=?  WHERE user_id=?", (max(0, level),  user_id))
+        changes.append(f"Level: {max(0, level)}")
+    if xp     is not None:
+        db.execute("UPDATE users SET xp=?     WHERE user_id=?", (max(0, xp),     user_id))
+        changes.append(f"XP: {max(0, xp)}")
     db.commit()
+    row = db.execute("SELECT username FROM users WHERE user_id=?", (user_id,)).fetchone()
+    username = row["username"] if row else str(user_id)
     db.close()
+    if changes:
+        _discord_log("📝 Nutzer bearbeitet",
+                     f"**Nutzer:** {username}\n" + "\n".join(changes))
     return redirect(url_for("users"))
 
 
@@ -197,6 +232,11 @@ def settings():
         if notify_ch.isdigit():
             s["notify_channel"] = int(notify_ch)
         save_settings(s)
+        _discord_log("⚙️ Einstellungen gespeichert",
+                     f"Nachrichten-XP: {s.get('msg_xp')} | Max/Min: {s.get('msg_xp_per_min')} | "
+                     f"Voice-XP/30s: {s.get('voice_xp_per_30s')} | "
+                     f"Tages-XP: {s.get('daily_xp')} | "
+                     f"Nickname-Updates: {s.get('nickname_updates')}")
         return redirect(url_for("settings"))
     return render_template("settings.html", settings=s)
 
@@ -289,8 +329,13 @@ def toggle_cog(cog_name):
             future = asyncio.run_coroutine_threadsafe(bot.load_extension(cog_name), loop)
             future.result(timeout=10)
             loaded = True
+        status = "aktiviert" if loaded else "deaktiviert"
+        _discord_log("🔧 Modul geändert",
+                     f"**{COGS_INFO[cog_name]['label']}** (`{cog_name}`) wurde **{status}**")
         return jsonify({"name": cog_name, "loaded": loaded})
     except Exception as e:
+        _discord_log("❌ Modul-Fehler",
+                     f"**{cog_name}**\nFehler: {e}", 0xef4444)
         return jsonify({"error": str(e)}), 500
 
 
@@ -340,6 +385,9 @@ def api_send_message():
     try:
         future = asyncio.run_coroutine_threadsafe(channel.send(message), loop)
         future.result(timeout=10)
+        preview = message[:150] + ("…" if len(message) > 150 else "")
+        _discord_log("📨 Nachricht gesendet",
+                     f"**Channel:** #{channel.name}\n**Nachricht:** {preview}")
         return jsonify({"ok": True, "channel": channel.name})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
