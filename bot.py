@@ -16,7 +16,7 @@ def start_webpanel(bot_instance, loop):
     from app import app
     app.config["BOT"]  = bot_instance
     app.config["LOOP"] = loop
-    app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
+    app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
 
 import discord
 from discord.ext import commands
