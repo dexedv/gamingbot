@@ -109,7 +109,7 @@ class StreakCog(commands.Cog, name="Streak"):
                     skipped += 1
 
         if scheduled or force:
-            label = "01:00-Lauf" if scheduled else "Manueller Lauf"
+            label = "5h-Lauf" if scheduled else "Manueller Lauf"
             await send_log(
                 self.bot,
                 "✅ Nickname-Update abgeschlossen",
@@ -117,22 +117,14 @@ class StreakCog(commands.Cog, name="Streak"):
                 discord.Color.green(),
             )
 
-    @tasks.loop(hours=24)
+    @tasks.loop(hours=5)
     async def nickname_loop(self):
-        """Täglich um 01:00 Uhr alle Nicknames aktualisieren."""
+        """Alle 5 Stunden alle Nicknames aktualisieren."""
         await self.run_nickname_update(scheduled=True)
 
     @nickname_loop.before_loop
     async def before_nickname_loop(self):
-        """Warte bis täglich 01:00 Uhr."""
         await self.bot.wait_until_ready()
-        from datetime import datetime, timedelta
-        import asyncio
-        now = datetime.now()
-        target = now.replace(hour=1, minute=0, second=0, microsecond=0)
-        if now >= target:
-            target += timedelta(days=1)
-        await asyncio.sleep((target - now).total_seconds())
 
     @commands.Cog.listener()
     async def on_ready(self):

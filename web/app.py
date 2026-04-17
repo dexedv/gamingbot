@@ -165,6 +165,25 @@ def users():
     return render_template("users.html", users=users_list, search=search)
 
 
+@app.route("/users/<int:user_id>")
+@login_required
+def user_detail(user_id):
+    db = get_db()
+    row = db.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)).fetchone()
+    db.close()
+    if not row:
+        return redirect(url_for("users"))
+    u = dict(row)
+    u["voice_fmt"] = fmt_seconds(u.get("voice_seconds") or 0)
+    xp    = u.get("xp") or 0
+    level = u.get("level") or 0
+    xp_curr = xp - level * level * 50
+    xp_need = (level + 1) * (level + 1) * 50 - level * level * 50
+    xp_pct  = min(100, int(xp_curr / xp_need * 100)) if xp_need > 0 else 100
+    return render_template("user_detail.html", u=u,
+                           xp_curr=xp_curr, xp_need=xp_need, xp_pct=xp_pct)
+
+
 @app.route("/users/<int:user_id>/edit", methods=["POST"])
 @login_required
 def edit_user(user_id):
@@ -201,13 +220,20 @@ def edit_user(user_id):
 SETTINGS_PATH = os.path.join(os.path.dirname(__file__), '..', 'settings.json')
 
 SETTINGS_DEFAULTS = {
-    "nickname_updates":  True,
-    "daily_xp":          30,
-    "welcome_channel":   1019608622663209000,
-    "msg_xp":            2,
-    "msg_xp_per_min":    5,
-    "voice_xp_per_30s":  1,
-    "notify_channel":    1494057689435869485,
+    "nickname_updates":       True,
+    "daily_xp":               30,
+    "welcome_channel":        1019608622663209000,
+    "msg_xp":                 2,
+    "msg_xp_per_min":         5,
+    "voice_xp_per_30s":       1,
+    "notify_channel":         1494057689435869485,
+    "welcome_title":          "👋 Willkommen auf {guild}!",
+    "welcome_description":    "Schön dass du da bist, {mention}! 🎉\nDu bist unser **{count}. Mitglied** — herzlich willkommen!",
+    "welcome_color":          "#5865f2",
+    "welcome_rules_channel":  1019184912110211103,
+    "welcome_roles_channel":  1019594993226219610,
+    "welcome_footer":         "{guild} • Viel Spaß!",
+    "welcome_show_banner":    True,
 }
 
 def load_settings():
@@ -496,6 +522,73 @@ def api_template_download(name):
     if not _os.path.exists(path):
         return "Nicht gefunden", 404
     return send_file(path, as_attachment=True, download_name=f"{name}.json", mimetype="application/json")
+
+
+# ── Willkommen-Editor ─────────────────────────────────────────────────────────
+
+@app.route("/willkommen", methods=["GET", "POST"])
+@login_required
+def willkommen():
+    s = load_settings()
+    if request.method == "POST":
+        for key in ["welcome_title", "welcome_description", "welcome_color",
+                    "welcome_footer"]:
+            val = request.form.get(key, "").strip()
+            if val:
+                s[key] = val
+        for key in ["welcome_channel", "welcome_rules_channel", "welcome_roles_channel"]:
+            val = request.form.get(key, "").strip()
+            if val.isdigit():
+                s[key] = int(val)
+        s["welcome_show_banner"] = "welcome_show_banner" in request.form
+        save_settings(s)
+        _discord_log("👋 Willkommens-Nachricht bearbeitet",
+                     f"Titel: {s['welcome_title'][:60]}\nKanal: <#{s['welcome_channel']}>")
+        return redirect(url_for("willkommen"))
+    return render_template("willkommen.html", s=s)
+
+
+@app.route("/api/willkommen/test", methods=["POST"])
+@login_required
+def api_willkommen_test():
+    bot  = current_app.config.get("BOT")
+    loop = current_app.config.get("LOOP")
+    if not bot or not loop:
+        return jsonify({"error": "Bot nicht verfügbar"}), 503
+    s = load_settings()
+    channel_id = int(s.get("welcome_channel", 0))
+    channel = bot.get_channel(channel_id)
+    if not channel:
+        return jsonify({"error": f"Kanal {channel_id} nicht gefunden"}), 404
+
+    async def _send():
+        import discord as _d
+        def fmt(text):
+            return str(text).replace("{mention}", "@Dashboard-Test") \
+                            .replace("{guild}", channel.guild.name) \
+                            .replace("{count}", str(channel.guild.member_count)) \
+                            .replace("{username}", "Testnutzer")
+        try:
+            r, g, b = [int(s["welcome_color"].lstrip('#')[i:i+2], 16) for i in (0,2,4)]
+            color = _d.Color.from_rgb(r, g, b)
+        except Exception:
+            color = _d.Color.blurple()
+        embed = _d.Embed(
+            title=fmt(s["welcome_title"]),
+            description=fmt(s["welcome_description"]),
+            color=color,
+        )
+        embed.add_field(name="📜 Regeln", value=f"<#{int(s['welcome_rules_channel'])}>", inline=True)
+        embed.add_field(name="🎭 Rollen", value=f"<#{int(s['welcome_roles_channel'])}>", inline=True)
+        embed.set_footer(text=fmt(s["welcome_footer"]))
+        embed.set_author(name="⚠️ TEST-Nachricht vom Dashboard")
+        await channel.send(embed=embed)
+
+    try:
+        asyncio.run_coroutine_threadsafe(_send(), loop).result(timeout=10)
+        return jsonify({"ok": True, "channel": channel.name})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ── Umfragen ──────────────────────────────────────────────────────────────────

@@ -275,6 +275,9 @@
     </a>
 
     <div class="sb-section" style="margin-top:1rem">Verwaltung</div>
+    <a class="sb-link {% if request.endpoint == 'willkommen' %}active{% endif %}" href="/willkommen">
+      <i class="bi bi-door-open"></i> Willkommen
+    </a>
     <a class="sb-link {% if request.endpoint == 'broadcast' %}active{% endif %}" href="/broadcast">
       <i class="bi bi-send"></i> Nachrichten
     </a>

@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% block title %}Willkommens-Editor{% endblock %}
+
+{% block head %}
+<style>
+  .discord-embed {
+    border-left: 4px solid var(--embed-color, #5865f2);
+    background: #2b2d31;
+    border-radius: 0 8px 8px 0;
+    padding: 1rem 1rem 1rem .9rem;
+    font-family: 'gg sans', 'Noto Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    max-width: 520px;
+    font-size: .875rem;
+    line-height: 1.375;
+    color: #dbdee1;
+  }
+  .discord-embed .embed-author {
+    font-size: .75rem; font-weight: 600; color: #dbdee1; margin-bottom: .25rem;
+  }
+  .discord-embed .embed-title {
+    font-weight: 700; color: #fff; margin-bottom: .25rem; font-size: 1rem;
+  }
+  .discord-embed .embed-desc {
+    color: #dbdee1; margin-bottom: .5rem; white-space: pre-wrap; font-size: .875rem;
+  }
+  .discord-embed .embed-fields {
+    display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem;
+  }
+  .discord-embed .embed-field {
+    flex: 1; min-width: 120px;
+  }
+  .discord-embed .field-name { font-size: .75rem; font-weight: 700; color: #dbdee1; margin-bottom: .1rem; }
+  .discord-embed .field-val  { font-size: .8rem; color: #b5bac1; }
+  .discord-embed .embed-footer {
+    font-size: .7rem; color: #87898c; margin-top: .75rem; border-top: 1px solid rgba(255,255,255,.06);
+    padding-top: .5rem;
+  }
+  .section { background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+  .section-h { padding:.85rem 1.25rem; border-bottom:1px solid var(--border);
+    font-weight:600; color:#c8d0dc; font-size:.88rem; display:flex; align-items:center; gap:.5rem; }
+  .section-b { padding:1.25rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between flex-wrap gap-3">
+  <div>
+    <h1 style="font-size:1.65rem;font-weight:800;color:#fff;margin:0">
+      <i class="bi bi-door-open me-2" style="color:var(--accent)"></i>Willkommens-Editor
+    </h1>
+    <p style="color:var(--muted);margin:.3rem 0 0;font-size:.85rem">
+      Passe die Willkommensnachricht für neue Mitglieder an
+    </p>
+  </div>
+  <button class="btn btn-sm" id="testBtn"
+          style="background:rgba(34,197,94,.12);color:#22c55e;border:1px solid rgba(34,197,94,.25);border-radius:9px"
+          onclick="sendTest()">
+    <i class="bi bi-send me-1"></i>Test-Nachricht senden
+  </button>
+</div>
+
+<div id="testAlert" class="alert d-none py-2 mb-3" style="font-size:.85rem;border-radius:10px"></div>
+
+<div class="row g-3">
+
+  <!-- Formular -->
+  <div class="col-12 col-xl-6">
+    <form method="post">
+      <div class="section mb-3">
+        <div class="section-h"><i class="bi bi-hash" style="color:var(--accent2)"></i> Kanal</div>
+        <div class="section-b">
+          <label class="form-label" style="font-size:.78rem;color:var(--muted)">Willkommens-Kanal ID</label>
+          <input type="text" name="welcome_channel" class="form-control"
+                 value="{{ s.welcome_channel }}" placeholder="Kanal-ID eingeben"
+                 oninput="updatePreview()">
+          <div class="form-text" style="color:var(--muted)">Rechtsklick auf Kanal → ID kopieren (Entwicklermodus nötig)</div>
+
+          <div class="row g-2 mt-2">
+            <div class="col-6">
+              <label class="form-label" style="font-size:.78rem;color:var(--muted)">📜 Regeln-Kanal ID</label>
+              <input type="text" name="welcome_rules_channel" class="form-control"
+                     value="{{ s.welcome_rules_channel }}" oninput="updatePreview()">
+            </div>
+            <div class="col-6">
+              <label class="form-label" style="font-size:.78rem;color:var(--muted)">🎭 Rollen-Kanal ID</label>
+              <input type="text" name="welcome_roles_channel" class="form-control"
+                     value="{{ s.welcome_roles_channel }}" oninput="updatePreview()">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section mb-3">
+        <div class="section-h"><i class="bi bi-card-text" style="color:#f59e0b"></i> Nachrichteninhalt</div>
+        <div class="section-b">
+          <div class="mb-3">
+            <label class="form-label" style="font-size:.78rem;color:var(--muted)">Titel</label>
+            <input type="text" name="welcome_title" id="inp_title" class="form-control"
+                   value="{{ s.welcome_title }}" maxlength="256" oninput="updatePreview()">
+          </div>
+          <div class="mb-3">
+            <label class="form-label" style="font-size:.78rem;color:var(--muted)">Beschreibung</label>
+            <textarea name="welcome_description" id="inp_desc" class="form-control"
+                      rows="4" maxlength="2048" oninput="updatePreview()">{{ s.welcome_description }}</textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" style="font-size:.78rem;color:var(--muted)">Fußzeile</label>
+            <input type="text" name="welcome_footer" id="inp_footer" class="form-control"
+                   value="{{ s.welcome_footer }}" maxlength="2048" oninput="updatePreview()">
+          </div>
+
+          <div class="alert py-2 mb-0" style="background:rgba(88,101,242,.08);border:1px solid rgba(88,101,242,.2);border-radius:9px;font-size:.78rem;color:var(--muted)">
+            <strong style="color:var(--accent2)">Platzhalter:</strong>
+            <code>{mention}</code> · <code>{username}</code> · <code>{guild}</code> · <code>{count}</code>
+          </div>
+        </div>
+      </div>
+
+      <div class="section mb-3">
+        <div class="section-h"><i class="bi bi-palette" style="color:#ec4899"></i> Aussehen</div>
+        <div class="section-b">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div>
+              <label class="form-label" style="font-size:.78rem;color:var(--muted)">Embed-Farbe</label>
+              <div class="d-flex align-items-center gap-2">
+                <input type="color" name="welcome_color" id="inp_color"
+                       value="{{ s.welcome_color }}"
+                       style="width:48px;height:36px;border:none;border-radius:8px;cursor:pointer;background:none;padding:0"
+                       oninput="updatePreview()">
+                <input type="text" id="inp_color_hex" class="form-control"
+                       value="{{ s.welcome_color }}" maxlength="7" style="width:110px"
+                       oninput="syncColor(this)">
+              </div>
+            </div>
+            <div class="form-check form-switch ms-auto">
+              <input class="form-check-input" type="checkbox" name="welcome_show_banner"
+                     id="chk_banner" {% if s.welcome_show_banner %}checked{% endif %}>
+              <label class="form-check-label" for="chk_banner" style="font-size:.82rem">
+                Server-Banner anzeigen
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-accent w-100" style="border-radius:10px">
+        <i class="bi bi-save me-2"></i>Einstellungen speichern
+      </button>
+    </form>
+  </div>
+
+  <!-- Vorschau -->
+  <div class="col-12 col-xl-6">
+    <div class="section" style="position:sticky;top:1rem">
+      <div class="section-h"><i class="bi bi-eye" style="color:var(--accent2)"></i> Live-Vorschau</div>
+      <div class="section-b">
+        <div style="background:#313338;border-radius:10px;padding:1rem">
+          <!-- Fake Discord message -->
+          <div class="d-flex gap-2 mb-2">
+            <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#5865f2,#7289da);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.1rem">🎮</div>
+            <div>
+              <div style="font-size:.85rem;font-weight:700;color:#fff">GamingBot
+                <span style="font-size:.68rem;color:#87898c;font-weight:400;margin-left:.4rem">Heute um 12:00</span>
+              </div>
+            </div>
+          </div>
+          <div class="discord-embed" id="preview" style="--embed-color:{{ s.welcome_color }}">
+            <div class="embed-title" id="prev_title">{{ s.welcome_title }}</div>
+            <div class="embed-desc"  id="prev_desc">{{ s.welcome_description }}</div>
+            <div class="embed-fields">
+              <div class="embed-field">
+                <div class="field-name">📜 Regeln</div>
+                <div class="field-val">Lies unsere Regeln!<br>#regeln</div>
+              </div>
+              <div class="embed-field">
+                <div class="field-name">🎭 Rollen</div>
+                <div class="field-val">Such dir Rollen aus!<br>#rollen</div>
+              </div>
+            </div>
+            <div class="embed-footer" id="prev_footer">{{ s.welcome_footer }}</div>
+          </div>
+        </div>
+        <div class="mt-3 p-2 rounded-2" style="background:rgba(255,255,255,.03);font-size:.75rem;color:var(--muted)">
+          <strong style="color:var(--accent2)">Hinweis:</strong>
+          Die Vorschau ersetzt Platzhalter mit Beispielwerten.
+          <code>{mention}</code> → @Testnutzer,
+          <code>{count}</code> → 42,
+          <code>{guild}</code> → Dein Server
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function fmt(text) {
+  return text
+    .replace(/\{mention\}/g, '@Testnutzer')
+    .replace(/\{username\}/g, 'Testnutzer')
+    .replace(/\{guild\}/g, 'Dein Server')
+    .replace(/\{count\}/g, '42');
+}
+
+function updatePreview() {
+  document.getElementById('prev_title').textContent  = fmt(document.getElementById('inp_title').value);
+  document.getElementById('prev_desc').textContent   = fmt(document.getElementById('inp_desc').value);
+  document.getElementById('prev_footer').textContent = fmt(document.getElementById('inp_footer').value);
+  const color = document.getElementById('inp_color').value;
+  document.getElementById('inp_color_hex').value = color;
+  document.getElementById('preview').style.borderLeftColor = color;
+}
+
+function syncColor(input) {
+  const val = input.value;
+  if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+    document.getElementById('inp_color').value = val;
+    document.getElementById('preview').style.borderLeftColor = val;
+  }
+}
+
+document.getElementById('inp_color').addEventListener('input', function() {
+  document.getElementById('inp_color_hex').value = this.value;
+  document.getElementById('preview').style.borderLeftColor = this.value;
+});
+
+async function sendTest() {
+  const btn = document.getElementById('testBtn');
+  const alert = document.getElementById('testAlert');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sende…';
+  try {
+    const res  = await fetch('/api/willkommen/test', { method: 'POST' });
+    const data = await res.json();
+    alert.className = `alert py-2 mb-3 ${res.ok ? 'alert-success' : 'alert-danger'}`;
+    alert.style.borderRadius = '10px';
+    alert.style.fontSize = '.85rem';
+    alert.textContent = res.ok
+      ? `✅ Test-Nachricht in #${data.channel} gesendet!`
+      : `❌ Fehler: ${data.error}`;
+    alert.classList.remove('d-none');
+    setTimeout(() => alert.classList.add('d-none'), 5000);
+  } catch(e) {
+    alert.className = 'alert alert-danger py-2 mb-3';
+    alert.textContent = '❌ Verbindungsfehler';
+    alert.classList.remove('d-none');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-send me-1"></i>Test-Nachricht senden';
+  }
+}
+</script>
+{% endblock %}

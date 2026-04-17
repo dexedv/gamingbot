@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+{% block title %}{{ u.username }}{% endblock %}
+
+{% block head %}
+<style>
+  .kpi { background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:1.2rem 1.3rem; position:relative; overflow:hidden; }
+  .kpi::after { content:''; position:absolute; top:0;left:0;right:0; height:3px;
+    background:var(--kc); border-radius:14px 14px 0 0; }
+  .kpi-ico { position:absolute; right:1rem; top:50%; transform:translateY(-50%);
+    font-size:2.2rem; opacity:.06; pointer-events:none; }
+  .kpi-lbl { font-size:.69rem; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--muted); font-weight:600; margin-bottom:.3rem; }
+  .kpi-val { font-size:1.8rem; font-weight:800; color:#fff; line-height:1.1; }
+  .kpi-sub { font-size:.72rem; color:var(--muted); margin-top:.25rem; }
+  .section { background:var(--card); border:1px solid var(--border); border-radius:14px; }
+  .section-h { padding:.85rem 1.25rem; border-bottom:1px solid var(--border);
+    font-weight:600; color:#c8d0dc; font-size:.88rem; display:flex; align-items:center; gap:.5rem; }
+  .section-b { padding:1.25rem; }
+  .stat-row { display:flex; justify-content:space-between; align-items:center;
+    padding:.55rem 0; border-bottom:1px solid var(--border); }
+  .stat-row:last-child { border-bottom:none; }
+  .stat-label { font-size:.82rem; color:var(--muted); }
+  .stat-value { font-size:.88rem; font-weight:600; color:#fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="/users" class="btn btn-sm" style="background:var(--border);color:var(--muted);border:none;border-radius:9px">
+    <i class="bi bi-arrow-left me-1"></i>Zurück
+  </a>
+  <h1 style="font-size:1.4rem;font-weight:800;color:#fff;margin:0">Nutzerprofil</h1>
+</div>
+
+<!-- Profile card -->
+<div class="section mb-4">
+  <div class="section-b">
+    <div class="d-flex align-items-center gap-4 flex-wrap">
+      <div style="width:72px;height:72px;border-radius:50%;
+                  background:rgba(88,101,242,.18);color:#5865f2;
+                  display:flex;align-items:center;justify-content:center;
+                  font-size:1.8rem;font-weight:800;flex-shrink:0;
+                  border:3px solid rgba(88,101,242,.3)">
+        {{ (u.username or '?')[0].upper() }}
+      </div>
+      <div class="flex-grow-1">
+        <div style="font-size:1.4rem;font-weight:800;color:#fff">{{ u.username }}</div>
+        <div style="font-size:.78rem;color:var(--muted);font-family:monospace;margin-top:.2rem">
+          ID: {{ u.user_id }}
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-2">
+          {% set emoji, rank_name = ('🌱','Anfänger') if (u.level or 0) < 5 else
+             ('🥉','Bronze') if (u.level or 0) < 10 else
+             ('🥈','Silber') if (u.level or 0) < 15 else
+             ('🥇','Gold') if (u.level or 0) < 20 else
+             ('💎','Diamant') if (u.level or 0) < 30 else
+             ('🔥','Meister') if (u.level or 0) < 50 else ('👑','Legende') %}
+          <span class="badge" style="background:rgba(139,92,246,.15);color:#8b5cf6;border-radius:8px;padding:.3rem .7rem">
+            {{ emoji }} {{ rank_name }}
+          </span>
+          {% if (u.streak or 0) > 0 %}
+          <span class="badge" style="background:rgba(239,68,68,.12);color:#ef4444;border-radius:8px;padding:.3rem .7rem">
+            🔥 {{ u.streak }} Tage Streak
+          </span>
+          {% endif %}
+          {% if (u.name_protected or 0) %}
+          <span class="badge" style="background:rgba(245,158,11,.12);color:#f59e0b;border-radius:8px;padding:.3rem .7rem">
+            🔒 Name geschützt
+          </span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-accent px-3"
+                data-bs-toggle="modal" data-bs-target="#editModal">
+          <i class="bi bi-pencil me-1"></i>Bearbeiten
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- KPI Row -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi" style="--kc:#f59e0b">
+      <div class="kpi-lbl">Münzen</div>
+      <div class="kpi-val" style="font-size:{% if (u.coins or 0) > 99999 %}1.3rem{% else %}1.8rem{% endif %}">
+        {{ "{:,}".format(u.coins or 0) }}
+      </div>
+      <div class="kpi-sub">💰</div>
+      <i class="bi bi-coin kpi-ico" style="color:#f59e0b"></i>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi" style="--kc:#8b5cf6">
+      <div class="kpi-lbl">Level</div>
+      <div class="kpi-val">{{ u.level or 0 }}</div>
+      <div class="kpi-sub">{{ "{:,}".format(u.xp or 0) }} XP gesamt</div>
+      <i class="bi bi-star-fill kpi-ico" style="color:#8b5cf6"></i>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi" style="--kc:#ef4444">
+      <div class="kpi-lbl">Streak</div>
+      <div class="kpi-val">{{ u.streak or 0 }}</div>
+      <div class="kpi-sub">Rekord: {{ u.max_streak or 0 }} Tage</div>
+      <i class="bi bi-fire kpi-ico" style="color:#ef4444"></i>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi" style="--kc:#06b6d4">
+      <div class="kpi-lbl">Nachrichten</div>
+      <div class="kpi-val" style="font-size:1.5rem">{{ "{:,}".format(u.message_count or 0) }}</div>
+      <div class="kpi-sub">💬</div>
+      <i class="bi bi-chat-dots-fill kpi-ico" style="color:#06b6d4"></i>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi" style="--kc:#10b981">
+      <div class="kpi-lbl">Sprachzeit</div>
+      <div class="kpi-val" style="font-size:1.4rem">{{ u.voice_fmt }}</div>
+      <div class="kpi-sub">🎙️</div>
+      <i class="bi bi-mic-fill kpi-ico" style="color:#10b981"></i>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi" style="--kc:#22c55e">
+      <div class="kpi-lbl">Siege</div>
+      <div class="kpi-val" style="color:#22c55e">{{ u.wins or 0 }}</div>
+      <div class="kpi-sub" style="color:#ef4444">{{ u.losses or 0 }} Niederlagen</div>
+      <i class="bi bi-trophy-fill kpi-ico" style="color:#22c55e"></i>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+
+  <!-- XP Progress + Stats -->
+  <div class="col-lg-7">
+
+    <!-- XP Progress -->
+    <div class="section mb-3">
+      <div class="section-h"><i class="bi bi-star-fill" style="color:#8b5cf6"></i> Level-Fortschritt</div>
+      <div class="section-b">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span style="font-size:.82rem;color:var(--muted)">Level {{ u.level or 0 }}</span>
+          <span style="font-size:.82rem;color:var(--muted)">Level {{ (u.level or 0) + 1 }}</span>
+        </div>
+        <div class="progress mb-2" style="height:8px;border-radius:99px">
+          <div class="progress-bar" style="width:{{ xp_pct }}%;background:linear-gradient(90deg,#7c3aed,#8b5cf6);border-radius:99px;transition:width 1s"></div>
+        </div>
+        <div class="d-flex justify-content-between">
+          <small style="color:var(--muted)">{{ "{:,}".format(xp_curr) }} / {{ "{:,}".format(xp_need) }} XP</small>
+          <small style="color:#8b5cf6;font-weight:600">{{ xp_pct }}%</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Streak Progress -->
+    <div class="section mb-3">
+      <div class="section-h"><i class="bi bi-fire" style="color:#ef4444"></i> Streak-Fortschritt</div>
+      <div class="section-b">
+        {% set s_pct = [(u.streak or 0) / 900 * 100, 100] | min | int %}
+        {% set next_ms = [7,14,30,60,100,150,200,300,365,500,750,900] %}
+        {% set next_val = namespace(v=900) %}
+        {% for ms in next_ms %}{% if ms > (u.streak or 0) and next_val.v == 900 %}{% set next_val.v = ms %}{% endif %}{% endfor %}
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span style="font-size:.82rem;color:var(--muted)">{{ u.streak or 0 }} Tage</span>
+          <span style="font-size:.82rem;color:var(--muted)">Nächster Meilenstein: {{ next_val.v }} Tage</span>
+        </div>
+        <div class="progress mb-2" style="height:8px;border-radius:99px">
+          <div class="progress-bar" style="width:{{ s_pct }}%;background:linear-gradient(90deg,#dc2626,#ef4444);border-radius:99px;transition:width 1s"></div>
+        </div>
+        <div class="d-flex justify-content-between">
+          <small style="color:var(--muted)">Rekord: {{ u.max_streak or 0 }} Tage</small>
+          <small style="color:#ef4444;font-weight:600">{{ [(u.streak or 0), 900] | min }} / 900</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Spiel-Stats -->
+    <div class="section">
+      <div class="section-h"><i class="bi bi-controller" style="color:#5865f2"></i> Spiel-Statistiken</div>
+      <div class="section-b" style="padding:.5rem 1.25rem">
+        <div class="stat-row">
+          <span class="stat-label">🎰 Slots gespielt</span>
+          <span class="stat-value">{{ "{:,}".format(u.total_spins or 0) }}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">✅ Siege</span>
+          <span class="stat-value" style="color:#22c55e">{{ u.wins or 0 }}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">❌ Niederlagen</span>
+          <span class="stat-value" style="color:#ef4444">{{ u.losses or 0 }}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">🤝 Unentschieden</span>
+          <span class="stat-value" style="color:var(--muted)">{{ u.draws or 0 }}</span>
+        </div>
+        {% set total_games = (u.wins or 0) + (u.losses or 0) + (u.draws or 0) %}
+        {% if total_games > 0 %}
+        <div class="stat-row">
+          <span class="stat-label">📊 Gewinnrate</span>
+          <span class="stat-value" style="color:#22c55e">
+            {{ ((u.wins or 0) / total_games * 100) | int }}%
+          </span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Win/Loss chart -->
+  <div class="col-lg-5">
+    <div class="section h-100">
+      <div class="section-h"><i class="bi bi-pie-chart-fill" style="color:#5865f2"></i> Spiel-Verteilung</div>
+      <div class="section-b d-flex flex-column align-items-center justify-content-center" style="min-height:280px">
+        {% set total_g = (u.wins or 0) + (u.losses or 0) + (u.draws or 0) %}
+        {% if total_g > 0 %}
+        <canvas id="wldChart" style="max-height:220px;max-width:220px"></canvas>
+        <div class="d-flex gap-3 mt-3 flex-wrap justify-content-center">
+          <span style="font-size:.78rem"><span style="color:#22c55e">●</span> Siege: <strong>{{ u.wins or 0 }}</strong></span>
+          <span style="font-size:.78rem"><span style="color:#ef4444">●</span> Niederlagen: <strong>{{ u.losses or 0 }}</strong></span>
+          <span style="font-size:.78rem"><span style="color:#8892a4">●</span> Unentschieden: <strong>{{ u.draws or 0 }}</strong></span>
+        </div>
+        {% else %}
+        <div style="text-align:center;color:var(--muted)">
+          <i class="bi bi-controller" style="font-size:2.5rem;opacity:.2;display:block;margin-bottom:.5rem"></i>
+          <span style="font-size:.85rem">Noch keine Spiele</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:var(--card);border:1px solid var(--border);border-radius:14px">
+      <div class="modal-header" style="border-color:var(--border);padding:1.25rem 1.5rem">
+        <h5 class="modal-title" style="font-size:1rem">✏️ {{ u.username }} bearbeiten</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="/users/{{ u.user_id }}/edit">
+        <div class="modal-body" style="padding:1.25rem 1.5rem">
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label" style="font-size:.78rem;color:var(--muted)">💰 Münzen</label>
+              <input type="number" name="coins" class="form-control" value="{{ u.coins or 0 }}" min="0">
+            </div>
+            <div class="col-6">
+              <label class="form-label" style="font-size:.78rem;color:var(--muted)">🔥 Streak</label>
+              <input type="number" name="streak" class="form-control" value="{{ u.streak or 0 }}" min="0" max="900">
+            </div>
+            <div class="col-6">
+              <label class="form-label" style="font-size:.78rem;color:var(--muted)">⭐ Level</label>
+              <input type="number" name="level" class="form-control" value="{{ u.level or 0 }}" min="0">
+            </div>
+            <div class="col-6">
+              <label class="form-label" style="font-size:.78rem;color:var(--muted)">✨ XP</label>
+              <input type="number" name="xp" class="form-control" value="{{ u.xp or 0 }}" min="0">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-color:var(--border);padding:1rem 1.5rem">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+          <button type="submit" class="btn btn-accent px-4">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+{% set total_g = (u.wins or 0) + (u.losses or 0) + (u.draws or 0) %}
+{% if total_g > 0 %}
+new Chart(document.getElementById('wldChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Siege', 'Niederlagen', 'Unentschieden'],
+    datasets: [{
+      data: [{{ u.wins or 0 }}, {{ u.losses or 0 }}, {{ u.draws or 0 }}],
+      backgroundColor: ['rgba(34,197,94,.7)', 'rgba(239,68,68,.7)', 'rgba(136,146,164,.4)'],
+      borderColor:     ['#22c55e', '#ef4444', '#8892a4'],
+      borderWidth: 2,
+      hoverOffset: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    cutout: '68%',
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#0c0d16', borderColor: '#1b1f2e', borderWidth: 1, cornerRadius: 10,
+      }
+    },
+    animation: { duration: 900, easing: 'easeOutQuart' }
+  }
+});
+{% endif %}
+</script>
+{% endblock %}
