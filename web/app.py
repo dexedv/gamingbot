@@ -234,6 +234,24 @@ def api_cogs():
     return jsonify(result)
 
 
+@app.route("/api/nickname-update", methods=["POST"])
+@login_required
+def trigger_nickname_update():
+    bot  = current_app.config.get("BOT")
+    loop = current_app.config.get("LOOP")
+    if not bot or not loop:
+        return jsonify({"error": "Bot nicht verfügbar"}), 503
+    cog = bot.cogs.get("Streak")
+    if not cog:
+        return jsonify({"error": "Streak-Modul nicht geladen"}), 503
+    try:
+        future = asyncio.run_coroutine_threadsafe(cog.run_nickname_update(), loop)
+        future.result(timeout=60)
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/cogs/<path:cog_name>/toggle", methods=["POST"])
 @login_required
 def toggle_cog(cog_name):

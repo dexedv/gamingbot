@@ -94,6 +94,20 @@
     </div>
 
     <div class="card mt-3">
+      <div class="card-header">🏷️ Nickname-Verwaltung</div>
+      <div class="card-body">
+        <p class="text-secondary" style="font-size:.85rem">
+          Aktualisiert sofort alle Discord-Nicknames mit dem aktuellen Streak-Suffix.<br>
+          Nur verfügbar wenn Nickname-Updates aktiviert sind.
+        </p>
+        <button id="nickUpdateBtn" class="btn btn-accent btn-sm px-3" onclick="triggerNicknameUpdate()">
+          <i class="bi bi-arrow-repeat me-1"></i> Jetzt aktualisieren
+        </button>
+        <span id="nickUpdateStatus" class="ms-3 text-secondary" style="font-size:.85rem"></span>
+      </div>
+    </div>
+
+    <div class="card mt-3">
       <div class="card-header">⚠️ Gefahrenzone</div>
       <div class="card-body">
         <p class="text-secondary" style="font-size:.85rem">
@@ -171,5 +185,30 @@ async function loadCogs() {
 }
 
 loadCogs();
+
+async function triggerNicknameUpdate() {
+  const btn    = document.getElementById('nickUpdateBtn');
+  const status = document.getElementById('nickUpdateStatus');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Läuft…';
+  status.textContent = '';
+  try {
+    const res  = await fetch('/api/nickname-update', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      status.textContent = '✅ Fertig!';
+      status.style.color = '#23d160';
+    } else {
+      status.textContent = '❌ ' + (data.error || 'Fehler');
+      status.style.color = '#e06c75';
+    }
+  } catch(e) {
+    status.textContent = '❌ Verbindungsfehler';
+    status.style.color = '#e06c75';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i> Jetzt aktualisieren';
+  setTimeout(() => { status.textContent = ''; }, 4000);
+}
 </script>
 {% endblock %}

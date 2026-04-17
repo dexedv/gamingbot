@@ -78,9 +78,8 @@ class StreakCog(commands.Cog, name="Streak"):
     def cog_unload(self):
         self.nickname_loop.cancel()
 
-    @tasks.loop(hours=24)
-    async def nickname_loop(self):
-        """Täglich um 17:00 Uhr alle Nicknames aktualisieren."""
+    async def run_nickname_update(self):
+        """Aktualisiert alle Nicknames sofort (auch manuell aufrufbar)."""
         import aiosqlite
         async with aiosqlite.connect(self.bot.db.db_path) as db:
             cur = await db.execute("SELECT user_id, streak FROM users")
@@ -92,6 +91,11 @@ class StreakCog(commands.Cog, name="Streak"):
                     continue
                 streak = streaks.get(member.id, 0)
                 await update_nickname(member, streak)
+
+    @tasks.loop(hours=24)
+    async def nickname_loop(self):
+        """Täglich um 17:00 Uhr alle Nicknames aktualisieren."""
+        await self.run_nickname_update()
 
     @nickname_loop.before_loop
     async def before_nickname_loop(self):
@@ -108,17 +112,7 @@ class StreakCog(commands.Cog, name="Streak"):
     @commands.Cog.listener()
     async def on_ready(self):
         """Beim Start sofort alle Nicknames setzen."""
-        import aiosqlite
-        async with aiosqlite.connect(self.bot.db.db_path) as db:
-            cur = await db.execute("SELECT user_id, streak FROM users")
-            streaks = {row[0]: row[1] for row in await cur.fetchall()}
-
-        for guild in self.bot.guilds:
-            async for member in guild.fetch_members(limit=None):
-                if member.bot:
-                    continue
-                streak = streaks.get(member.id, 0)
-                await update_nickname(member, streak)
+        await self.run_nickname_update()
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
