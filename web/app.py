@@ -3,12 +3,41 @@ import os
 import time
 import asyncio
 from datetime import timedelta
-from flask import Flask, render_template, request, jsonify, redirect, url_for, current_app
+from functools import wraps
+from flask import Flask, render_template, request, jsonify, redirect, url_for, current_app, session
 
 app = Flask(__name__)
+app.secret_key = os.getenv("WEB_SECRET", "changeme-set-WEB_SECRET-in-env")
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'gamingbot.db')
 _bot_start_time = time.time()
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("logged_in"):
+            return redirect(url_for("login", next=request.path))
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    error = None
+    if request.method == "POST":
+        password = os.getenv("WEB_PASSWORD", "admin")
+        if request.form.get("password") == password:
+            session["logged_in"] = True
+            return redirect(request.args.get("next") or url_for("dashboard"))
+        error = "Falsches Passwort"
+    return render_template("login.html", error=error)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 
 
 def get_db():
@@ -45,6 +74,7 @@ def fmt_uptime(seconds):
 # ── Dashboard ─────────────────────────────────────────────────────────────────
 
 @app.route("/")
+@login_required
 def dashboard():
     db = get_db()
     stats = {
@@ -73,6 +103,7 @@ def dashboard():
 # ── Leaderboards ──────────────────────────────────────────────────────────────
 
 @app.route("/leaderboards")
+@login_required
 def leaderboards():
     db = get_db()
     coins   = [dict(r) for r in db.execute("SELECT username, coins FROM users ORDER BY coins DESC LIMIT 10").fetchall()]
@@ -89,6 +120,7 @@ def leaderboards():
 # ── Users ─────────────────────────────────────────────────────────────────────
 
 @app.route("/users")
+@login_required
 def users():
     db   = get_db()
     search = request.args.get("q", "").strip()
@@ -109,6 +141,7 @@ def users():
 
 
 @app.route("/users/<int:user_id>/edit", methods=["POST"])
+@login_required
 def edit_user(user_id):
     coins  = request.form.get("coins",  type=int)
     streak = request.form.get("streak", type=int)
@@ -137,6 +170,7 @@ def save_settings(s):
     json.dump(s, open(SETTINGS_PATH, "w", encoding="utf-8"), indent=2)
 
 @app.route("/settings", methods=["GET", "POST"])
+@login_required
 def settings():
     s = load_settings()
     if request.method == "POST":
@@ -152,6 +186,7 @@ def settings():
 # ── API ───────────────────────────────────────────────────────────────────────
 
 @app.route("/api/stats")
+@login_required
 def api_stats():
     db = get_db()
     data = {
@@ -181,6 +216,7 @@ COGS_INFO = {
 
 
 @app.route("/api/cogs")
+@login_required
 def api_cogs():
     bot = current_app.config.get("BOT")
     if not bot:
@@ -199,6 +235,7 @@ def api_cogs():
 
 
 @app.route("/api/cogs/<path:cog_name>/toggle", methods=["POST"])
+@login_required
 def toggle_cog(cog_name):
     bot  = current_app.config.get("BOT")
     loop = current_app.config.get("LOOP")
