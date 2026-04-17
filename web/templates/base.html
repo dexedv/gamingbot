@@ -267,6 +267,9 @@
     </a>
 
     <div class="sb-section" style="margin-top:1rem">Verwaltung</div>
+    <a class="sb-link {% if request.endpoint == 'broadcast' %}active{% endif %}" href="/broadcast">
+      <i class="bi bi-send"></i> Nachrichten
+    </a>
     <a class="sb-link {% if request.endpoint == 'settings' %}active{% endif %}" href="/settings">
       <i class="bi bi-sliders"></i> Einstellungen
     </a>

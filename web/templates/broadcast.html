@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block title %}Nachrichten{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Nachrichten</h1>
+  <p>Nachricht in einen Discord-Channel senden</p>
+</div>
+
+<div class="row g-4">
+
+  <!-- Compose -->
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header">✉️ Nachricht verfassen</div>
+      <div class="card-body" style="padding:1.5rem">
+
+        <!-- Channel Selector -->
+        <div class="mb-4">
+          <label style="font-size:.78rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em; display:block; margin-bottom:.5rem">
+            Ziel-Channel
+          </label>
+          <div style="position:relative">
+            <span style="position:absolute; left:.85rem; top:50%; transform:translateY(-50%); color:var(--muted); pointer-events:none; font-size:.95rem">#</span>
+            <select id="channelSelect" class="form-select" style="padding-left:2rem; border-radius:9px">
+              <option value="">Lade Channels…</option>
+            </select>
+          </div>
+          <div id="channelMeta" style="font-size:.75rem; color:var(--muted); margin-top:.4rem; min-height:1.2em"></div>
+        </div>
+
+        <!-- Message -->
+        <div class="mb-4">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label style="font-size:.78rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em">
+              Nachricht
+            </label>
+            <span id="charCount" style="font-size:.75rem; color:var(--muted)">0 / 2000</span>
+          </div>
+          <textarea id="messageInput" class="form-control" rows="6"
+            placeholder="Nachricht eingeben…"
+            style="resize:vertical; min-height:120px; font-size:.9rem; line-height:1.6"></textarea>
+        </div>
+
+        <!-- Send -->
+        <div class="d-flex align-items-center gap-3">
+          <button id="sendBtn" class="btn btn-accent px-5 d-flex align-items-center gap-2"
+            onclick="sendMessage()">
+            <i class="bi bi-send"></i> Senden
+          </button>
+          <button class="btn" style="background:var(--border); color:var(--muted); border:none; border-radius:9px; padding:.5rem 1rem"
+            onclick="document.getElementById('messageInput').value=''; updateCount()">
+            Leeren
+          </button>
+          <span id="sendStatus" style="font-size:.85rem"></span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- History & Preview -->
+  <div class="col-lg-5">
+
+    <!-- Preview -->
+    <div class="card mb-4">
+      <div class="card-header">👁️ Vorschau</div>
+      <div class="card-body" style="padding:1.25rem">
+        <div style="background:var(--bg); border-radius:9px; padding:1rem; min-height:80px; border:1px solid var(--border)">
+          <div class="d-flex align-items-start gap-2">
+            <div style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,#5865f2,#7289da); display:flex; align-items:center; justify-content:center; font-size:.9rem; flex-shrink:0">🎮</div>
+            <div>
+              <div style="font-size:.85rem; font-weight:600; color:#5865f2; margin-bottom:.2rem">GamingBot <span style="font-size:.7rem; color:var(--muted); font-weight:400; background:rgba(88,101,242,.15); padding:.1rem .35rem; border-radius:4px; margin-left:.2rem">BOT</span></div>
+              <div id="previewText" style="font-size:.875rem; color:var(--text); white-space:pre-wrap; word-break:break-word; line-height:1.5; color:var(--muted)">
+                Nachricht erscheint hier…
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>📋 Verlauf</span>
+        <button onclick="clearHistory()" style="background:none; border:none; color:var(--muted); font-size:.75rem; cursor:pointer; padding:0">Leeren</button>
+      </div>
+      <div id="historyList" style="max-height:300px; overflow-y:auto">
+        <div class="text-center py-4" style="color:var(--muted); font-size:.85rem" id="historyEmpty">
+          Noch keine Nachrichten gesendet.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const history = [];
+
+// Channels laden
+async function loadChannels() {
+  try {
+    const res = await fetch('/api/channels');
+    const channels = await res.json();
+    const sel = document.getElementById('channelSelect');
+    sel.innerHTML = '<option value="">— Channel auswählen —</option>';
+
+    const grouped = {};
+    channels.forEach(ch => {
+      if (!grouped[ch.category]) grouped[ch.category] = [];
+      grouped[ch.category].push(ch);
+    });
+
+    Object.entries(grouped).forEach(([cat, chs]) => {
+      const grp = document.createElement('optgroup');
+      grp.label = '📁 ' + cat;
+      chs.forEach(ch => {
+        const opt = document.createElement('option');
+        opt.value = ch.id;
+        opt.textContent = '# ' + ch.name;
+        opt.dataset.guild = ch.guild;
+        opt.dataset.category = ch.category;
+        grp.appendChild(opt);
+      });
+      sel.appendChild(grp);
+    });
+  } catch(e) {
+    document.getElementById('channelSelect').innerHTML = '<option>Fehler beim Laden</option>';
+  }
+}
+
+document.getElementById('channelSelect').addEventListener('change', function() {
+  const opt = this.options[this.selectedIndex];
+  const meta = document.getElementById('channelMeta');
+  if (this.value && opt.dataset.guild) {
+    meta.innerHTML = `<i class="bi bi-server me-1"></i>${opt.dataset.guild} › ${opt.dataset.category}`;
+  } else {
+    meta.innerHTML = '';
+  }
+});
+
+// Zeichenzähler
+function updateCount() {
+  const val = document.getElementById('messageInput').value;
+  const count = val.length;
+  const el = document.getElementById('charCount');
+  el.textContent = count + ' / 2000';
+  el.style.color = count > 1800 ? 'var(--danger)' : count > 1500 ? 'var(--warning)' : 'var(--muted)';
+
+  // Vorschau
+  const preview = document.getElementById('previewText');
+  if (val.trim()) {
+    preview.textContent = val;
+    preview.style.color = 'var(--text)';
+  } else {
+    preview.textContent = 'Nachricht erscheint hier…';
+    preview.style.color = 'var(--muted)';
+  }
+}
+document.getElementById('messageInput').addEventListener('input', updateCount);
+
+// Senden
+async function sendMessage() {
+  const channelId = document.getElementById('channelSelect').value;
+  const message   = document.getElementById('messageInput').value.trim();
+  const status    = document.getElementById('sendStatus');
+  const btn       = document.getElementById('sendBtn');
+
+  if (!channelId) { showStatus('Bitte einen Channel auswählen.', 'danger'); return; }
+  if (!message)   { showStatus('Nachricht darf nicht leer sein.', 'danger'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Senden…';
+
+  try {
+    const res  = await fetch('/api/send-message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channel_id: channelId, message })
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      const opt = document.getElementById('channelSelect').options[document.getElementById('channelSelect').selectedIndex];
+      addHistory(message, '#' + (opt.textContent.replace('# ','') || 'unbekannt'));
+      document.getElementById('messageInput').value = '';
+      updateCount();
+      showStatus('✓ Gesendet in #' + data.channel, 'success');
+    } else {
+      showStatus('✗ ' + (data.error || 'Fehler'), 'danger');
+    }
+  } catch(e) {
+    showStatus('✗ Verbindungsfehler', 'danger');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-send"></i> Senden';
+}
+
+function showStatus(msg, type) {
+  const el = document.getElementById('sendStatus');
+  el.innerHTML = `<span style="color:var(--${type === 'success' ? 'success' : 'danger'})">${msg}</span>`;
+  setTimeout(() => { el.innerHTML = ''; }, 4000);
+}
+
+function addHistory(msg, channel) {
+  history.unshift({ msg, channel, time: new Date().toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) });
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  const empty = document.getElementById('historyEmpty');
+  if (history.length === 0) {
+    list.innerHTML = '<div class="text-center py-4" style="color:var(--muted); font-size:.85rem" id="historyEmpty">Noch keine Nachrichten gesendet.</div>';
+    return;
+  }
+  list.innerHTML = history.map(h => `
+    <div style="padding:.85rem 1.25rem; border-bottom:1px solid var(--border)">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <span style="font-size:.75rem; color:var(--accent2); font-weight:600">${h.channel}</span>
+        <span style="font-size:.72rem; color:var(--muted)">${h.time}</span>
+      </div>
+      <div style="font-size:.82rem; color:var(--text); white-space:pre-wrap; word-break:break-word; max-height:60px; overflow:hidden">${escHtml(h.msg)}</div>
+    </div>
+  `).join('');
+}
+
+function clearHistory() {
+  history.length = 0;
+  renderHistory();
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Enter zum Senden (Shift+Enter für Zeilenumbruch)
+document.getElementById('messageInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+loadChannels();
+</script>
+{% endblock %}

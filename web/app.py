@@ -294,5 +294,56 @@ def toggle_cog(cog_name):
         return jsonify({"error": str(e)}), 500
 
 
+# ── Broadcast ─────────────────────────────────────────────────────────────────
+
+@app.route("/broadcast")
+@login_required
+def broadcast():
+    return render_template("broadcast.html")
+
+
+@app.route("/api/channels")
+@login_required
+def api_channels():
+    bot = current_app.config.get("BOT")
+    if not bot:
+        return jsonify({"error": "Bot nicht verfügbar"}), 503
+    result = []
+    for guild in bot.guilds:
+        for channel in sorted(guild.text_channels, key=lambda c: (c.category.position if c.category else -1, c.position)):
+            result.append({
+                "id":       str(channel.id),
+                "name":     channel.name,
+                "guild":    guild.name,
+                "category": channel.category.name if channel.category else "Ohne Kategorie",
+            })
+    return jsonify(result)
+
+
+@app.route("/api/send-message", methods=["POST"])
+@login_required
+def api_send_message():
+    bot  = current_app.config.get("BOT")
+    loop = current_app.config.get("LOOP")
+    if not bot or not loop:
+        return jsonify({"error": "Bot nicht verfügbar"}), 503
+    data       = request.get_json()
+    channel_id = data.get("channel_id", "")
+    message    = data.get("message", "").strip()
+    if not channel_id or not message:
+        return jsonify({"error": "Kanal und Nachricht erforderlich"}), 400
+    if len(message) > 2000:
+        return jsonify({"error": "Nachricht zu lang (max. 2000 Zeichen)"}), 400
+    channel = bot.get_channel(int(channel_id))
+    if not channel:
+        return jsonify({"error": "Kanal nicht gefunden"}), 404
+    try:
+        future = asyncio.run_coroutine_threadsafe(channel.send(message), loop)
+        future.result(timeout=10)
+        return jsonify({"ok": True, "channel": channel.name})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
