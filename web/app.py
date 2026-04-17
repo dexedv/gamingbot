@@ -467,14 +467,56 @@ def api_templates_restore(name):
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/templates/<name>", methods=["DELETE"])
+@app.route("/api/templates/<name>", methods=["GET", "DELETE"])
 @login_required
-def api_templates_delete(name):
+def api_template_detail(name):
     m = _tpl_module()
-    if m.delete_template(name):
+    import os as _os
+    path = _os.path.join(m.TEMPLATES_DIR, f"{name}.json")
+    if not _os.path.exists(path):
+        return jsonify({"error": "Template nicht gefunden"}), 404
+    if request.method == "DELETE":
+        m.delete_template(name)
         _discord_log("🗑️ Template gelöscht", f"**Name:** {name} | **Via:** Dashboard")
         return jsonify({"ok": True})
-    return jsonify({"error": "Template nicht gefunden"}), 404
+    return jsonify(m.load_template(name))
+
+
+@app.route("/api/templates/<name>/download")
+@login_required
+def api_template_download(name):
+    from flask import send_file
+    m = _tpl_module()
+    import os as _os
+    path = _os.path.join(m.TEMPLATES_DIR, f"{name}.json")
+    if not _os.path.exists(path):
+        return "Nicht gefunden", 404
+    return send_file(path, as_attachment=True, download_name=f"{name}.json", mimetype="application/json")
+
+
+@app.route("/api/templates/upload", methods=["POST"])
+@login_required
+def api_template_upload():
+    if "file" not in request.files:
+        return jsonify({"error": "Keine Datei"}), 400
+    f = request.files["file"]
+    if not f.filename.endswith(".json"):
+        return jsonify({"error": "Nur JSON-Dateien erlaubt"}), 400
+    try:
+        import json as _json, os as _os
+        data = _json.load(f)
+        if "roles" not in data or "channels" not in data:
+            return jsonify({"error": "Ungültiges Template-Format"}), 400
+        name = data.get("meta", {}).get("name") or f.filename[:-5]
+        name = name.replace(" ", "_").replace("/", "-")[:50]
+        m = _tpl_module()
+        _os.makedirs(m.TEMPLATES_DIR, exist_ok=True)
+        with open(_os.path.join(m.TEMPLATES_DIR, f"{name}.json"), "w", encoding="utf-8") as fp:
+            _json.dump(data, fp, indent=2, ensure_ascii=False)
+        _discord_log("📤 Template importiert", f"**Name:** {name} | **Via:** Dashboard (Upload)")
+        return jsonify({"ok": True, "name": name})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 
 if __name__ == "__main__":

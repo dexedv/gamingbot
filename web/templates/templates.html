@@ -4,73 +4,89 @@
 {% block content %}
 <div class="page-header">
   <h1>Server-Templates</h1>
-  <p>Backup der Discord-Serverstruktur erstellen und wiederherstellen</p>
+  <p>Backup der Discord-Serverstruktur erstellen, importieren und wiederherstellen</p>
 </div>
 
 <div class="row g-4">
 
-  <!-- Create -->
-  <div class="col-lg-5">
-    <div class="card">
+  <!-- Left: Create + Upload -->
+  <div class="col-lg-4">
+
+    <!-- Create -->
+    <div class="card mb-4">
       <div class="card-header">📋 Template erstellen</div>
       <div class="card-body" style="padding:1.5rem">
-        <p style="font-size:.85rem; color:var(--muted); margin-bottom:1.25rem">
-          Erstellt einen vollständigen Snapshot der aktuellen Serverstruktur:
-          Rollen, Kategorien und Channels.
+        <p style="font-size:.82rem; color:var(--muted); margin-bottom:1rem">
+          Snapshot der aktuellen Serverstruktur (Rollen, Kategorien, Channels).
         </p>
-
-        <div class="mb-3">
-          <label style="font-size:.78rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em; display:block; margin-bottom:.5rem">
-            Template-Name <span style="font-weight:400">(optional)</span>
-          </label>
-          <input id="tplName" type="text" class="form-control"
-            placeholder="z.B. vor-umbau-2025-04"
-            style="border-radius:9px">
-          <div style="font-size:.75rem; color:var(--muted); margin-top:.35rem">
-            Leer lassen für automatischen Zeitstempel.
-          </div>
-        </div>
-
-        <div class="d-flex align-items-center gap-3 mt-3">
+        <label style="font-size:.78rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em; display:block; margin-bottom:.4rem">
+          Name <span style="font-weight:400; text-transform:none">(optional)</span>
+        </label>
+        <input id="tplName" type="text" class="form-control mb-3"
+          placeholder="z.B. vor-umbau-april" style="border-radius:9px">
+        <div class="d-flex align-items-center gap-3">
           <button id="createBtn" class="btn btn-accent px-4 d-flex align-items-center gap-2"
             onclick="createTemplate()">
             <i class="bi bi-archive"></i> Erstellen
           </button>
-          <span id="createStatus" style="font-size:.85rem"></span>
-        </div>
-
-        <div style="margin-top:1.5rem; padding:1rem; background:rgba(88,101,242,.07); border:1px solid rgba(88,101,242,.2); border-radius:9px">
-          <div style="font-size:.78rem; font-weight:600; color:var(--accent2); margin-bottom:.5rem">Was wird gesichert?</div>
-          <ul style="font-size:.8rem; color:var(--muted); margin:0; padding-left:1.1rem; line-height:1.8">
-            <li>Alle Rollen (Name, Farbe, Berechtigungen)</li>
-            <li>Alle Kategorien (Name, Position)</li>
-            <li>Alle Channels (Name, Typ, Topic, Slowmode, NSFW)</li>
-            <li>Channel-Zuordnungen zu Kategorien</li>
-          </ul>
-          <div style="font-size:.78rem; font-weight:600; color:var(--warning); margin-top:.75rem; margin-bottom:.25rem">Nicht gesichert:</div>
-          <ul style="font-size:.8rem; color:var(--muted); margin:0; padding-left:1.1rem; line-height:1.8">
-            <li>Nachrichten & Medien</li>
-            <li>Mitglieder & Rollenzuweisungen</li>
-            <li>Bans & Einladungen</li>
-          </ul>
+          <span id="createStatus" style="font-size:.82rem"></span>
         </div>
       </div>
     </div>
+
+    <!-- Upload -->
+    <div class="card mb-4">
+      <div class="card-header">📤 Template importieren</div>
+      <div class="card-body" style="padding:1.5rem">
+        <p style="font-size:.82rem; color:var(--muted); margin-bottom:1rem">
+          Vorher heruntergeladene JSON-Datei wieder importieren.
+        </p>
+        <label id="dropZone"
+          style="display:flex; flex-direction:column; align-items:center; justify-content:center;
+                 border:2px dashed var(--border); border-radius:10px; padding:1.5rem 1rem;
+                 cursor:pointer; transition:border-color .15s; text-align:center"
+          ondragover="handleDragOver(event)" ondrop="handleDrop(event)">
+          <i class="bi bi-cloud-upload" style="font-size:1.8rem; color:var(--muted); margin-bottom:.5rem"></i>
+          <span style="font-size:.82rem; color:var(--muted)">JSON-Datei hierher ziehen<br>oder klicken zum Auswählen</span>
+          <input type="file" accept=".json" style="display:none" id="fileInput" onchange="uploadFile(this.files[0])">
+        </label>
+        <div id="uploadStatus" style="font-size:.82rem; margin-top:.6rem; min-height:1.2em"></div>
+      </div>
+    </div>
+
+    <!-- What is saved -->
+    <div class="card">
+      <div class="card-header">ℹ️ Inhalt eines Templates</div>
+      <div class="card-body" style="padding:1.25rem">
+        <div style="font-size:.8rem; color:var(--muted); line-height:1.9">
+          <div style="color:var(--success); margin-bottom:.35rem; font-weight:600; font-size:.75rem">GESICHERT</div>
+          <div><i class="bi bi-check2 me-1" style="color:var(--success)"></i>Rollen (Name, Farbe, Berechtigungen)</div>
+          <div><i class="bi bi-check2 me-1" style="color:var(--success)"></i>Kategorien (Name, Position)</div>
+          <div><i class="bi bi-check2 me-1" style="color:var(--success)"></i>Channels (Typ, Topic, Slowmode, NSFW)</div>
+          <div><i class="bi bi-check2 me-1" style="color:var(--success)"></i>Kanal-Kategoriezuordnungen</div>
+          <div><i class="bi bi-check2 me-1" style="color:var(--success)"></i>Rechte-Overwrites</div>
+          <div style="color:var(--warning); margin-top:.75rem; margin-bottom:.35rem; font-weight:600; font-size:.75rem">NICHT GESICHERT</div>
+          <div><i class="bi bi-x me-1" style="color:var(--warning)"></i>Nachrichten & Medien</div>
+          <div><i class="bi bi-x me-1" style="color:var(--warning)"></i>Mitglieder & Rollenzuweisungen</div>
+          <div><i class="bi bi-x me-1" style="color:var(--warning)"></i>Bans & Einladungen</div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
-  <!-- Template List -->
-  <div class="col-lg-7">
+  <!-- Right: Template List -->
+  <div class="col-lg-8">
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
         <span>🗂️ Gespeicherte Templates</span>
-        <button onclick="loadTemplates()" style="background:none; border:none; color:var(--muted); cursor:pointer; font-size:.8rem">
+        <button onclick="loadTemplates()" style="background:none; border:none; color:var(--muted); cursor:pointer; font-size:.8rem; padding:0">
           <i class="bi bi-arrow-clockwise"></i> Aktualisieren
         </button>
       </div>
-      <div id="templateList" style="min-height:120px">
+      <div id="templateList" style="min-height:160px">
         <div class="text-center py-5" style="color:var(--muted); font-size:.85rem">
-          <div class="spinner-border spinner-border-sm mb-2" role="status"></div><br>
-          Lade Templates…
+          <div class="spinner-border spinner-border-sm mb-2" role="status"></div><br>Lade…
         </div>
       </div>
     </div>
@@ -78,25 +94,49 @@
 
 </div>
 
+<!-- Detail Modal -->
+<div id="detailModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:500; align-items:flex-start; justify-content:center; overflow-y:auto; padding:2rem 1rem">
+  <div style="background:var(--card); border:1px solid var(--border); border-radius:14px; width:100%; max-width:680px; margin:auto">
+    <div style="padding:1.25rem 1.5rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center">
+      <div>
+        <div id="detailTitle" style="font-size:1rem; font-weight:600; color:#fff"></div>
+        <div id="detailMeta"  style="font-size:.75rem; color:var(--muted); margin-top:.15rem"></div>
+      </div>
+      <button onclick="closeDetail()" style="background:none; border:none; color:var(--muted); font-size:1.3rem; cursor:pointer; line-height:1">&times;</button>
+    </div>
+    <div id="detailBody" style="padding:1.25rem 1.5rem; max-height:70vh; overflow-y:auto"></div>
+    <div style="padding:1rem 1.5rem; border-top:1px solid var(--border); display:flex; gap:.6rem; flex-wrap:wrap">
+      <button id="detailRestoreBtn" class="btn btn-accent d-flex align-items-center gap-2" onclick="startRestore()">
+        <i class="bi bi-arrow-counterclockwise"></i> Wiederherstellen
+      </button>
+      <button id="detailDownloadBtn" class="btn d-flex align-items-center gap-2"
+        style="background:var(--border); color:var(--text); border:none; border-radius:9px">
+        <i class="bi bi-download"></i> JSON herunterladen
+      </button>
+      <button onclick="closeDetail()" style="background:none; border:none; color:var(--muted); font-size:.85rem; padding:.5rem .75rem; cursor:pointer; margin-left:auto">
+        Schließen
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Restore Confirm Modal -->
-<div id="restoreModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:500; align-items:center; justify-content:center">
-  <div style="background:var(--card); border:1px solid var(--border); border-radius:14px; padding:2rem; max-width:440px; width:90%">
-    <h5 style="color:#fff; margin:0 0 .75rem">🔄 Template wiederherstellen</h5>
-    <p style="font-size:.875rem; color:var(--muted); margin-bottom:1.25rem">
-      Template <strong id="restoreName" style="color:var(--text)"></strong> wird angewendet.<br>
-      Fehlende Rollen, Kategorien und Channels werden erstellt.
-      Bestehende werden <strong>nicht gelöscht</strong>.
+<div id="restoreModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:600; align-items:center; justify-content:center">
+  <div style="background:var(--card); border:1px solid var(--border); border-radius:14px; padding:2rem; max-width:420px; width:90%">
+    <h5 style="color:#fff; margin:0 0 .6rem">🔄 Template wiederherstellen</h5>
+    <p style="font-size:.86rem; color:var(--muted); margin-bottom:1rem">
+      Template <strong id="restoreName" style="color:var(--text)"></strong> anwenden?<br>
+      Fehlende Elemente werden erstellt, bestehende <strong>nicht gelöscht</strong>.
     </p>
-    <div style="background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.2); border-radius:9px; padding:.75rem 1rem; font-size:.8rem; color:#f87171; margin-bottom:1.5rem">
-      <i class="bi bi-exclamation-triangle me-1"></i>
-      Das kann mehrere Minuten dauern je nach Servergröße.
+    <div style="background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.2); border-radius:9px; padding:.65rem 1rem; font-size:.8rem; color:#f87171; margin-bottom:1.5rem">
+      <i class="bi bi-exclamation-triangle me-1"></i> Kann je nach Servergröße mehrere Minuten dauern.
     </div>
     <div class="d-flex gap-2">
       <button id="confirmRestoreBtn" class="btn btn-accent flex-fill" onclick="confirmRestore()">
-        <i class="bi bi-check2"></i> Wiederherstellen
+        <i class="bi bi-check2"></i> Jetzt wiederherstellen
       </button>
-      <button class="btn" style="background:var(--border); color:var(--muted); border:none; border-radius:9px; flex:1"
-        onclick="closeModal()">Abbrechen</button>
+      <button class="btn flex-fill" style="background:var(--border); color:var(--muted); border:none; border-radius:9px"
+        onclick="closeRestoreModal()">Abbrechen</button>
     </div>
   </div>
 </div>
@@ -105,57 +145,72 @@
 {% block scripts %}
 <script>
 let pendingRestore = null;
+let currentDetail  = null;
+
+// ── Templates laden ──────────────────────────────────────────────────────────
 
 async function loadTemplates() {
   const list = document.getElementById('templateList');
   list.innerHTML = '<div class="text-center py-5" style="color:var(--muted); font-size:.85rem"><div class="spinner-border spinner-border-sm mb-2" role="status"></div><br>Lade Templates…</div>';
   try {
-    const res = await fetch('/api/templates');
-    const tpls = await res.json();
+    const tpls = await (await fetch('/api/templates')).json();
     if (!tpls.length) {
-      list.innerHTML = '<div class="text-center py-5" style="color:var(--muted); font-size:.85rem"><i class="bi bi-archive" style="font-size:2rem; display:block; margin-bottom:.5rem; opacity:.3"></i>Noch keine Templates vorhanden.</div>';
+      list.innerHTML = '<div class="text-center py-5" style="color:var(--muted); font-size:.82rem"><i class="bi bi-archive" style="font-size:2rem; display:block; margin-bottom:.5rem; opacity:.25"></i>Noch keine Templates vorhanden.</div>';
       return;
     }
-    list.innerHTML = tpls.map(t => {
-      const dt = (t.created_at || '').slice(0,16).replace('T', ' ');
-      return `
-        <div style="padding:1rem 1.25rem; border-bottom:1px solid var(--border)">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <div style="font-size:.9rem; font-weight:600; color:var(--text)">${escHtml(t.name)}</div>
-              <div style="font-size:.75rem; color:var(--muted); margin-top:.2rem">
-                ${dt ? `<i class="bi bi-calendar3 me-1"></i>${dt}` : ''}
-                ${t.created_by ? `<span class="ms-2"><i class="bi bi-person me-1"></i>${escHtml(t.created_by)}</span>` : ''}
-              </div>
-              <div style="margin-top:.5rem; display:flex; gap:.5rem; flex-wrap:wrap">
-                ${badge('bi-shield-check', t.role_count ?? '?', 'Rollen')}
-                ${badge('bi-folder', t.category_count ?? '?', 'Kategorien')}
-                ${badge('bi-hash', t.channel_count ?? '?', 'Channels')}
-              </div>
-            </div>
-            <div class="d-flex gap-2 ms-3 flex-shrink-0">
-              <button onclick="openRestoreModal('${escHtml(t.name)}')"
-                style="background:rgba(88,101,242,.15); color:var(--accent2); border:1px solid rgba(88,101,242,.3); border-radius:8px; padding:.35rem .75rem; font-size:.8rem; cursor:pointer; white-space:nowrap">
-                <i class="bi bi-arrow-counterclockwise"></i> Wiederherstellen
-              </button>
-              <button onclick="deleteTemplate('${escHtml(t.name)}')"
-                style="background:rgba(239,68,68,.1); color:#f87171; border:1px solid rgba(239,68,68,.2); border-radius:8px; padding:.35rem .65rem; font-size:.8rem; cursor:pointer">
-                <i class="bi bi-trash"></i>
-              </button>
-            </div>
-          </div>
-        </div>`;
-    }).join('');
+    list.innerHTML = tpls.map(t => renderTemplateRow(t)).join('');
   } catch(e) {
-    list.innerHTML = '<div class="text-center py-4" style="color:var(--danger)">Fehler beim Laden.</div>';
+    list.innerHTML = '<div class="text-center py-4" style="color:var(--danger); font-size:.85rem">Fehler beim Laden.</div>';
   }
 }
 
-function badge(icon, val, label) {
-  return `<span style="background:var(--border); color:var(--muted); border-radius:6px; padding:.15rem .5rem; font-size:.73rem">
-    <i class="bi ${icon} me-1"></i>${val} ${label}
+function renderTemplateRow(t) {
+  const dt = (t.created_at || '').slice(0,16).replace('T', ' ');
+  return `
+    <div style="padding:1rem 1.25rem; border-bottom:1px solid var(--border)" id="tpl-${escAttr(t.name)}">
+      <div class="d-flex justify-content-between align-items-start gap-2">
+        <div style="min-width:0">
+          <div style="font-size:.9rem; font-weight:600; color:var(--text)">${escHtml(t.name)}</div>
+          <div style="font-size:.73rem; color:var(--muted); margin-top:.2rem">
+            ${dt ? `<i class="bi bi-calendar3 me-1"></i>${dt}` : ''}
+            ${t.created_by ? `<span class="ms-2"><i class="bi bi-person me-1"></i>${escHtml(t.created_by)}</span>` : ''}
+            ${t.guild_name ? `<span class="ms-2"><i class="bi bi-server me-1"></i>${escHtml(t.guild_name)}</span>` : ''}
+          </div>
+          <div style="margin-top:.55rem; display:flex; gap:.4rem; flex-wrap:wrap">
+            ${chip('bi-shield-check', t.role_count, 'Rollen', '#5865f2')}
+            ${chip('bi-folder', t.category_count, 'Kategorien', '#f59e0b')}
+            ${chip('bi-hash', t.channel_count, 'Channels', '#22c55e')}
+          </div>
+        </div>
+        <div class="d-flex gap-2 flex-shrink-0 flex-wrap" style="justify-content:flex-end">
+          <button onclick="showDetail('${escAttr(t.name)}')"
+            style="background:var(--border); color:var(--text); border:none; border-radius:8px; padding:.35rem .75rem; font-size:.78rem; cursor:pointer">
+            <i class="bi bi-eye"></i> Details
+          </button>
+          <button onclick="openRestoreModal('${escAttr(t.name)}')"
+            style="background:rgba(88,101,242,.15); color:var(--accent2); border:1px solid rgba(88,101,242,.3); border-radius:8px; padding:.35rem .75rem; font-size:.78rem; cursor:pointer">
+            <i class="bi bi-arrow-counterclockwise"></i> Wiederherstellen
+          </button>
+          <a href="/api/templates/${encodeURIComponent(t.name)}/download"
+            style="background:rgba(34,197,94,.1); color:#22c55e; border:1px solid rgba(34,197,94,.25); border-radius:8px; padding:.35rem .65rem; font-size:.78rem; text-decoration:none; display:inline-flex; align-items:center">
+            <i class="bi bi-download"></i>
+          </a>
+          <button onclick="deleteTemplate('${escAttr(t.name)}')"
+            style="background:rgba(239,68,68,.1); color:#f87171; border:1px solid rgba(239,68,68,.2); border-radius:8px; padding:.35rem .65rem; font-size:.78rem; cursor:pointer">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function chip(icon, val, label, color) {
+  return `<span style="background:rgba(255,255,255,.05); color:var(--muted); border:1px solid var(--border); border-radius:6px; padding:.15rem .55rem; font-size:.72rem">
+    <i class="bi ${icon} me-1" style="color:${color}"></i>${val ?? '?'} ${label}
   </span>`;
 }
+
+// ── Template erstellen ────────────────────────────────────────────────────────
 
 async function createTemplate() {
   const name = document.getElementById('tplName').value.trim();
@@ -164,30 +219,119 @@ async function createTemplate() {
   btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Erstelle…';
   try {
     const res  = await fetch('/api/templates/create', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({name})
     });
     const data = await res.json();
     if (data.ok) {
-      showCreateStatus(`✓ Template "${data.meta.name}" erstellt!`, 'success');
+      showStatus('createStatus', `✓ "${data.meta.name}" erstellt`, 'success');
       document.getElementById('tplName').value = '';
       loadTemplates();
     } else {
-      showCreateStatus('✗ ' + (data.error || 'Fehler'), 'danger');
+      showStatus('createStatus', '✗ ' + (data.error || 'Fehler'), 'danger');
     }
   } catch(e) {
-    showCreateStatus('✗ Verbindungsfehler', 'danger');
+    showStatus('createStatus', '✗ Verbindungsfehler', 'danger');
   }
   btn.disabled = false;
   btn.innerHTML = '<i class="bi bi-archive"></i> Erstellen';
 }
 
-function showCreateStatus(msg, type) {
-  const el = document.getElementById('createStatus');
-  el.innerHTML = `<span style="color:var(--${type === 'success' ? 'success' : 'danger'})">${msg}</span>`;
-  setTimeout(() => el.innerHTML = '', 5000);
+// ── Detail-Ansicht ────────────────────────────────────────────────────────────
+
+async function showDetail(name) {
+  currentDetail = name;
+  document.getElementById('detailTitle').textContent = name;
+  document.getElementById('detailMeta').textContent = 'Lade…';
+  document.getElementById('detailBody').innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm"></div></div>';
+  document.getElementById('detailDownloadBtn').onclick = () => window.location = `/api/templates/${encodeURIComponent(name)}/download`;
+  document.getElementById('detailModal').style.display = 'flex';
+
+  try {
+    const data = await (await fetch(`/api/templates/${encodeURIComponent(name)}`)).json();
+    if (data.error) { document.getElementById('detailBody').innerHTML = `<div style="color:var(--danger)">${data.error}</div>`; return; }
+
+    const meta = data.meta || {};
+    const dt   = (meta.created_at || '').slice(0,16).replace('T',' ');
+    document.getElementById('detailMeta').textContent =
+      [dt, meta.created_by ? `von ${meta.created_by}` : '', meta.guild_name ? `Server: ${meta.guild_name}` : ''].filter(Boolean).join(' · ');
+
+    // Guild info
+    const g = data.guild || {};
+    const verLevels = ['Keine','Niedrig','Mittel','Hoch','Sehr hoch'];
+
+    // Roles
+    const roles = (data.roles || []).slice().reverse();
+    const roleRows = roles.map(r => {
+      const hexColor = r.color ? '#' + r.color.toString(16).padStart(6,'0') : null;
+      return `<div style="display:flex; align-items:center; gap:.6rem; padding:.3rem 0; border-bottom:1px solid var(--border)">
+        <span style="width:12px; height:12px; border-radius:3px; background:${hexColor || 'var(--border)'}; flex-shrink:0; display:inline-block"></span>
+        <span style="font-size:.82rem; color:var(--text); flex:1">${escHtml(r.name)}</span>
+        ${r.hoist ? '<span style="font-size:.68rem; background:rgba(88,101,242,.2); color:var(--accent2); border-radius:4px; padding:.1rem .3rem">Angezeigt</span>' : ''}
+        ${r.mentionable ? '<span style="font-size:.68rem; background:rgba(34,197,94,.1); color:#22c55e; border-radius:4px; padding:.1rem .3rem">@</span>' : ''}
+      </div>`;
+    }).join('') || '<div style="color:var(--muted); font-size:.82rem">Keine Rollen</div>';
+
+    // Categories + channels grouped
+    const cats = {};
+    (data.categories || []).forEach(c => { cats[c.id] = { ...c, channels: [] }; });
+    cats['none'] = { name: 'Ohne Kategorie', channels: [] };
+    (data.channels || []).forEach(ch => {
+      const key = ch.category_id && cats[ch.category_id] ? ch.category_id : 'none';
+      cats[key].channels.push(ch);
+    });
+
+    const typeIcon = { text:'hash', voice:'volume-up', stage:'mic', forum:'layout-text-sidebar', other:'question' };
+    const catHtml = Object.values(cats).filter(c => c.channels.length).map(cat => `
+      <div style="margin-bottom:.75rem">
+        <div style="font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:.3rem">
+          <i class="bi bi-folder me-1"></i>${escHtml(cat.name)}
+        </div>
+        ${cat.channels.map(ch => `
+          <div style="display:flex; align-items:center; gap:.5rem; padding:.25rem .5rem; border-radius:6px; margin-bottom:1px">
+            <i class="bi bi-${typeIcon[ch.type]||'question'}" style="color:var(--muted); font-size:.8rem; width:14px"></i>
+            <span style="font-size:.82rem; color:var(--text)">${escHtml(ch.name)}</span>
+            ${ch.topic ? `<span style="font-size:.7rem; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px" title="${escAttr(ch.topic)}">${escHtml(ch.topic)}</span>` : ''}
+            ${ch.slowmode_delay ? `<span style="font-size:.68rem; background:var(--border); color:var(--muted); border-radius:4px; padding:.1rem .3rem">⏱ ${ch.slowmode_delay}s</span>` : ''}
+            ${ch.nsfw ? `<span style="font-size:.68rem; background:rgba(239,68,68,.1); color:#f87171; border-radius:4px; padding:.1rem .3rem">NSFW</span>` : ''}
+          </div>`).join('')}
+      </div>`).join('');
+
+    document.getElementById('detailBody').innerHTML = `
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.25rem">
+        <div style="background:var(--bg); border-radius:9px; padding:.85rem">
+          <div style="font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:.4rem">Server</div>
+          <div style="font-size:.88rem; color:var(--text); font-weight:600">${escHtml(g.name || '?')}</div>
+          ${g.description ? `<div style="font-size:.75rem; color:var(--muted); margin-top:.2rem">${escHtml(g.description)}</div>` : ''}
+          <div style="font-size:.75rem; color:var(--muted); margin-top:.4rem">Verif.: ${verLevels[g.verification_level ?? 0] || '?'}</div>
+        </div>
+        <div style="background:var(--bg); border-radius:9px; padding:.85rem; display:flex; gap:1rem; align-items:center; justify-content:space-around">
+          <div style="text-align:center"><div style="font-size:1.4rem; font-weight:700; color:#fff">${data.roles?.length ?? 0}</div><div style="font-size:.72rem; color:var(--muted)">Rollen</div></div>
+          <div style="text-align:center"><div style="font-size:1.4rem; font-weight:700; color:#fff">${data.categories?.length ?? 0}</div><div style="font-size:.72rem; color:var(--muted)">Kategorien</div></div>
+          <div style="text-align:center"><div style="font-size:1.4rem; font-weight:700; color:#fff">${data.channels?.length ?? 0}</div><div style="font-size:.72rem; color:var(--muted)">Channels</div></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:1.25rem">
+        <div style="font-size:.78rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:.6rem">Rollen</div>
+        <div style="background:var(--bg); border-radius:9px; padding:.75rem 1rem; max-height:160px; overflow-y:auto">${roleRows}</div>
+      </div>
+
+      <div>
+        <div style="font-size:.78rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:.6rem">Channels</div>
+        <div style="background:var(--bg); border-radius:9px; padding:.75rem 1rem; max-height:260px; overflow-y:auto">${catHtml || '<div style="color:var(--muted); font-size:.82rem">Keine Channels</div>'}</div>
+      </div>`;
+  } catch(e) {
+    document.getElementById('detailBody').innerHTML = '<div style="color:var(--danger)">Fehler beim Laden.</div>';
+  }
 }
+
+function closeDetail() {
+  document.getElementById('detailModal').style.display = 'none';
+  currentDetail = null;
+}
+
+// ── Restore ──────────────────────────────────────────────────────────────────
 
 function openRestoreModal(name) {
   pendingRestore = name;
@@ -195,9 +339,14 @@ function openRestoreModal(name) {
   document.getElementById('restoreModal').style.display = 'flex';
 }
 
-function closeModal() {
+function closeRestoreModal() {
   document.getElementById('restoreModal').style.display = 'none';
   pendingRestore = null;
+}
+
+function startRestore() {
+  closeDetail();
+  openRestoreModal(currentDetail || pendingRestore);
 }
 
 async function confirmRestore() {
@@ -208,45 +357,102 @@ async function confirmRestore() {
   try {
     const res  = await fetch(`/api/templates/${encodeURIComponent(pendingRestore)}/restore`, {method:'POST'});
     const data = await res.json();
-    closeModal();
+    closeRestoreModal();
     if (data.ok) {
       const s = data.stats;
-      alert(`✅ Template wiederhergestellt!\n\n` +
-            `Neue Rollen: ${s.created_roles}\n` +
-            `Neue Kategorien: ${s.created_cats}\n` +
-            `Neue Channels: ${s.created_channels}\n` +
-            `Aktualisierte Channels: ${s.updated_channels}`);
+      alert(`✅ Template "${pendingRestore}" wiederhergestellt!\n\n` +
+        `Neue Rollen: ${s.created_roles}\n` +
+        `Neue Kategorien: ${s.created_cats}\n` +
+        `Neue Channels: ${s.created_channels}\n` +
+        `Aktualisierte Channels: ${s.updated_channels}`);
     } else {
       alert('❌ Fehler: ' + (data.error || 'Unbekannt'));
     }
   } catch(e) {
-    closeModal();
+    closeRestoreModal();
     alert('❌ Verbindungsfehler');
   }
   btn.disabled = false;
-  btn.innerHTML = '<i class="bi bi-check2"></i> Wiederherstellen';
+  btn.innerHTML = '<i class="bi bi-check2"></i> Jetzt wiederherstellen';
 }
+
+// ── Löschen ──────────────────────────────────────────────────────────────────
 
 async function deleteTemplate(name) {
   if (!confirm(`Template "${name}" wirklich löschen?`)) return;
   try {
     const res = await fetch(`/api/templates/${encodeURIComponent(name)}`, {method:'DELETE'});
-    const data = await res.json();
-    if (data.ok) loadTemplates();
-    else alert('Fehler: ' + data.error);
+    const d   = await res.json();
+    if (d.ok) loadTemplates();
+    else alert('Fehler: ' + d.error);
   } catch(e) {
     alert('Verbindungsfehler');
   }
 }
 
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+// ── Upload / Drag & Drop ─────────────────────────────────────────────────────
+
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').style.borderColor = 'var(--accent)';
 }
 
-// Modal schließen bei Klick außerhalb
-document.getElementById('restoreModal').addEventListener('click', function(e) {
-  if (e.target === this) closeModal();
+document.getElementById('dropZone').addEventListener('dragleave', () => {
+  document.getElementById('dropZone').style.borderColor = 'var(--border)';
 });
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file) uploadFile(file);
+}
+
+document.getElementById('dropZone').addEventListener('click', () => {
+  document.getElementById('fileInput').click();
+});
+
+async function uploadFile(file) {
+  if (!file || !file.name.endsWith('.json')) {
+    showStatus('uploadStatus', '✗ Nur JSON-Dateien erlaubt', 'danger');
+    return;
+  }
+  showStatus('uploadStatus', '⏳ Importiere…', 'muted');
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const res  = await fetch('/api/templates/upload', {method:'POST', body:form});
+    const data = await res.json();
+    if (data.ok) {
+      showStatus('uploadStatus', `✓ "${data.name}" importiert`, 'success');
+      loadTemplates();
+    } else {
+      showStatus('uploadStatus', '✗ ' + (data.error || 'Fehler'), 'danger');
+    }
+  } catch(e) {
+    showStatus('uploadStatus', '✗ Verbindungsfehler', 'danger');
+  }
+  document.getElementById('fileInput').value = '';
+}
+
+// ── Hilfsfunktionen ──────────────────────────────────────────────────────────
+
+function showStatus(id, msg, type) {
+  const colors = {success:'var(--success)', danger:'var(--danger)', muted:'var(--muted)'};
+  document.getElementById(id).innerHTML = `<span style="color:${colors[type]||colors.muted}">${msg}</span>`;
+  if (type !== 'muted') setTimeout(() => { const el = document.getElementById(id); if(el) el.innerHTML=''; }, 5000);
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escAttr(s) {
+  return String(s||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Modal schließen bei Außenklick
+document.getElementById('detailModal').addEventListener('click', function(e)  { if(e.target===this) closeDetail(); });
+document.getElementById('restoreModal').addEventListener('click', function(e) { if(e.target===this) closeRestoreModal(); });
 
 loadTemplates();
 </script>
