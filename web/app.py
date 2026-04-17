@@ -26,8 +26,10 @@ def login_required(f):
 def login():
     error = None
     if request.method == "POST":
-        password = os.getenv("WEB_PASSWORD", "admin")
-        if request.form.get("password") == password:
+        entered = request.form.get("password", "")
+        valid_passwords = {os.getenv("WEB_PASSWORD", "admin"), os.getenv("WEB_PASSWORD_2", "")}
+        valid_passwords.discard("")  # leere Einträge ignorieren
+        if entered in valid_passwords:
             session["logged_in"] = True
             return redirect(request.args.get("next") or url_for("dashboard"))
         error = "Falsches Passwort"
