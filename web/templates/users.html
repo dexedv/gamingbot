@@ -2,12 +2,22 @@
 {% block title %}Nutzer{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-4">
-  <div class="page-title mb-0">Nutzer <small>— {{ users | length }} Einträge</small></div>
-  <form class="search-box d-flex gap-2" method="get">
-    <input type="text" name="q" class="form-control" placeholder="🔍 Nutzer suchen…" value="{{ search }}">
+<div class="page-header d-flex align-items-start justify-content-between flex-wrap gap-3">
+  <div>
+    <h1>Nutzer</h1>
+    <p>{{ users | length }} Einträge{{ ' — Suche: "' ~ search ~ '"' if search else '' }}</p>
+  </div>
+  <form class="d-flex gap-2 search-box" method="get" style="max-width:320px; width:100%">
+    <div class="input-group">
+      <span class="input-group-text" style="background:var(--card);border-color:var(--border);color:var(--muted)">
+        <i class="bi bi-search"></i>
+      </span>
+      <input type="text" name="q" class="form-control" placeholder="Nutzer suchen…" value="{{ search }}">
+      {% if search %}
+      <a href="/users" class="btn btn-outline-secondary"><i class="bi bi-x"></i></a>
+      {% endif %}
+    </div>
     <button class="btn btn-accent" type="submit">Suchen</button>
-    {% if search %}<a href="/users" class="btn btn-outline-secondary">✕</a>{% endif %}
   </form>
 </div>
 
@@ -19,46 +29,63 @@
           <th>Nutzer</th>
           <th>Münzen</th>
           <th>Level</th>
-          <th>XP</th>
           <th>Streak</th>
           <th>Nachrichten</th>
           <th>Sprachzeit</th>
-          <th>Siege / Niederlagen</th>
-          <th></th>
+          <th>W / L</th>
+          <th style="width:50px"></th>
         </tr>
       </thead>
       <tbody>
         {% for u in users %}
+        {% set colors = ['#5865f2','#f59e0b','#06b6d4','#10b981','#8b5cf6','#ef4444'] %}
+        {% set c = colors[loop.index0 % colors|length] %}
         <tr>
           <td>
-            <i class="bi bi-person-circle me-2 text-secondary"></i>
-            <strong>{{ u.username }}</strong>
-            <br><small class="text-secondary" style="font-size:.72rem">ID: {{ u.user_id }}</small>
+            <div class="d-flex align-items-center gap-2">
+              <div class="avatar" style="background:{{ c }}22; color:{{ c }}">
+                {{ u.username[0].upper() if u.username else '?' }}
+              </div>
+              <div>
+                <div class="fw-semibold" style="font-size:.875rem">{{ u.username }}</div>
+                <div style="font-size:.7rem; color:var(--muted)">{{ u.user_id }}</div>
+              </div>
+            </div>
           </td>
-          <td>{{ "{:,}".format(u.coins or 0) }} 💰</td>
+          <td><span style="color:#f59e0b; font-weight:600">{{ "{:,}".format(u.coins or 0) }}</span></td>
           <td><span class="badge badge-accent">Lv. {{ u.level or 0 }}</span></td>
-          <td class="text-secondary">{{ "{:,}".format(u.xp or 0) }}</td>
-          <td>🔥 {{ u.streak or 0 }}</td>
-          <td>{{ "{:,}".format(u.message_count or 0) }}</td>
-          <td>{{ u.voice_fmt }}</td>
           <td>
-            <span class="text-success">{{ u.wins or 0 }}W</span> /
-            <span class="text-danger">{{ u.losses or 0 }}L</span>
+            {% if u.streak and u.streak > 0 %}
+            <span style="color:#ef4444">🔥 {{ u.streak }}</span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-muted">{{ "{:,}".format(u.message_count or 0) }}</td>
+          <td class="text-muted">{{ u.voice_fmt }}</td>
+          <td>
+            <span style="color:#22c55e; font-size:.8rem">{{ u.wins or 0 }}W</span>
+            <span class="text-muted">/</span>
+            <span style="color:#ef4444; font-size:.8rem">{{ u.losses or 0 }}L</span>
           </td>
           <td>
-            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
-              data-bs-target="#editModal"
-              data-uid="{{ u.user_id }}"
-              data-name="{{ u.username }}"
-              data-coins="{{ u.coins or 0 }}"
-              data-streak="{{ u.streak or 0 }}"
-              data-level="{{ u.level or 0 }}">
-              <i class="bi bi-pencil"></i>
+            <button class="btn btn-sm"
+              style="background:var(--border); color:var(--muted); border:none; border-radius:7px; width:30px; height:30px; display:flex; align-items:center; justify-content:center"
+              data-bs-toggle="modal" data-bs-target="#editModal"
+              data-uid="{{ u.user_id }}" data-name="{{ u.username }}"
+              data-coins="{{ u.coins or 0 }}" data-streak="{{ u.streak or 0 }}"
+              data-level="{{ u.level or 0 }}" data-xp="{{ u.xp or 0 }}">
+              <i class="bi bi-pencil" style="font-size:.8rem"></i>
             </button>
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="9" class="text-center text-secondary py-4">Keine Nutzer gefunden.</td></tr>
+        <tr>
+          <td colspan="8" class="text-center py-5" style="color:var(--muted)">
+            <i class="bi bi-search" style="font-size:2rem; display:block; margin-bottom:.5rem; opacity:.3"></i>
+            Keine Nutzer gefunden.
+          </td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>
@@ -67,30 +94,39 @@
 
 <!-- Edit Modal -->
 <div class="modal fade" id="editModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content" style="background:#12151a; border:1px solid #1e2229">
-      <div class="modal-header" style="border-color:#1e2229">
-        <h5 class="modal-title">✏️ Nutzer bearbeiten — <span id="modalName"></span></h5>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:var(--card); border:1px solid var(--border); border-radius:14px">
+      <div class="modal-header" style="border-color:var(--border); padding:1.25rem 1.5rem">
+        <div>
+          <h5 class="modal-title mb-0" style="font-size:1rem">Nutzer bearbeiten</h5>
+          <div style="font-size:.8rem; color:var(--muted); margin-top:.15rem" id="modalName"></div>
+        </div>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form id="editForm" method="post" action="">
-        <div class="modal-body">
-          <div class="mb-3">
-            <label class="form-label text-secondary">💰 Münzen</label>
-            <input type="number" name="coins" id="modalCoins" class="form-control" min="0">
-          </div>
-          <div class="mb-3">
-            <label class="form-label text-secondary">🔥 Streak (Tage)</label>
-            <input type="number" name="streak" id="modalStreak" class="form-control" min="0" max="900">
-          </div>
-          <div class="mb-3">
-            <label class="form-label text-secondary">⭐ Level</label>
-            <input type="number" name="level" id="modalLevel" class="form-control" min="0">
+        <div class="modal-body" style="padding:1.25rem 1.5rem">
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label" style="font-size:.78rem; color:var(--muted)">💰 Münzen</label>
+              <input type="number" name="coins" id="modalCoins" class="form-control" min="0">
+            </div>
+            <div class="col-6">
+              <label class="form-label" style="font-size:.78rem; color:var(--muted)">🔥 Streak (Tage)</label>
+              <input type="number" name="streak" id="modalStreak" class="form-control" min="0" max="900">
+            </div>
+            <div class="col-6">
+              <label class="form-label" style="font-size:.78rem; color:var(--muted)">⭐ Level</label>
+              <input type="number" name="level" id="modalLevel" class="form-control" min="0">
+            </div>
+            <div class="col-6">
+              <label class="form-label" style="font-size:.78rem; color:var(--muted)">✨ XP</label>
+              <input type="number" name="xp" id="modalXp" class="form-control" min="0">
+            </div>
           </div>
         </div>
-        <div class="modal-footer" style="border-color:#1e2229">
+        <div class="modal-footer" style="border-color:var(--border); padding:1rem 1.5rem">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
-          <button type="submit" class="btn btn-accent">💾 Speichern</button>
+          <button type="submit" class="btn btn-accent px-4">Speichern</button>
         </div>
       </form>
     </div>
@@ -101,12 +137,13 @@
 {% block scripts %}
 <script>
 document.getElementById('editModal').addEventListener('show.bs.modal', function(e) {
-  const btn = e.relatedTarget;
-  document.getElementById('modalName').textContent   = btn.dataset.name;
-  document.getElementById('modalCoins').value        = btn.dataset.coins;
-  document.getElementById('modalStreak').value       = btn.dataset.streak;
-  document.getElementById('modalLevel').value        = btn.dataset.level;
-  document.getElementById('editForm').action         = '/users/' + btn.dataset.uid + '/edit';
+  const b = e.relatedTarget;
+  document.getElementById('modalName').textContent  = b.dataset.name + '  •  ID: ' + b.dataset.uid;
+  document.getElementById('modalCoins').value       = b.dataset.coins;
+  document.getElementById('modalStreak').value      = b.dataset.streak;
+  document.getElementById('modalLevel').value       = b.dataset.level;
+  document.getElementById('modalXp').value          = b.dataset.xp;
+  document.getElementById('editForm').action        = '/users/' + b.dataset.uid + '/edit';
 });
 </script>
 {% endblock %}

@@ -8,9 +8,20 @@ import discord
 NOTIFY_CHANNEL_ID = 1494057689435869485
 
 
+def _read_settings() -> dict:
+    import json, os as _os
+    path = _os.path.join(_os.path.dirname(__file__), "settings.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
 async def send_notify(bot, embed) -> None:
     """Sendet Level-Up / Streak-Benachrichtigungen in den dedizierten Kanal."""
-    channel = bot.get_channel(NOTIFY_CHANNEL_ID)
+    channel_id = _read_settings().get("notify_channel", NOTIFY_CHANNEL_ID)
+    channel = bot.get_channel(int(channel_id))
     if channel:
         await channel.send(embed=embed)
 

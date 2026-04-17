@@ -1,6 +1,17 @@
+import json
+import os
 import discord
 import time
 from discord.ext import commands, tasks
+
+
+def _settings():
+    path = os.path.join(os.path.dirname(__file__), '..', 'settings.json')
+    try:
+        with open(path, encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {}
 
 # ── Chat-Ränge ────────────────────────────────────────────────────────────────
 CHAT_RANKS = [
@@ -115,7 +126,9 @@ class RanksCog(commands.Cog, name="Ranks"):
             secs = int(now - start)
             if secs > 0:
                 await self.bot.db.add_voice_seconds(user_id, secs)
-                await self.bot.db.add_xp(user_id, 1)  # 1 XP pro 30s Voice
+                voice_xp = _settings().get('voice_xp_per_30s', 1)
+                if voice_xp > 0:
+                    await self.bot.db.add_xp(user_id, voice_xp)
                 self._voice_sessions[user_id] = now  # Timer zurücksetzen
 
     @save_voice_loop.before_loop
@@ -131,16 +144,19 @@ class RanksCog(commands.Cog, name="Ranks"):
         await self.bot.db.get_user(message.author.id, message.author.display_name)
         await self.bot.db.add_message(message.author.id)
 
-        # 2 XP pro Nachricht, max. 5× pro Minute
+        # XP pro Nachricht — Werte aus settings.json
+        s = _settings()
+        xp_per_msg  = s.get('msg_xp', 2)
+        xp_max_msgs = s.get('msg_xp_per_min', 5)
         uid = message.author.id
-        remaining = self._msg_xp_count.get(uid, 5)
-        if remaining > 0:
+        remaining = self._msg_xp_count.get(uid, xp_max_msgs)
+        if remaining > 0 and xp_per_msg > 0:
             self._msg_xp_count[uid] = remaining - 1
-            old_level, new_level = await self.bot.db.add_xp(uid, 2)
+            old_level, new_level = await self.bot.db.add_xp(uid, xp_per_msg)
             if new_level > old_level:
                 from utils import level_up_embed, send_notify
                 await send_notify(self.bot, level_up_embed(message.author, old_level, new_level))
-            if remaining == 5:  # Erstes Grant dieser Minute → Reset planen
+            if remaining == xp_max_msgs:  # Erstes Grant → Reset planen
                 async def _reset(u=uid):
                     import asyncio
                     await asyncio.sleep(60)

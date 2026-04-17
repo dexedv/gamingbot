@@ -2,213 +2,252 @@
 {% block title %}Einstellungen{% endblock %}
 
 {% block content %}
-<div class="page-title">Einstellungen <small>— Bot-Konfiguration</small></div>
-
-<!-- Module -->
-<div class="card mb-4">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    🧩 Module
-    <small class="text-secondary" id="moduleStatus">Laden…</small>
-  </div>
-  <div class="card-body">
-    <div class="row g-3" id="cogList">
-      <div class="text-secondary text-center py-3">Lade Module…</div>
-    </div>
-  </div>
+<div class="page-header">
+  <h1>Einstellungen</h1>
+  <p>Bot-Konfiguration — Änderungen werden sofort übernommen</p>
 </div>
 
-<div class="row g-3">
+<form method="post">
+<div class="row g-4">
 
-  <div class="col-lg-6">
+  <!-- ── Module ──────────────────────────────────────────────────────── -->
+  <div class="col-12">
     <div class="card">
-      <div class="card-header">⚙️ Bot-Einstellungen</div>
+      <div class="card-header">🧩 Module</div>
       <div class="card-body">
-        <form method="post">
-
-          <!-- Nickname Updates -->
-          <div class="d-flex justify-content-between align-items-start mb-4 pb-3" style="border-bottom:1px solid #1e2229">
-            <div>
-              <div class="fw-semibold text-white">🏷️ Nickname-Updates</div>
-              <div class="text-secondary" style="font-size:.85rem">
-                Automatisch den Streak-Suffix im Nicknamen aktualisieren.<br>
-                <span class="text-warning">Erfordert Bot-Rolle über allen anderen Rollen.</span>
-              </div>
-            </div>
-            <div class="form-check form-switch ms-3 mt-1">
-              <input class="form-check-input" type="checkbox" name="nickname_updates" id="nickSwitch"
-                style="width:3em; height:1.5em; cursor:pointer"
-                {% if settings.nickname_updates %}checked{% endif %}>
-            </div>
-          </div>
-
-          <!-- Daily XP -->
-          <div class="mb-4 pb-3" style="border-bottom:1px solid #1e2229">
-            <label class="fw-semibold text-white d-block mb-1">⭐ Daily XP-Bonus</label>
-            <div class="text-secondary mb-2" style="font-size:.85rem">XP die ein Nutzer täglich durch %daily erhält.</div>
-            <div class="d-flex align-items-center gap-3">
-              <input type="number" name="daily_xp" class="form-control" style="max-width:120px"
-                min="1" max="500" value="{{ settings.daily_xp }}">
-              <span class="text-secondary">XP pro Tag</span>
-            </div>
-          </div>
-
-          <button type="submit" class="btn btn-accent px-4">
-            <i class="bi bi-check-lg me-1"></i> Speichern
-          </button>
-        </form>
+        <div class="row g-3" id="cogList">
+          <div class="col-12 text-center py-3" style="color:var(--muted)">Lade Module…</div>
+        </div>
       </div>
     </div>
   </div>
 
+  <!-- ── Allgemein ─────────────────────────────────────────────────── -->
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header">⚙️ Allgemein</div>
+      <div class="card-body d-flex flex-column gap-4">
+
+        <!-- Nickname Updates -->
+        <div class="d-flex align-items-center justify-content-between gap-3">
+          <div>
+            <div class="fw-semibold" style="font-size:.9rem">Nickname-Updates</div>
+            <div style="font-size:.78rem; color:var(--muted); margin-top:.15rem">
+              Streak-Suffix automatisch im Discord-Nicknamen setzen.<br>
+              <span style="color:var(--warning)">⚠ Bot-Rolle muss über allen anderen Rollen sein.</span>
+            </div>
+          </div>
+          <div class="form-check form-switch ms-2 flex-shrink-0">
+            <input class="form-check-input" type="checkbox" name="nickname_updates"
+              {% if settings.nickname_updates %}checked{% endif %}>
+          </div>
+        </div>
+
+        <hr style="border-color:var(--border); margin:0">
+
+        <!-- Daily XP -->
+        <div>
+          <div class="fw-semibold mb-1" style="font-size:.9rem">Daily XP-Bonus</div>
+          <div style="font-size:.78rem; color:var(--muted); margin-bottom:.6rem">XP die Nutzer täglich durch %daily erhalten.</div>
+          <div class="d-flex align-items-center gap-2">
+            <input type="number" name="daily_xp" class="form-control" style="max-width:100px"
+              min="1" max="500" value="{{ settings.daily_xp }}">
+            <span style="color:var(--muted); font-size:.85rem">XP / Tag</span>
+          </div>
+        </div>
+
+        <hr style="border-color:var(--border); margin:0">
+
+        <!-- Notification Channel -->
+        <div>
+          <div class="fw-semibold mb-1" style="font-size:.9rem">Benachrichtigungs-Kanal</div>
+          <div style="font-size:.78rem; color:var(--muted); margin-bottom:.6rem">Channel-ID für Level-Up und Streak-Meilenstein-Nachrichten.</div>
+          <input type="text" name="notify_channel" class="form-control font-monospace"
+            value="{{ settings.notify_channel }}" placeholder="Channel-ID eingeben…">
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── XP-System ─────────────────────────────────────────────────── -->
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header">✨ XP-System</div>
+      <div class="card-body d-flex flex-column gap-4">
+
+        <!-- Message XP -->
+        <div>
+          <div class="fw-semibold mb-1" style="font-size:.9rem">Nachrichten-XP</div>
+          <div style="font-size:.78rem; color:var(--muted); margin-bottom:.6rem">XP pro Nachricht und maximale Anzahl pro Minute.</div>
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <div class="d-flex align-items-center gap-2">
+              <input type="number" name="msg_xp" class="form-control" style="max-width:80px"
+                min="0" max="100" value="{{ settings.msg_xp }}">
+              <span style="color:var(--muted); font-size:.85rem">XP / Nachricht</span>
+            </div>
+            <span style="color:var(--faint)">•</span>
+            <div class="d-flex align-items-center gap-2">
+              <input type="number" name="msg_xp_per_min" class="form-control" style="max-width:80px"
+                min="1" max="60" value="{{ settings.msg_xp_per_min }}">
+              <span style="color:var(--muted); font-size:.85rem">max / Minute</span>
+            </div>
+          </div>
+          <div style="font-size:.75rem; color:var(--faint); margin-top:.4rem">
+            → Max. {{ settings.msg_xp * settings.msg_xp_per_min }} XP pro Minute durch Nachrichten
+          </div>
+        </div>
+
+        <hr style="border-color:var(--border); margin:0">
+
+        <!-- Voice XP -->
+        <div>
+          <div class="fw-semibold mb-1" style="font-size:.9rem">Voice-XP</div>
+          <div style="font-size:.78rem; color:var(--muted); margin-bottom:.6rem">XP alle 30 Sekunden im Voice-Channel (nicht gemutet).</div>
+          <div class="d-flex align-items-center gap-2">
+            <input type="number" name="voice_xp_per_30s" class="form-control" style="max-width:80px"
+              min="0" max="50" value="{{ settings.voice_xp_per_30s }}">
+            <span style="color:var(--muted); font-size:.85rem">XP / 30s</span>
+            <span style="color:var(--faint); font-size:.78rem">(= {{ settings.voice_xp_per_30s * 2 }} XP/min, {{ settings.voice_xp_per_30s * 120 }} XP/h)</span>
+          </div>
+        </div>
+
+        <hr style="border-color:var(--border); margin:0">
+
+        <!-- Info -->
+        <div style="background:var(--bg); border-radius:9px; padding:.85rem 1rem; font-size:.8rem; color:var(--muted)">
+          <div class="mb-1"><strong style="color:var(--text)">XP-Übersicht</strong></div>
+          <div>Daily: <strong>{{ settings.daily_xp }}</strong> XP · Chat: max <strong>{{ settings.msg_xp * settings.msg_xp_per_min }}</strong> XP/min · Voice: <strong>{{ settings.voice_xp_per_30s * 120 }}</strong> XP/h</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Nickname-Verwaltung ───────────────────────────────────────── -->
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">🏷️ Nickname-Verwaltung</div>
+      <div class="card-body">
+        <p style="font-size:.85rem; color:var(--muted)">
+          Aktualisiert sofort alle Discord-Nicknames mit dem aktuellen Streak-Suffix.<br>
+          Nutzer mit Namensschutz werden übersprungen.
+        </p>
+        <div class="d-flex align-items-center gap-3">
+          <button type="button" id="nickUpdateBtn" class="btn btn-accent px-4" onclick="triggerNicknameUpdate()">
+            <i class="bi bi-arrow-repeat me-2"></i>Jetzt aktualisieren
+          </button>
+          <span id="nickUpdateStatus" style="font-size:.85rem"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── System-Info ────────────────────────────────────────────────── -->
   <div class="col-lg-6">
     <div class="card">
       <div class="card-header">📊 System-Info</div>
-      <div class="card-body">
-        <table class="table table-sm mb-0">
+      <div class="card-body p-0">
+        <table class="table mb-0" style="font-size:.85rem">
           <tbody>
             <tr>
-              <td class="text-secondary">Welcome Channel</td>
-              <td><code>#{{ settings.welcome_channel }}</code></td>
+              <td style="color:var(--muted); width:45%">Datenbank</td>
+              <td><code style="color:var(--accent2)">data/gamingbot.db</code></td>
             </tr>
             <tr>
-              <td class="text-secondary">Datenbank</td>
-              <td><code>gamingbot.db</code></td>
+              <td style="color:var(--muted)">Prefix</td>
+              <td><code style="color:var(--accent2)">%</code> und <code style="color:var(--accent2)">/</code></td>
             </tr>
             <tr>
-              <td class="text-secondary">Prefix</td>
-              <td><code>%</code> und <code>/</code></td>
-            </tr>
-            <tr>
-              <td class="text-secondary">Nickname-Updates</td>
+              <td style="color:var(--muted)">Nickname-Updates</td>
               <td>
                 {% if settings.nickname_updates %}
-                  <span class="badge bg-success">Aktiv</span>
+                  <span class="badge" style="background:rgba(34,197,94,.15); color:#22c55e; border:1px solid rgba(34,197,94,.3)">Aktiv</span>
                 {% else %}
-                  <span class="badge bg-secondary">Deaktiviert</span>
+                  <span class="badge" style="background:var(--border); color:var(--muted)">Deaktiviert</span>
                 {% endif %}
               </td>
+            </tr>
+            <tr>
+              <td style="color:var(--muted)">Notify-Kanal</td>
+              <td><code style="color:var(--accent2)">{{ settings.notify_channel }}</code></td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
-
-    <div class="card mt-3">
-      <div class="card-header">🏷️ Nickname-Verwaltung</div>
-      <div class="card-body">
-        <p class="text-secondary" style="font-size:.85rem">
-          Aktualisiert sofort alle Discord-Nicknames mit dem aktuellen Streak-Suffix.<br>
-          Nur verfügbar wenn Nickname-Updates aktiviert sind.
-        </p>
-        <button id="nickUpdateBtn" class="btn btn-accent btn-sm px-3" onclick="triggerNicknameUpdate()">
-          <i class="bi bi-arrow-repeat me-1"></i> Jetzt aktualisieren
-        </button>
-        <span id="nickUpdateStatus" class="ms-3 text-secondary" style="font-size:.85rem"></span>
-      </div>
-    </div>
-
-    <div class="card mt-3">
-      <div class="card-header">⚠️ Gefahrenzone</div>
-      <div class="card-body">
-        <p class="text-secondary" style="font-size:.85rem">
-          Direkte Datenbankoperationen. Nur ausführen wenn du weißt was du tust.
-        </p>
-        <div class="d-flex gap-2 flex-wrap">
-          <a href="/users" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-people me-1"></i> Alle Nutzer anzeigen
-          </a>
-          <a href="/api/stats" class="btn btn-outline-secondary btn-sm" target="_blank">
-            <i class="bi bi-code-slash me-1"></i> API Stats
-          </a>
-        </div>
-      </div>
-    </div>
   </div>
 
 </div>
+
+<!-- Save Button -->
+<div class="mt-4 d-flex gap-2">
+  <button type="submit" class="btn btn-accent px-5">
+    <i class="bi bi-check-lg me-2"></i>Einstellungen speichern
+  </button>
+</div>
+</form>
 {% endblock %}
 
 {% block scripts %}
 <script>
 async function loadCogs() {
-  const res = await fetch('/api/cogs');
-  const cogs = await res.json();
-  const list = document.getElementById('cogList');
-  const status = document.getElementById('moduleStatus');
-  const active = cogs.filter(c => c.loaded).length;
-  status.textContent = `${active} / ${cogs.length} aktiv`;
-
-  list.innerHTML = cogs.map(cog => `
-    <div class="col-md-6 col-lg-4" id="cog-${cog.name.replace('.','_')}">
-      <div class="cog-card d-flex align-items-start gap-3 p-3 rounded-3"
-           style="background:#0d0f13; border:1px solid ${cog.loaded ? '#5865F2' : '#1e2229'}; transition:border-color .2s">
-        <div style="font-size:1.6rem; line-height:1">${cog.icon}</div>
-        <div class="flex-grow-1">
-          <div class="fw-semibold text-white" style="font-size:.95rem">${cog.label}</div>
-          <div class="text-secondary" style="font-size:.78rem">${cog.desc}</div>
-        </div>
-        <div class="form-check form-switch ms-2 mt-1">
-          <input class="form-check-input cog-toggle" type="checkbox"
-            style="width:2.5em; height:1.3em; cursor:pointer"
-            data-cog="${cog.name}"
-            ${cog.loaded ? 'checked' : ''}>
+  try {
+    const res = await fetch('/api/cogs');
+    const cogs = await res.json();
+    const list = document.getElementById('cogList');
+    list.innerHTML = cogs.map(cog => `
+      <div class="col-sm-6 col-lg-4" id="cog-${cog.name.replace('.','_')}">
+        <div class="d-flex align-items-center justify-content-between p-3 rounded-3"
+          style="background:var(--bg); border:1px solid ${cog.loaded ? 'rgba(88,101,242,.4)' : 'var(--border)'}; transition:border-color .2s; gap:.75rem">
+          <div class="d-flex align-items-center gap-2">
+            <span style="font-size:1.3rem; line-height:1">${cog.icon}</span>
+            <div>
+              <div style="font-size:.85rem; font-weight:600; color:${cog.loaded ? 'var(--text)' : 'var(--muted)'}">${cog.label}</div>
+              <div style="font-size:.72rem; color:var(--muted)">${cog.desc}</div>
+            </div>
+          </div>
+          <div class="form-check form-switch mb-0 flex-shrink-0">
+            <input class="form-check-input cog-toggle" type="checkbox"
+              style="width:2.2em; height:1.15em; cursor:pointer"
+              data-cog="${cog.name}" ${cog.loaded ? 'checked' : ''}>
+          </div>
         </div>
       </div>
-    </div>
-  `).join('');
+    `).join('');
 
-  document.querySelectorAll('.cog-toggle').forEach(toggle => {
-    toggle.addEventListener('change', async function() {
-      const cogName = this.dataset.cog;
-      const card = document.querySelector(`#cog-${cogName.replace('.','_')} .cog-card`);
-      this.disabled = true;
-
-      try {
-        const res = await fetch(`/api/cogs/${cogName}/toggle`, { method: 'POST' });
-        const data = await res.json();
-        if (data.error) {
-          alert('Fehler: ' + data.error);
-          this.checked = !this.checked;
-        } else {
-          card.style.borderColor = data.loaded ? '#5865F2' : '#1e2229';
-          const total  = document.querySelectorAll('.cog-toggle').length;
-          const active = document.querySelectorAll('.cog-toggle:checked').length;
-          document.getElementById('moduleStatus').textContent = `${active} / ${total} aktiv`;
-        }
-      } catch(e) {
-        alert('Verbindungsfehler');
-        this.checked = !this.checked;
-      }
-      this.disabled = false;
+    document.querySelectorAll('.cog-toggle').forEach(t => {
+      t.addEventListener('change', async function() {
+        const name = this.dataset.cog;
+        const card = document.querySelector(`#cog-${name.replace('.','_')} div`);
+        this.disabled = true;
+        try {
+          const res = await fetch(`/api/cogs/${name}/toggle`, { method: 'POST' });
+          const d = await res.json();
+          if (d.error) { alert('Fehler: ' + d.error); this.checked = !this.checked; }
+          else { if(card) card.style.borderColor = d.loaded ? 'rgba(88,101,242,.4)' : 'var(--border)'; }
+        } catch(e) { this.checked = !this.checked; }
+        this.disabled = false;
+      });
     });
-  });
+  } catch(e) {}
 }
-
 loadCogs();
 
 async function triggerNicknameUpdate() {
-  const btn    = document.getElementById('nickUpdateBtn');
+  const btn = document.getElementById('nickUpdateBtn');
   const status = document.getElementById('nickUpdateStatus');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Läuft…';
-  status.textContent = '';
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Läuft…';
   try {
-    const res  = await fetch('/api/nickname-update', { method: 'POST' });
-    const data = await res.json();
-    if (data.ok) {
-      status.textContent = '✅ Fertig!';
-      status.style.color = '#23d160';
-    } else {
-      status.textContent = '❌ ' + (data.error || 'Fehler');
-      status.style.color = '#e06c75';
-    }
-  } catch(e) {
-    status.textContent = '❌ Verbindungsfehler';
-    status.style.color = '#e06c75';
-  }
+    const res = await fetch('/api/nickname-update', { method: 'POST' });
+    const d = await res.json();
+    if (d.ok) { status.innerHTML = '<span style="color:var(--success)">✓ Fertig</span>'; }
+    else { status.innerHTML = '<span style="color:var(--danger)">✗ ' + (d.error||'Fehler') + '</span>'; }
+  } catch(e) { status.innerHTML = '<span style="color:var(--danger)">✗ Verbindungsfehler</span>'; }
   btn.disabled = false;
-  btn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i> Jetzt aktualisieren';
-  setTimeout(() => { status.textContent = ''; }, 4000);
+  btn.innerHTML = '<i class="bi bi-arrow-repeat me-2"></i>Jetzt aktualisieren';
+  setTimeout(() => { status.innerHTML = ''; }, 4000);
 }
 </script>
 {% endblock %}

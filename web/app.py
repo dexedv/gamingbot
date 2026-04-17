@@ -146,10 +146,12 @@ def edit_user(user_id):
     coins  = request.form.get("coins",  type=int)
     streak = request.form.get("streak", type=int)
     level  = request.form.get("level",  type=int)
+    xp     = request.form.get("xp",     type=int)
     db = get_db()
-    if coins  is not None: db.execute("UPDATE users SET coins=? WHERE user_id=?",  (max(0, coins),  user_id))
+    if coins  is not None: db.execute("UPDATE users SET coins=?  WHERE user_id=?", (max(0, coins),  user_id))
     if streak is not None: db.execute("UPDATE users SET streak=? WHERE user_id=?", (max(0, streak), user_id))
-    if level  is not None: db.execute("UPDATE users SET level=? WHERE user_id=?",  (max(0, level),  user_id))
+    if level  is not None: db.execute("UPDATE users SET level=?  WHERE user_id=?", (max(0, level),  user_id))
+    if xp     is not None: db.execute("UPDATE users SET xp=?     WHERE user_id=?", (max(0, xp),     user_id))
     db.commit()
     db.close()
     return redirect(url_for("users"))
@@ -159,11 +161,22 @@ def edit_user(user_id):
 
 SETTINGS_PATH = os.path.join(os.path.dirname(__file__), '..', 'settings.json')
 
+SETTINGS_DEFAULTS = {
+    "nickname_updates":  False,
+    "daily_xp":          30,
+    "welcome_channel":   1019608622663209000,
+    "msg_xp":            2,
+    "msg_xp_per_min":    5,
+    "voice_xp_per_30s":  1,
+    "notify_channel":    1494057689435869485,
+}
+
 def load_settings():
     import json
     if os.path.exists(SETTINGS_PATH):
-        return json.load(open(SETTINGS_PATH, encoding="utf-8"))
-    return {"nickname_updates": False, "daily_xp": 30, "welcome_channel": 1019608622663209000}
+        data = json.load(open(SETTINGS_PATH, encoding="utf-8"))
+        return {**SETTINGS_DEFAULTS, **data}
+    return dict(SETTINGS_DEFAULTS)
 
 def save_settings(s):
     import json
@@ -175,9 +188,14 @@ def settings():
     s = load_settings()
     if request.method == "POST":
         s["nickname_updates"] = "nickname_updates" in request.form
-        daily_xp = request.form.get("daily_xp", type=int)
-        if daily_xp and 1 <= daily_xp <= 500:
-            s["daily_xp"] = daily_xp
+        for key, lo, hi in [("daily_xp", 1, 500), ("msg_xp", 0, 100),
+                             ("msg_xp_per_min", 1, 60), ("voice_xp_per_30s", 0, 50)]:
+            val = request.form.get(key, type=int)
+            if val is not None and lo <= val <= hi:
+                s[key] = val
+        notify_ch = request.form.get("notify_channel", "").strip()
+        if notify_ch.isdigit():
+            s["notify_channel"] = int(notify_ch)
         save_settings(s)
         return redirect(url_for("settings"))
     return render_template("settings.html", settings=s)
