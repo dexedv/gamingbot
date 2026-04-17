@@ -1,7 +1,7 @@
 import json
 import os
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from datetime import datetime
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'templates')
@@ -136,9 +136,59 @@ def delete_template(name: str) -> bool:
     return False
 
 
+AUTO_KEEP = 48   # Wie viele Auto-Snapshots behalten (48 × 30 min = 24 h)
+
+
 class TemplatesCog(commands.Cog, name="Templates"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.auto_snapshot.start()
+
+    def cog_unload(self):
+        self.auto_snapshot.cancel()
+
+    # ── Auto-Snapshot ─────────────────────────────────────────────────────────
+
+    @tasks.loop(minutes=30)
+    async def auto_snapshot(self):
+        """Automatischer Snapshot alle 30 Minuten."""
+        from utils import send_log
+        name = "auto_" + datetime.now().strftime("%Y-%m-%d_%H-%M")
+        for guild in self.bot.guilds:
+            try:
+                meta = save_template(name, guild, "Auto-Snapshot")
+                await send_log(
+                    self.bot,
+                    "📸 Auto-Snapshot erstellt",
+                    f"**Name:** `{name}`\n**Server:** {guild.name}\n"
+                    f"Rollen: **{meta['role_count']}** | Kategorien: **{meta['category_count']}** | Channels: **{meta['channel_count']}**",
+                    discord.Color.blurple(),
+                )
+            except Exception as e:
+                await send_log(
+                    self.bot,
+                    "❌ Auto-Snapshot fehlgeschlagen",
+                    f"**Server:** {guild.name}\n**Fehler:** {e}",
+                    discord.Color.red(),
+                )
+        self._cleanup_auto_snapshots()
+
+    @auto_snapshot.before_loop
+    async def before_auto_snapshot(self):
+        await self.bot.wait_until_ready()
+
+    def _cleanup_auto_snapshots(self):
+        """Behält nur die neuesten AUTO_KEEP Auto-Snapshots."""
+        _ensure_dir()
+        auto_files = sorted(
+            [f for f in os.listdir(TEMPLATES_DIR) if f.startswith("auto_") and f.endswith(".json")],
+            reverse=True,
+        )
+        for old in auto_files[AUTO_KEEP:]:
+            try:
+                os.remove(os.path.join(TEMPLATES_DIR, old))
+            except Exception:
+                pass
 
     async def restore(self, guild: discord.Guild, data: dict) -> dict:
         """Stellt ein Template wieder her. Gibt Statistiken zurück."""
