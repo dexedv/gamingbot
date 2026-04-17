@@ -41,6 +41,19 @@ class Database:
                     await db.execute(f"ALTER TABLE users ADD COLUMN {col} {definition}")
                 except Exception:
                     pass
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS daily_activity (
+                    date          TEXT PRIMARY KEY,
+                    message_count INTEGER DEFAULT 0
+                )
+            """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS command_log (
+                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                    command_name TEXT NOT NULL,
+                    used_at      TEXT DEFAULT (date('now'))
+                )
+            """)
             await db.commit()
         print("✅ Datenbank bereit")
 
@@ -229,6 +242,23 @@ class Database:
             )
             row = await cur.fetchone()
             return (row[0] or 0, row[1] or 0) if row else (0, 0)
+
+    async def log_daily_message(self):
+        from datetime import date
+        today = str(date.today())
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                INSERT INTO daily_activity (date, message_count) VALUES (?, 1)
+                ON CONFLICT(date) DO UPDATE SET message_count = message_count + 1
+            """, (today,))
+            await db.commit()
+
+    async def log_command(self, command_name: str):
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                "INSERT INTO command_log (command_name) VALUES (?)", (command_name,)
+            )
+            await db.commit()
 
     async def get_xp(self, user_id: int) -> tuple[int, int]:
         """Gibt (xp, level) zurück."""

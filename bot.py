@@ -39,6 +39,8 @@ COGS = [
     "cogs.streak",
     "cogs.ranks",
     "cogs.templates",
+    "cogs.polls",
+    "cogs.stats_tracker",
 ]
 
 

@@ -496,6 +496,56 @@ def api_template_download(name):
     return send_file(path, as_attachment=True, download_name=f"{name}.json", mimetype="application/json")
 
 
+# ── Statistiken ───────────────────────────────────────────────────────────────
+
+@app.route("/statistiken")
+@login_required
+def statistiken():
+    return render_template("statistiken.html")
+
+
+@app.route("/api/statistiken/aktivitaet")
+@login_required
+def api_statistiken_aktivitaet():
+    from datetime import date, timedelta
+    days = request.args.get("days", 30, type=int)
+    days = max(7, min(days, 90))
+    db = get_db()
+    try:
+        start = str(date.today() - timedelta(days=days - 1))
+        rows = db.execute(
+            "SELECT date, message_count FROM daily_activity WHERE date >= ? ORDER BY date",
+            (start,)
+        ).fetchall()
+        date_map = {r["date"]: r["message_count"] for r in rows}
+    except Exception:
+        date_map = {}
+    finally:
+        db.close()
+    result = []
+    for i in range(days):
+        d = str(date.today() - timedelta(days=days - 1 - i))
+        result.append({"date": d, "count": date_map.get(d, 0)})
+    return jsonify(result)
+
+
+@app.route("/api/statistiken/befehle")
+@login_required
+def api_statistiken_befehle():
+    db = get_db()
+    try:
+        rows = db.execute(
+            "SELECT command_name, COUNT(*) as count FROM command_log "
+            "GROUP BY command_name ORDER BY count DESC LIMIT 15"
+        ).fetchall()
+        result = [dict(r) for r in rows]
+    except Exception:
+        result = []
+    finally:
+        db.close()
+    return jsonify(result)
+
+
 @app.route("/api/templates/upload", methods=["POST"])
 @login_required
 def api_template_upload():
