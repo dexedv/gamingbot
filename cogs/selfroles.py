@@ -1,9 +1,11 @@
 import json
 import os
+import re
 import discord
 from discord.ext import commands
 
-SELFROLES_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'selfroles.json')
+SELFROLES_PATH  = os.path.join(os.path.dirname(__file__), '..', 'data', 'selfroles.json')
+IMPORT_CHANNEL  = 1019594993226219610   # Channel der beim Start automatisch gescannt wird
 
 
 def _load() -> dict:
@@ -35,9 +37,14 @@ def set_cfg(guild_id: int, cfg: dict):
 # ── UI ────────────────────────────────────────────────────────────────────────
 
 class SelfRoleButton(discord.ui.Button):
-    def __init__(self, role_id: int, emoji_str: str, label: str):
+    def __init__(self, role_id: int, emoji_str: str, label: str, index: int = 0):
+        styles = [
+            discord.ButtonStyle.primary,
+            discord.ButtonStyle.success,
+            discord.ButtonStyle.secondary,
+        ]
         super().__init__(
-            style=discord.ButtonStyle.secondary,
+            style=styles[index % len(styles)],
             label=label[:80],
             emoji=emoji_str or None,
             custom_id=f"selfrole:{role_id}",
@@ -45,7 +52,7 @@ class SelfRoleButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         role_id = int(self.custom_id.split(":")[1])
-        role = interaction.guild.get_role(role_id)
+        role    = interaction.guild.get_role(role_id)
         if not role:
             await interaction.response.send_message("❌ Rolle nicht gefunden.", ephemeral=True)
             return
@@ -62,31 +69,107 @@ class SelfRoleButton(discord.ui.Button):
 class SelfRoleView(discord.ui.View):
     def __init__(self, roles: list):
         super().__init__(timeout=None)
-        for r in roles:
-            self.add_item(SelfRoleButton(r["role_id"], r.get("emoji", ""), r["role_name"]))
+        for i, r in enumerate(roles):
+            self.add_item(SelfRoleButton(r["role_id"], r.get("emoji", ""), r["role_name"], i))
 
 
 def _build_embed(roles: list, guild: discord.Guild) -> discord.Embed:
     embed = discord.Embed(
-        title="🎭 Selbst-Rollen",
+        title="🎭 Selbst-Rollen wählen",
         color=discord.Color.from_rgb(88, 101, 242),
     )
+    if guild.icon:
+        embed.set_thumbnail(url=guild.icon.url)
+
     if roles:
         lines = []
         for r in roles:
-            role = guild.get_role(r["role_id"])
-            emoji = r.get("emoji") or "•"
+            role  = guild.get_role(r["role_id"])
+            emoji = r.get("emoji") or "▪️"
             desc  = r.get("description") or ""
             name  = role.name if role else r["role_name"]
-            lines.append(f"{emoji} **{name}**" + (f" — {desc}" if desc else ""))
+            lines.append(f"{emoji} **{name}**" + (f"\n╰ {desc}" if desc else ""))
+
         embed.description = (
-            "Klicke auf einen Button um eine Rolle zu erhalten oder zu entfernen.\n\n"
-            + "\n".join(lines)
+            "Klicke auf einen Button um eine Rolle zu erhalten.\n"
+            "Erneut klicken entfernt die Rolle wieder.\n\n"
+            "━━━━━━━━━━━━━━━━━━━━\n\n"
+            + "\n\n".join(lines)
         )
     else:
         embed.description = "Noch keine Rollen konfiguriert."
-    embed.set_footer(text="Klicke einen Button • Erneut klicken um die Rolle zu entfernen")
+
+    embed.set_footer(text=f"{guild.name} · Klicke einen Button · Erneut klicken zum Entfernen")
     return embed
+
+
+# ── Scan-Hilfsfunktion ────────────────────────────────────────────────────────
+
+async def scan_channel(channel: discord.TextChannel) -> list[dict]:
+    """
+    Scannt einen Channel nach Selfrole-Nachrichten.
+    Erkennt: Rollenmention <@&ID>, Button-custom_ids, Button-Labels (Namensabgleich).
+    Gibt eine Liste mit role_id, role_name, emoji, description zurück.
+    """
+    guild    = channel.guild
+    found    = []
+    seen_ids : set[int] = set()
+
+    def _add(role: discord.Role, emoji: str = "", desc: str = ""):
+        if role.id not in seen_ids and not role.is_default() and not role.managed:
+            found.append({
+                "role_id":     role.id,
+                "role_name":   role.name,
+                "emoji":       emoji,
+                "description": desc,
+            })
+            seen_ids.add(role.id)
+
+    # Rollenname-Index für Namensabgleich
+    role_by_name = {r.name.lower(): r for r in guild.roles if not r.is_default() and not r.managed}
+
+    async for msg in channel.history(limit=50, oldest_first=True):
+        # Rollenerwähnungen im Content und Embeds
+        texts = [msg.content]
+        for emb in msg.embeds:
+            texts.append(emb.description or "")
+            for field in emb.fields:
+                texts.append(field.value)
+        for text in texts:
+            for rid_str in re.findall(r"<@&(\d+)>", text):
+                role = guild.get_role(int(rid_str))
+                if role:
+                    _add(role)
+
+        # Buttons scannen
+        for row in msg.components:
+            buttons = getattr(row, "children", [row])
+            for btn in buttons:
+                if not hasattr(btn, "label"):
+                    continue
+                label     = (btn.label or "").strip()
+                custom_id = getattr(btn, "custom_id", "") or ""
+                emoji_str = str(btn.emoji) if getattr(btn, "emoji", None) else ""
+
+                # custom_id → Rollen-ID
+                matched_via_id = False
+                for part in custom_id.split(":"):
+                    try:
+                        rid  = int(part)
+                        role = guild.get_role(rid)
+                        if role:
+                            _add(role, emoji_str)
+                            matched_via_id = True
+                    except ValueError:
+                        pass
+
+                # Label → Rollenname (Fallback)
+                if not matched_via_id and label:
+                    role = role_by_name.get(label.lower())
+                    if role:
+                        _add(role, emoji_str)
+
+    return found
 
 
 # ── Cog ───────────────────────────────────────────────────────────────────────
@@ -97,17 +180,56 @@ class SelfRolesCog(commands.Cog, name="SelfRoles"):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        """Persistente Views beim Start registrieren."""
-        for guild_id_str, cfg in _load().items():
-            roles = cfg.get("roles", [])
-            if roles:
+        """Persistente Views registrieren + ggf. Auto-Import aus bekanntem Channel."""
+        data = _load()
+
+        # Persistente Views für alle gespeicherten Guilds registrieren
+        for cfg in data.values():
+            if cfg.get("roles"):
+                self.bot.add_view(SelfRoleView(cfg["roles"]))
+
+        # Auto-Import: wenn noch keine Selfroles konfiguriert, bekannten Channel scannen
+        for guild in self.bot.guilds:
+            cfg = data.get(str(guild.id), {})
+            if cfg.get("roles"):
+                continue   # schon konfiguriert → überspringen
+
+            channel = guild.get_channel(IMPORT_CHANNEL)
+            if not channel:
+                continue
+
+            try:
+                roles = await scan_channel(channel)
+                if not roles:
+                    continue
+
+                new_cfg = {
+                    "roles":             roles,
+                    "panel_channel_id":  channel.id,
+                    "panel_message_id":  None,
+                }
+                set_cfg(guild.id, new_cfg)
                 self.bot.add_view(SelfRoleView(roles))
 
+                # Neues Panel senden
+                await self.send_or_update_panel(guild)
+
+                from utils import send_log
+                await send_log(
+                    self.bot, "🎭 Selfroles automatisch importiert",
+                    f"**Channel:** #{channel.name}\n"
+                    f"**Importierte Rollen:** {', '.join(r['role_name'] for r in roles)}",
+                    discord.Color.green(),
+                )
+            except Exception as e:
+                from utils import send_log
+                await send_log(self.bot, "❌ Selfrole-Import fehlgeschlagen",
+                               f"{e}", discord.Color.red())
+
     async def send_or_update_panel(self, guild: discord.Guild) -> bool:
-        """Sendet oder aktualisiert das Panel im konfigurierten Channel."""
-        cfg       = get_cfg(guild.id)
-        roles     = cfg.get("roles", [])
-        ch_id     = cfg.get("panel_channel_id")
+        cfg     = get_cfg(guild.id)
+        roles   = cfg.get("roles", [])
+        ch_id   = cfg.get("panel_channel_id")
         if not ch_id:
             return False
         channel = guild.get_channel(int(ch_id))
@@ -145,6 +267,7 @@ class SelfRolesCog(commands.Cog, name="SelfRoles"):
                     "`%selfrole add <@Rolle> [emoji] [beschreibung]` — Rolle hinzufügen\n"
                     "`%selfrole remove <@Rolle>` — Rolle entfernen\n"
                     "`%selfrole panel [#channel]` — Panel senden / aktualisieren\n"
+                    "`%selfrole scan [#channel]` — Channel scannen & importieren\n"
                     "`%selfrole list` — Alle Selfroles anzeigen"
                 ),
                 color=discord.Color.blurple(),
@@ -155,14 +278,10 @@ class SelfRolesCog(commands.Cog, name="SelfRoles"):
     async def sr_add(self, ctx, role: discord.Role, emoji: str = "", *, description: str = ""):
         cfg = get_cfg(ctx.guild.id)
         if any(r["role_id"] == role.id for r in cfg["roles"]):
-            await ctx.send(f"❌ **{role.name}** ist bereits als Selfrole konfiguriert.")
+            await ctx.send(f"❌ **{role.name}** ist bereits konfiguriert.")
             return
-        cfg["roles"].append({
-            "role_id":     role.id,
-            "role_name":   role.name,
-            "emoji":       emoji,
-            "description": description,
-        })
+        cfg["roles"].append({"role_id": role.id, "role_name": role.name,
+                              "emoji": emoji, "description": description})
         set_cfg(ctx.guild.id, cfg)
         await ctx.send(f"✅ **{role.name}** hinzugefügt.")
         if cfg.get("panel_channel_id"):
@@ -189,10 +308,33 @@ class SelfRolesCog(commands.Cog, name="SelfRoles"):
         cfg["panel_message_id"] = None
         set_cfg(ctx.guild.id, cfg)
         ok = await self.send_or_update_panel(ctx.guild)
-        if ok:
-            await ctx.send(f"✅ Panel in {channel.mention} gesendet.")
-        else:
-            await ctx.send("❌ Fehler beim Senden.")
+        await ctx.send(f"✅ Panel in {channel.mention} gesendet." if ok else "❌ Fehler.")
+
+    @selfrole_cmd.command(name="scan")
+    async def sr_scan(self, ctx, channel: discord.TextChannel = None):
+        """Scannt einen Channel nach bestehenden Selfroles und importiert sie."""
+        channel = channel or ctx.channel
+        msg     = await ctx.send(f"⏳ Scanne {channel.mention}…")
+        roles   = await scan_channel(channel)
+        if not roles:
+            await msg.edit(content="❌ Keine Rollen gefunden.")
+            return
+
+        cfg = get_cfg(ctx.guild.id)
+        existing_ids = {r["role_id"] for r in cfg["roles"]}
+        new_roles    = [r for r in roles if r["role_id"] not in existing_ids]
+
+        cfg["roles"].extend(new_roles)
+        cfg["panel_channel_id"] = channel.id
+        cfg["panel_message_id"] = None
+        set_cfg(ctx.guild.id, cfg)
+
+        await self.send_or_update_panel(ctx.guild)
+        names = ", ".join(f"**{r['role_name']}**" for r in new_roles)
+        await msg.edit(content=(
+            f"✅ {len(new_roles)} neue Rollen importiert: {names or '—'}\n"
+            f"Panel in {channel.mention} gesendet."
+        ))
 
     @selfrole_cmd.command(name="list")
     async def sr_list(self, ctx):
@@ -202,7 +344,7 @@ class SelfRolesCog(commands.Cog, name="SelfRoles"):
             await ctx.send("Keine Selfroles konfiguriert.")
             return
         lines = [
-            f"{r.get('emoji') or '•'} **{r['role_name']}**"
+            f"{r.get('emoji') or '▪️'} **{r['role_name']}**"
             + (f" — {r['description']}" if r.get("description") else "")
             for r in roles
         ]

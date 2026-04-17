@@ -629,6 +629,46 @@ def api_selfroles_remove():
     return jsonify({"ok": True})
 
 
+@app.route("/api/selfroles/scan", methods=["POST"])
+@login_required
+def api_selfroles_scan():
+    bot  = current_app.config.get("BOT")
+    loop = current_app.config.get("LOOP")
+    if not bot or not loop or not bot.guilds:
+        return jsonify({"error": "Bot nicht verfügbar"}), 503
+    data       = request.get_json() or {}
+    channel_id = data.get("channel_id")
+    if not channel_id:
+        return jsonify({"error": "channel_id fehlt"}), 400
+    channel = bot.get_channel(int(channel_id))
+    if not channel:
+        return jsonify({"error": "Channel nicht gefunden"}), 404
+    m     = _sr_module()
+    guild = bot.guilds[0]
+    cog   = bot.cogs.get("SelfRoles")
+    if not cog:
+        return jsonify({"error": "Selfroles-Modul nicht geladen"}), 503
+    try:
+        future = asyncio.run_coroutine_threadsafe(m.scan_channel(channel), loop)
+        roles  = future.result(timeout=30)
+        if not roles:
+            return jsonify({"ok": True, "imported": 0, "roles": []})
+        cfg          = m.get_cfg(guild.id)
+        existing_ids = {r["role_id"] for r in cfg["roles"]}
+        new_roles    = [r for r in roles if r["role_id"] not in existing_ids]
+        cfg["roles"].extend(new_roles)
+        cfg["panel_channel_id"] = channel.id
+        cfg["panel_message_id"] = None
+        m.set_cfg(guild.id, cfg)
+        asyncio.run_coroutine_threadsafe(cog.send_or_update_panel(guild), loop)
+        _discord_log("🎭 Selfroles aus Channel importiert",
+                     f"**Channel:** #{channel.name} | **Importiert:** {len(new_roles)} Rollen\n"
+                     + ", ".join(r["role_name"] for r in new_roles))
+        return jsonify({"ok": True, "imported": len(new_roles), "roles": new_roles})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/selfroles/panel", methods=["POST"])
 @login_required
 def api_selfroles_panel():

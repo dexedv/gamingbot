@@ -47,6 +47,33 @@
       </div>
     </div>
 
+    <!-- Channel scannen -->
+    <div class="card mb-4">
+      <div class="card-header">🔍 Aus Channel importieren</div>
+      <div class="card-body" style="padding:1.5rem">
+        <p style="font-size:.82rem; color:var(--muted); margin-bottom:1rem">
+          Bestehende Selfroles automatisch aus einem Channel einlesen.
+        </p>
+        <div class="mb-3">
+          <label style="font-size:.78rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em; display:block; margin-bottom:.4rem">Channel</label>
+          <div style="position:relative">
+            <span style="position:absolute; left:.85rem; top:50%; transform:translateY(-50%); color:var(--muted); pointer-events:none">#</span>
+            <select id="scanChannelSelect" class="form-select" style="padding-left:2rem; border-radius:9px">
+              <option value="">Lade Channels…</option>
+            </select>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+          <button id="scanBtn" class="btn d-flex align-items-center gap-2"
+            style="background:rgba(88,101,242,.15); color:var(--accent2); border:1px solid rgba(88,101,242,.3); border-radius:9px; padding:.5rem 1.25rem; font-weight:500"
+            onclick="scanChannel()">
+            <i class="bi bi-search"></i> Scannen & importieren
+          </button>
+          <span id="scanStatus" style="font-size:.82rem"></span>
+        </div>
+      </div>
+    </div>
+
     <!-- Panel senden -->
     <div class="card">
       <div class="card-header">📨 Panel in Discord senden</div>
@@ -151,6 +178,22 @@ async function loadData() {
     sel.appendChild(opt);
   });
 
+  // Scan-Channel-Dropdown
+  const scsel = document.getElementById('scanChannelSelect');
+  scsel.innerHTML = '<option value="">— Channel wählen —</option>';
+  Object.entries(grouped).forEach(([cat, chs]) => {
+    const grp = document.createElement('optgroup');
+    grp.label = '📁 ' + cat;
+    chs.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = '# ' + c.name;
+      if (String(c.id) === '1019594993226219610') opt.selected = true;
+      grp.appendChild(opt);
+    });
+    scsel.appendChild(grp);
+  });
+
   // Channel-Dropdown (gruppiert)
   const csel = document.getElementById('panelChannelSelect');
   csel.innerHTML = '<option value="">— Channel wählen —</option>';
@@ -227,6 +270,35 @@ function renderPreview() {
       ${r.emoji ? `<span>${r.emoji}</span>` : ''}<span>${escHtml(r.role_name)}</span>
     </div>
   `).join('');
+}
+
+async function scanChannel() {
+  const channelId = document.getElementById('scanChannelSelect').value;
+  if (!channelId) { showStatus('scanStatus', '✗ Channel wählen', 'danger'); return; }
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Scanne…';
+  try {
+    const res  = await fetch('/api/selfroles/scan', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({channel_id: channelId})
+    });
+    const data = await res.json();
+    if (data.ok) {
+      if (data.imported > 0) {
+        showStatus('scanStatus', `✓ ${data.imported} Rollen importiert`, 'success');
+        loadData();
+      } else {
+        showStatus('scanStatus', '⚠ Keine neuen Rollen gefunden', 'muted');
+      }
+    } else {
+      showStatus('scanStatus', '✗ ' + (data.error || 'Fehler'), 'danger');
+    }
+  } catch(e) {
+    showStatus('scanStatus', '✗ Verbindungsfehler', 'danger');
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-search"></i> Scannen & importieren';
 }
 
 async function addRole() {
