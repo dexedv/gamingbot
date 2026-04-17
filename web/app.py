@@ -227,12 +227,14 @@ SETTINGS_DEFAULTS = {
     "msg_xp_per_min":         5,
     "voice_xp_per_30s":       1,
     "notify_channel":         1494057689435869485,
-    "welcome_enabled":         True,
+    "welcome_enabled":        True,
     "welcome_title":          "👋 Willkommen auf {guild}!",
     "welcome_description":    "Schön dass du da bist, {mention}! 🎉\nDu bist unser **{count}. Mitglied** — herzlich willkommen!",
     "welcome_color":          "#5865f2",
     "welcome_rules_channel":  1019184912110211103,
+    "welcome_rules_text":     "Lies unsere Regeln durch bevor du loslegst!",
     "welcome_roles_channel":  1019594993226219610,
+    "welcome_roles_text":     "Such dir deine Rollen aus!",
     "welcome_paten_channel":  1494054503647805562,
     "welcome_footer":         "{guild} • Viel Spaß!",
     "welcome_show_banner":    True,
@@ -240,14 +242,45 @@ SETTINGS_DEFAULTS = {
 
 def load_settings():
     import json
+    try:
+        db = get_db()
+        rows = db.execute("SELECT key, value FROM bot_settings").fetchall()
+        db.close()
+        if rows:
+            stored = {}
+            for r in rows:
+                try:
+                    stored[r[0]] = json.loads(r[1])
+                except Exception:
+                    stored[r[0]] = r[1]
+            return {**SETTINGS_DEFAULTS, **stored}
+    except Exception:
+        pass
+    # Fallback: settings.json (Migration beim ersten Aufruf)
     if os.path.exists(SETTINGS_PATH):
-        data = json.load(open(SETTINGS_PATH, encoding="utf-8"))
-        return {**SETTINGS_DEFAULTS, **data}
+        try:
+            data = json.load(open(SETTINGS_PATH, encoding="utf-8"))
+            merged = {**SETTINGS_DEFAULTS, **data}
+            save_settings(merged)
+            return merged
+        except Exception:
+            pass
     return dict(SETTINGS_DEFAULTS)
 
 def save_settings(s):
     import json
-    json.dump(s, open(SETTINGS_PATH, "w", encoding="utf-8"), indent=2)
+    try:
+        db = get_db()
+        for key, val in s.items():
+            db.execute(
+                "INSERT INTO bot_settings (key, value) VALUES (?, ?)"
+                " ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (key, json.dumps(val))
+            )
+        db.commit()
+        db.close()
+    except Exception:
+        pass
 
 @app.route("/settings", methods=["GET", "POST"])
 @login_required
@@ -535,7 +568,8 @@ def willkommen():
     if request.method == "POST":
         s["welcome_enabled"]    = "welcome_enabled" in request.form
         s["welcome_show_banner"] = "welcome_show_banner" in request.form
-        for key in ["welcome_title", "welcome_description", "welcome_color", "welcome_footer"]:
+        for key in ["welcome_title", "welcome_description", "welcome_color",
+                    "welcome_footer", "welcome_rules_text", "welcome_roles_text"]:
             val = request.form.get(key, "").strip()
             if val:
                 s[key] = val

@@ -20,6 +20,23 @@ DEFAULTS = {
 
 
 def _load() -> dict:
+    import sqlite3
+    db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'gamingbot.db')
+    try:
+        conn = sqlite3.connect(db_path)
+        rows = conn.execute("SELECT key, value FROM bot_settings").fetchall()
+        conn.close()
+        if rows:
+            stored = {}
+            for key, val in rows:
+                try:
+                    stored[key] = json.loads(val)
+                except Exception:
+                    stored[key] = val
+            return {**DEFAULTS, **stored}
+    except Exception:
+        pass
+    # Fallback: settings.json
     try:
         with open(SETTINGS_PATH, encoding="utf-8") as f:
             return {**DEFAULTS, **json.load(f)}
@@ -68,12 +85,12 @@ class WelcomeCog(commands.Cog, name="Welcome"):
 
         embed.add_field(
             name="📜  Regeln",
-            value=f"Lies unsere Regeln durch bevor du loslegst!\n<#{int(s['welcome_rules_channel'])}>",
+            value=f"{fmt(s.get('welcome_rules_text', 'Lies unsere Regeln durch bevor du loslegst!'))}\n<#{int(s['welcome_rules_channel'])}>",
             inline=True,
         )
         embed.add_field(
             name="🎭  Rollen",
-            value=f"Such dir deine Rollen aus!\n<#{int(s['welcome_roles_channel'])}>",
+            value=f"{fmt(s.get('welcome_roles_text', 'Such dir deine Rollen aus!'))}\n<#{int(s['welcome_roles_channel'])}>",
             inline=True,
         )
         embed.add_field(

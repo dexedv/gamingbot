@@ -125,6 +125,18 @@
             <textarea name="welcome_description" id="inp_desc" class="form-control"
                       rows="4" maxlength="2048" oninput="updatePreview()">{{ s.welcome_description }}</textarea>
           </div>
+          <div class="row g-2">
+            <div class="col-sm-6">
+              <label class="form-label" style="font-size:.78rem;color:var(--muted)">📜 Regeln-Text</label>
+              <input type="text" name="welcome_rules_text" id="inp_rules_text" class="form-control form-control-sm"
+                     value="{{ s.welcome_rules_text }}" maxlength="200" oninput="updatePreview()">
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label" style="font-size:.78rem;color:var(--muted)">🎭 Rollen-Text</label>
+              <input type="text" name="welcome_roles_text" id="inp_roles_text" class="form-control form-control-sm"
+                     value="{{ s.welcome_roles_text }}" maxlength="200" oninput="updatePreview()">
+            </div>
+          </div>
           <div>
             <label class="form-label" style="font-size:.78rem;color:var(--muted)">Fußzeile</label>
             <input type="text" name="welcome_footer" id="inp_footer" class="form-control"
@@ -188,10 +200,12 @@
             <div class="embed-fields">
               <div class="embed-field">
                 <div class="field-name">📜 Regeln</div>
+                <div class="field-val" id="prev_rules_text">{{ s.welcome_rules_text }}</div>
                 <div class="field-val" id="prev_rules">#regeln-kanal</div>
               </div>
               <div class="embed-field">
                 <div class="field-name">🎭 Rollen</div>
+                <div class="field-val" id="prev_roles_text">{{ s.welcome_roles_text }}</div>
                 <div class="field-val" id="prev_roles">#rollen-kanal</div>
               </div>
               <div class="embed-field" style="flex-basis:100%">
@@ -291,9 +305,11 @@ function fmt(text) {
 }
 
 function updatePreview() {
-  document.getElementById('prev_title').innerHTML  = fmt(document.getElementById('inp_title').value);
-  document.getElementById('prev_desc').innerHTML   = fmt(document.getElementById('inp_desc').value);
-  document.getElementById('prev_footer').textContent = fmt(document.getElementById('inp_footer').value);
+  document.getElementById('prev_title').innerHTML      = fmt(document.getElementById('inp_title').value);
+  document.getElementById('prev_desc').innerHTML       = fmt(document.getElementById('inp_desc').value);
+  document.getElementById('prev_footer').textContent   = fmt(document.getElementById('inp_footer').value);
+  document.getElementById('prev_rules_text').textContent = document.getElementById('inp_rules_text').value;
+  document.getElementById('prev_roles_text').textContent = document.getElementById('inp_roles_text').value;
 }
 
 function syncColorFromPicker() {

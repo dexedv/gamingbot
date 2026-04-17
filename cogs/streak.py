@@ -8,6 +8,17 @@ SETTINGS_PATH = os.path.join(os.path.dirname(__file__), '..', 'settings.json')
 
 
 def _nickname_updates_enabled() -> bool:
+    import sqlite3
+    db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'gamingbot.db')
+    try:
+        conn = sqlite3.connect(db_path)
+        row = conn.execute("SELECT value FROM bot_settings WHERE key = 'nickname_updates'").fetchone()
+        conn.close()
+        if row:
+            return json.loads(row[0])
+    except Exception:
+        pass
+    # Fallback: settings.json
     try:
         with open(SETTINGS_PATH, encoding="utf-8") as f:
             return json.load(f).get("nickname_updates", True)

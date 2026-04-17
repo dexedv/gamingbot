@@ -10,7 +10,23 @@ LOG_CHANNEL_ID    = 1494676015459471450
 
 
 def _read_settings() -> dict:
-    import json, os as _os
+    import json, os as _os, sqlite3
+    db_path = _os.path.join(_os.path.dirname(__file__), "data", "gamingbot.db")
+    try:
+        conn = sqlite3.connect(db_path)
+        rows = conn.execute("SELECT key, value FROM bot_settings").fetchall()
+        conn.close()
+        if rows:
+            result = {}
+            for key, val in rows:
+                try:
+                    result[key] = json.loads(val)
+                except Exception:
+                    result[key] = val
+            return result
+    except Exception:
+        pass
+    # Fallback: settings.json
     path = _os.path.join(_os.path.dirname(__file__), "settings.json")
     try:
         with open(path, encoding="utf-8") as f:

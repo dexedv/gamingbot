@@ -54,6 +54,12 @@ class Database:
                     used_at      TEXT DEFAULT (date('now'))
                 )
             """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS bot_settings (
+                    key   TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+            """)
             await db.commit()
         print("✅ Datenbank bereit")
 
