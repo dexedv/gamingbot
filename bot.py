@@ -39,7 +39,6 @@ COGS = [
     "cogs.streak",
     "cogs.ranks",
     "cogs.templates",
-    "cogs.selfroles",
 ]
 
 
