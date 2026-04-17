@@ -1,6 +1,8 @@
 import aiosqlite
 
-DB_PATH = "gamingbot.db"
+import os
+DB_PATH = os.path.join(os.path.dirname(__file__), "data", "gamingbot.db")
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 
 class Database:
