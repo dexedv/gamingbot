@@ -247,12 +247,14 @@ async def _do_close_ticket(interaction: discord.Interaction, prefix: str):
                 file_obj = io.BytesIO(transcript_text.encode("utf-8"))
 
                 ticket_owner_id = channel.name.replace("ticket-", "")
+                ticket_owner = interaction.guild.get_member(int(ticket_owner_id)) if ticket_owner_id.isdigit() else None
+                owner_name = ticket_owner.display_name if ticket_owner else f"Unbekannt ({ticket_owner_id})"
                 embed = discord.Embed(
                     title=f"📋 {label}-Ticket Transcript",
                     color=discord.Color.from_rgb(88, 101, 242) if prefix == "boys" else discord.Color.from_rgb(236, 72, 153),
                 )
                 embed.add_field(name="Ticket", value=f"`#{channel.name}`", inline=True)
-                embed.add_field(name="Erstellt von", value=f"<@{ticket_owner_id}> (`{ticket_owner_id}`)", inline=True)
+                embed.add_field(name="Erstellt von", value=f"{owner_name} ({ticket_owner.mention if ticket_owner else ticket_owner_id})", inline=True)
                 embed.add_field(name="Geschlossen von", value=f"{interaction.user.mention} (`{interaction.user.id}`)", inline=True)
                 embed.add_field(name="Nachrichten", value=str(len(messages)), inline=True)
                 await transcript_channel.send(
