@@ -41,6 +41,7 @@ COGS = [
     "cogs.templates",
     "cogs.polls",
     "cogs.stats_tracker",
+    "cogs.knast",
 ]
 
 

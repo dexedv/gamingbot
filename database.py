@@ -60,6 +60,16 @@ class Database:
                     value TEXT NOT NULL
                 )
             """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS knast (
+                    user_id   INTEGER PRIMARY KEY,
+                    guild_id  INTEGER NOT NULL,
+                    roles     TEXT    NOT NULL DEFAULT '[]',
+                    reason    TEXT    DEFAULT NULL,
+                    jailed_by TEXT    DEFAULT NULL,
+                    jailed_at TEXT    DEFAULT (datetime('now'))
+                )
+            """)
             await db.commit()
         print("✅ Datenbank bereit")
 
