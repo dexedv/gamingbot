@@ -97,6 +97,19 @@ class Database:
                     created_at    TEXT    DEFAULT (datetime('now'))
                 )
             """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS server_log (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    category    TEXT    NOT NULL,
+                    action      TEXT    NOT NULL,
+                    user_id     INTEGER,
+                    username    TEXT,
+                    target_id   INTEGER,
+                    target_name TEXT,
+                    details     TEXT,
+                    created_at  TEXT    DEFAULT (datetime('now'))
+                )
+            """)
             await db.commit()
         print("✅ Datenbank bereit")
 

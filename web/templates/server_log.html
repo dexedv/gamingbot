@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Server-Log{% endblock %}
+
+{% block head %}
+<style>
+  .cat-badge {
+    display: inline-block; border-radius: 6px;
+    padding: .15rem .55rem; font-size: .74rem; font-weight: 600;
+    white-space: nowrap;
+  }
+  .cat-moderation { background: rgba(239,68,68,.15);   color: #ef4444; border: 1px solid rgba(239,68,68,.3); }
+  .cat-member     { background: rgba(34,197,94,.12);   color: #22c55e; border: 1px solid rgba(34,197,94,.25); }
+  .cat-message    { background: rgba(245,158,11,.12);  color: #f59e0b; border: 1px solid rgba(245,158,11,.25); }
+  .cat-voice      { background: rgba(96,165,250,.12);  color: #60a5fa; border: 1px solid rgba(96,165,250,.25); }
+  .cat-server     { background: rgba(192,132,252,.12); color: #c084fc; border: 1px solid rgba(192,132,252,.25); }
+  .cat-ticket     { background: rgba(20,184,166,.12);  color: #2dd4bf; border: 1px solid rgba(20,184,166,.25); }
+  .cat-bot        { background: rgba(156,163,175,.1);  color: #9ca3af; border: 1px solid rgba(156,163,175,.2); }
+
+  .log-table { width: 100%; border-collapse: collapse; }
+  .log-table th {
+    color: var(--muted); font-size: .72rem; text-transform: uppercase;
+    letter-spacing: .06em; font-weight: 600; padding: .75rem 1rem;
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  .log-table td { padding: .65rem 1rem; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: middle; }
+  .log-table tr:last-child td { border-bottom: none; }
+  .log-table tr:hover td { background: rgba(255,255,255,.025); }
+
+  .details-cell { max-width: 340px; word-break: break-word; color: var(--muted); font-size: .8rem; }
+  .cat-tab {
+    border-radius: 9px; font-size: .82rem; font-weight: 600;
+    text-decoration: none; padding: .4rem .9rem; border: 1px solid var(--border);
+    background: rgba(255,255,255,.04); color: var(--muted); transition: all .15s;
+  }
+  .cat-tab:hover { color: var(--text); background: rgba(255,255,255,.08); }
+  .cat-tab.active-all      { background: rgba(88,101,242,.2);  color: #818cf8; border-color: rgba(88,101,242,.4); }
+  .cat-tab.active-moderation { background: rgba(239,68,68,.15); color: #ef4444; border-color: rgba(239,68,68,.35); }
+  .cat-tab.active-member   { background: rgba(34,197,94,.12);  color: #22c55e; border-color: rgba(34,197,94,.3); }
+  .cat-tab.active-message  { background: rgba(245,158,11,.12); color: #f59e0b; border-color: rgba(245,158,11,.3); }
+  .cat-tab.active-voice    { background: rgba(96,165,250,.12); color: #60a5fa; border-color: rgba(96,165,250,.3); }
+  .cat-tab.active-server   { background: rgba(192,132,252,.12);color: #c084fc; border-color: rgba(192,132,252,.3); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between flex-wrap gap-3">
+  <div>
+    <h1><i class="bi bi-journal-text" style="color:var(--accent)"></i> Server-Log</h1>
+    <p>Alle Server-Ereignisse — kategorisiert & durchsuchbar</p>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <span style="font-size:.8rem;color:var(--muted);background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;padding:.4rem .8rem">
+      {{ total }} Einträge
+    </span>
+    {% if 'developer' in session.get('roles', []) %}
+    <button id="clearBtn" class="btn btn-sm"
+            style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25);border-radius:9px;font-size:.8rem">
+      <i class="bi bi-trash"></i> Log leeren
+    </button>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Kategorie-Tabs -->
+<div class="d-flex gap-2 flex-wrap mb-3">
+  {% for cat_key, cat_label in [
+    ('all','Alle'), ('moderation','Moderation'), ('member','Mitglieder'),
+    ('message','Nachrichten'), ('voice','Voice'), ('server','Server')
+  ] %}
+  <a href="?category={{ cat_key }}{% if q %}&q={{ q|urlencode }}{% endif %}"
+     class="cat-tab {% if category == cat_key %}active-{{ cat_key }}{% endif %}">
+    {{ cat_label }}
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Suchleiste -->
+<form method="get" class="d-flex gap-2 mb-3" style="max-width:480px">
+  <input type="hidden" name="category" value="{{ category }}">
+  <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm"
+         placeholder="Nutzer, Aktion, Ziel oder Details …" style="border-radius:9px">
+  <button type="submit" class="btn btn-sm btn-accent px-3" style="border-radius:9px">
+    <i class="bi bi-search"></i>
+  </button>
+  {% if q %}
+  <a href="?category={{ category }}" class="btn btn-sm"
+     style="border-radius:9px;background:rgba(255,255,255,.06);color:var(--muted);border:1px solid var(--border)">
+    <i class="bi bi-x"></i>
+  </a>
+  {% endif %}
+</form>
+
+<!-- Tabelle -->
+<div class="card" style="overflow:hidden">
+  {% if entries %}
+  <div class="table-responsive">
+    <table class="log-table">
+      <thead>
+        <tr>
+          <th>Zeitstempel</th>
+          <th>Kategorie</th>
+          <th>Aktion</th>
+          <th>Nutzer</th>
+          <th>Ziel</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        {% set raw = e.created_at or '' %}
+        {% if raw|length >= 16 %}
+          {% set ts = raw[8:10] ~ '.' ~ raw[5:7] ~ '.' ~ raw[0:4] ~ ' ' ~ raw[11:16] %}
+        {% else %}
+          {% set ts = raw %}
+        {% endif %}
+        <tr>
+          <td style="white-space:nowrap;color:var(--muted);font-size:.79rem">{{ ts }} Uhr</td>
+          <td>
+            <span class="cat-badge cat-{{ e.category }}">
+              {% if e.category == 'moderation' %}Moderation
+              {% elif e.category == 'member' %}Member
+              {% elif e.category == 'message' %}Nachricht
+              {% elif e.category == 'voice' %}Voice
+              {% elif e.category == 'server' %}Server
+              {% elif e.category == 'ticket' %}Ticket
+              {% elif e.category == 'bot' %}Bot
+              {% else %}{{ e.category }}{% endif %}
+            </span>
+          </td>
+          <td style="font-weight:600;color:#fff;white-space:nowrap">{{ e.action }}</td>
+          <td style="font-size:.84rem">
+            {% if e.username %}
+            <div style="color:var(--text)">{{ e.username }}</div>
+            {% if e.user_id %}<div style="font-size:.73rem;color:var(--muted)">{{ e.user_id }}</div>{% endif %}
+            {% elif e.user_id %}
+            <span style="color:var(--muted)">{{ e.user_id }}</span>
+            {% else %}<span style="color:var(--faint)">—</span>{% endif %}
+          </td>
+          <td style="font-size:.84rem">
+            {% if e.target_name %}
+            <div style="color:var(--text)">{{ e.target_name }}</div>
+            {% if e.target_id %}<div style="font-size:.73rem;color:var(--muted)">{{ e.target_id }}</div>{% endif %}
+            {% elif e.target_id %}
+            <span style="color:var(--muted)">{{ e.target_id }}</span>
+            {% else %}<span style="color:var(--faint)">—</span>{% endif %}
+          </td>
+          <td class="details-cell">
+            {% if e.details %}{{ e.details }}{% else %}<span style="color:var(--faint)">—</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5" style="color:var(--muted)">
+    <i class="bi bi-journal-x" style="font-size:2.5rem;display:block;margin-bottom:.75rem;opacity:.35"></i>
+    {% if q %}Keine Einträge für <strong style="color:var(--text)">„{{ q }}"</strong>.
+    {% elif category != 'all' %}Keine Einträge in dieser Kategorie.
+    {% else %}Noch keine Ereignisse aufgezeichnet.{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2" style="font-size:.84rem">
+  <span style="color:var(--muted)">Seite {{ page }} von {{ total_pages }} · {{ total }} Einträge</span>
+  <div class="d-flex gap-1">
+    {% if page > 1 %}
+    <a href="?category={{ category }}&page={{ page - 1 }}{% if q %}&q={{ q|urlencode }}{% endif %}"
+       class="btn btn-sm" style="border-radius:8px;background:rgba(255,255,255,.05);color:var(--text);border:1px solid var(--border)">
+      <i class="bi bi-chevron-left"></i>
+    </a>
+    {% endif %}
+    {% for p in range([1, page - 2]|max, [total_pages + 1, page + 3]|min) %}
+    <a href="?category={{ category }}&page={{ p }}{% if q %}&q={{ q|urlencode }}{% endif %}"
+       class="btn btn-sm"
+       style="border-radius:8px;border:1px solid {% if p == page %}var(--accent){% else %}var(--border){% endif %};
+              background:{% if p == page %}rgba(88,101,242,.2){% else %}rgba(255,255,255,.04){% endif %};
+              color:{% if p == page %}var(--accent2){% else %}var(--muted){% endif %}">
+      {{ p }}
+    </a>
+    {% endfor %}
+    {% if page < total_pages %}
+    <a href="?category={{ category }}&page={{ page + 1 }}{% if q %}&q={{ q|urlencode }}{% endif %}"
+       class="btn btn-sm" style="border-radius:8px;background:rgba(255,255,255,.05);color:var(--text);border:1px solid var(--border)">
+      <i class="bi bi-chevron-right"></i>
+    </a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if 'developer' in session.get('roles', []) %}
+<script>
+document.getElementById('clearBtn')?.addEventListener('click', () => {
+  const cat = '{{ category }}';
+  const label = cat === 'all' ? 'den gesamten Log' : `die Kategorie „${cat}"`;
+  if (!confirm(`Wirklich ${label} leeren? Das kann nicht rückgängig gemacht werden.`)) return;
+  fetch('/api/log/clear', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({category: cat})
+  })
+  .then(r => r.json())
+  .then(d => { if (d.ok) location.reload(); else alert('Fehler: ' + (d.error || '?')); });
+});
+</script>
+{% endif %}
+{% endblock %}

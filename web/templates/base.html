@@ -294,7 +294,7 @@
     {% set _has_verwaltung = 'knast_log' in user_features or 'kummerkasten' in user_features
         or 'willkommen' in user_features or 'broadcast' in user_features
         or 'templates' in user_features or 'einstellungen' in user_features
-        or 'cogs' in user_features %}
+        or 'cogs' in user_features or 'server_log' in user_features %}
     {% if _has_verwaltung %}
     <div class="sb-section" style="margin-top:1rem">Verwaltung</div>
     {% if 'willkommen' in user_features %}
@@ -325,6 +325,11 @@
     {% if 'einstellungen' in user_features %}
     <a class="sb-link {% if request.endpoint == 'settings' %}active{% endif %}" href="/settings">
       <i class="bi bi-sliders"></i> Einstellungen
+    </a>
+    {% endif %}
+    {% if 'server_log' in user_features %}
+    <a class="sb-link {% if request.endpoint == 'server_log_page' %}active{% endif %}" href="/log">
+      <i class="bi bi-journal-text"></i> Server-Log
     </a>
     {% endif %}
     {% endif %}

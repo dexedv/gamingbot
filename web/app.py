@@ -80,6 +80,7 @@ FEATURES = {
     "einstellungen":        {"label": "Einstellungen",           "icon": "bi-sliders",         "desc": "Bot-Einstellungen & XP-Konfiguration"},
     "web_nutzer":           {"label": "Web-Nutzer",              "icon": "bi-people-fill",     "desc": "Dashboard-Accounts verwalten"},
     "rolle_berechtigungen": {"label": "Rollen-Berechtigungen",   "icon": "bi-shield-lock",     "desc": "Zugriffsrechte der Rollen konfigurieren"},
+    "server_log":           {"label": "Server-Log",              "icon": "bi-journal-text",    "desc": "Alle Server-Ereignisse einsehen"},
 }
 
 # Endpoint-Name → Feature
@@ -99,6 +100,7 @@ FEATURE_ROUTES: dict[str, set] = {
     "einstellungen":        {"settings"},
     "web_nutzer":           {"web_users", "api_web_user_create", "api_web_user_edit", "api_web_user_delete"},
     "rolle_berechtigungen": {"role_permissions", "api_role_permissions_save"},
+    "server_log":           {"server_log_page", "api_log_clear"},
 }
 
 # Reverse-Map: endpoint → feature (wird beim Import gebaut)
@@ -112,11 +114,11 @@ DEFAULT_PERMISSIONS: dict[str, list] = {
     "owner":           list(FEATURES.keys()),
     "co-owner":        ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
                         "verifizierung_boys", "verifizierung_girls",
-                        "broadcast", "willkommen", "cogs", "templates", "einstellungen"],
+                        "broadcast", "willkommen", "cogs", "templates", "einstellungen", "server_log"],
     "admin":           ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
-                        "verifizierung_boys", "verifizierung_girls", "broadcast", "willkommen"],
+                        "verifizierung_boys", "verifizierung_girls", "broadcast", "willkommen", "server_log"],
     "moderator":       ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
-                        "verifizierung_boys", "verifizierung_girls"],
+                        "verifizierung_boys", "verifizierung_girls", "server_log"],
     "b-verifizierung": ["verifizierung_boys"],
     "g-verifizierung": ["verifizierung_girls"],
     "supporter":       ["nutzer", "knast_log", "kummerkasten"],
@@ -1640,6 +1642,80 @@ def api_role_permissions_save():
                  f"🔧  **Feature:** {feat_label}\n"
                  f"🔘  **Status:** {'✅' if enabled else '⛔'} {action}\n"
                  f"🌐  **Von:** {session.get('username')}")
+    return jsonify({"ok": True})
+
+
+# ── Server-Log ────────────────────────────────────────────────────────────────
+
+_VALID_LOG_CATS = {"all", "member", "moderation", "message", "voice", "server", "ticket", "bot"}
+_LOG_PAGE_SIZE  = 100
+
+
+@app.route("/log")
+@login_required
+def server_log_page():
+    _vroles = session.get("roles", ["paten"])
+    _perms  = _load_permissions()
+    if not any("server_log" in _perms.get(r, set()) for r in _vroles):
+        return render_template("403.html", role=", ".join(_vroles)), 403
+
+    category = request.args.get("category", "all").lower()
+    if category not in _VALID_LOG_CATS:
+        category = "all"
+    q    = request.args.get("q", "").strip()
+    page = request.args.get("page", 1, type=int)
+    if page < 1:
+        page = 1
+    offset = (page - 1) * _LOG_PAGE_SIZE
+
+    db = get_db()
+    try:
+        where_parts, params = [], []
+        if category != "all":
+            where_parts.append("category = ?")
+            params.append(category)
+        if q:
+            where_parts.append("(action LIKE ? OR username LIKE ? OR target_name LIKE ? OR details LIKE ?)")
+            like = f"%{q}%"
+            params.extend([like, like, like, like])
+        where_sql = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
+
+        total   = db.execute(f"SELECT COUNT(*) FROM server_log {where_sql}", params).fetchone()[0]
+        rows    = db.execute(
+            f"SELECT * FROM server_log {where_sql} ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            params + [_LOG_PAGE_SIZE, offset],
+        ).fetchall()
+        entries = [dict(r) for r in rows]
+    except Exception:
+        total, entries = 0, []
+    finally:
+        db.close()
+
+    total_pages = max(1, (total + _LOG_PAGE_SIZE - 1) // _LOG_PAGE_SIZE)
+    return render_template("server_log.html",
+        entries=entries, category=category, q=q,
+        page=page, total=total, total_pages=total_pages,
+    )
+
+
+@app.route("/api/log/clear", methods=["POST"])
+@login_required
+def api_log_clear():
+    _vroles = session.get("roles", ["paten"])
+    if "developer" not in _vroles:
+        return jsonify({"error": "Nur Developer können den Log leeren"}), 403
+    category = (request.get_json() or {}).get("category", "all")
+    db = get_db()
+    try:
+        if category == "all" or category not in _VALID_LOG_CATS:
+            db.execute("DELETE FROM server_log")
+        else:
+            db.execute("DELETE FROM server_log WHERE category = ?", (category,))
+        db.commit()
+    finally:
+        db.close()
+    _discord_log("🗑️ Server-Log geleert",
+                 f"📂  **Kategorie:** {category}\n🌐  **Von:** {session.get('username')}")
     return jsonify({"ok": True})
 
 
