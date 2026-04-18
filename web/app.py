@@ -42,6 +42,27 @@ ROLE_LEVEL = {
 
 VALID_ROLES = tuple(ROLE_LEVEL.keys())
 
+
+def _parse_roles(raw) -> list:
+    """Liest role-Wert aus DB — unterstützt alten String und neues JSON-Array."""
+    import json as _j
+    if not raw:
+        return ["paten"]
+    try:
+        parsed = _j.loads(raw)
+        if isinstance(parsed, list):
+            return [r for r in parsed if r in VALID_ROLES] or ["paten"]
+        if isinstance(parsed, str):
+            return [parsed] if parsed in VALID_ROLES else ["paten"]
+    except (ValueError, TypeError):
+        pass
+    return [raw] if raw in VALID_ROLES else ["paten"]
+
+
+def _user_level(roles: list) -> int:
+    """Gibt das höchste Level der Rollenliste zurück."""
+    return max((ROLE_LEVEL.get(r, 0) for r in roles), default=0)
+
 # Mindest-Level für eingeschränkte Routen.
 # Routen ohne Eintrag sind für alle eingeloggten Nutzer zugänglich.
 ROUTE_MIN_LEVEL = {
@@ -91,18 +112,19 @@ def check_role():
         return
     entry = ROUTE_MIN_LEVEL.get(request.endpoint)
     if entry is not None:
-        role       = session.get("role", "paten")
-        user_level = ROLE_LEVEL.get(role, 0)
+        roles = session.get("roles", ["paten"])
+        ulvl  = _user_level(roles)
         if isinstance(entry, tuple):
             min_level, extra_roles = entry
         else:
             min_level, extra_roles = entry, set()
-        if user_level < min_level and role not in extra_roles:
-            return render_template("403.html", role=role), 403
+        if ulvl < min_level and not any(r in extra_roles for r in roles):
+            return render_template("403.html", role=", ".join(roles)), 403
 
 
 def _ensure_admin_user():
-    """Erstellt den ersten Admin-Account wenn web_users leer ist."""
+    """Erstellt den ersten Admin-Account wenn web_users leer ist und migriert alte Einzel-Rollen."""
+    import json as _j
     try:
         db = get_db()
         db.execute("""
@@ -110,17 +132,29 @@ def _ensure_admin_user():
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,
                 username      TEXT    UNIQUE NOT NULL,
                 password_hash TEXT    NOT NULL,
-                role          TEXT    NOT NULL DEFAULT 'viewer',
+                role          TEXT    NOT NULL DEFAULT '["paten"]',
                 created_at    TEXT    DEFAULT (datetime('now'))
             )
         """)
+        db.commit()
+        # Migration: Einzel-String → JSON-Array
+        for row in db.execute("SELECT id, role FROM web_users").fetchall():
+            raw = row["role"]
+            try:
+                parsed = _j.loads(raw)
+                if not isinstance(parsed, list):
+                    db.execute("UPDATE web_users SET role=? WHERE id=?",
+                               (_j.dumps([str(parsed)]), row["id"]))
+            except (ValueError, TypeError):
+                db.execute("UPDATE web_users SET role=? WHERE id=?",
+                           (_j.dumps([raw] if raw else ["paten"]), row["id"]))
         db.commit()
         if db.execute("SELECT COUNT(*) FROM web_users").fetchone()[0] == 0:
             uname = os.getenv("WEB_ADMIN_USER", "admin")
             pw    = os.getenv("WEB_PASSWORD", "admin")
             db.execute(
                 "INSERT INTO web_users (username, password_hash, role) VALUES (?,?,?)",
-                (uname, generate_password_hash(pw), "developer")
+                (uname, generate_password_hash(pw), _j.dumps(["developer"]))
             )
             db.commit()
         db.close()
@@ -143,7 +177,7 @@ def login():
         if row and check_password_hash(row["password_hash"], password):
             session["logged_in"] = True
             session["username"]  = username
-            session["role"]      = row["role"]
+            session["roles"]     = _parse_roles(row["role"])
             return redirect(request.args.get("next") or url_for("dashboard"))
         error = "Benutzername oder Passwort falsch"
     return render_template("login.html", error=error)
@@ -926,11 +960,12 @@ def verifizierung(prefix):
     import json as _json
     if prefix not in ("boys", "girls"):
         return redirect(url_for("verifizierung", prefix="boys"))
-    _role = session.get("role", "paten")
-    if _role == "b-verifizierung" and prefix != "boys":
-        return render_template("403.html", role=_role), 403
-    if _role == "g-verifizierung" and prefix != "girls":
-        return render_template("403.html", role=_role), 403
+    _vroles = session.get("roles", ["paten"])
+    if _user_level(_vroles) < 3:
+        if prefix == "boys"  and "b-verifizierung" not in _vroles:
+            return render_template("403.html", role=", ".join(_vroles)), 403
+        if prefix == "girls" and "g-verifizierung" not in _vroles:
+            return render_template("403.html", role=", ".join(_vroles)), 403
 
     db = get_db()
     defs = VERIFY_DEFAULTS[prefix]
@@ -1021,11 +1056,12 @@ def api_verifizierung_setup(prefix):
     import json as _json
     if prefix not in ("boys", "girls"):
         return jsonify({"error": "Ungültiger Prefix"}), 400
-    _role = session.get("role", "paten")
-    if _role == "b-verifizierung" and prefix != "boys":
-        return jsonify({"error": "Kein Zugriff auf Girls-Verifizierung"}), 403
-    if _role == "g-verifizierung" and prefix != "girls":
-        return jsonify({"error": "Kein Zugriff auf Boys-Verifizierung"}), 403
+    _vroles = session.get("roles", ["paten"])
+    if _user_level(_vroles) < 3:
+        if prefix == "boys"  and "b-verifizierung" not in _vroles:
+            return jsonify({"error": "Kein Zugriff auf Boys-Verifizierung"}), 403
+        if prefix == "girls" and "g-verifizierung" not in _vroles:
+            return jsonify({"error": "Kein Zugriff auf Girls-Verifizierung"}), 403
     bot  = current_app.config.get("BOT")
     loop = current_app.config.get("LOOP")
     if not bot or not loop:
@@ -1080,11 +1116,12 @@ def api_verifizierung_modrole(prefix):
     import json as _json
     if prefix not in ("boys", "girls"):
         return jsonify({"error": "Ungültiger Prefix"}), 400
-    _role = session.get("role", "paten")
-    if _role == "b-verifizierung" and prefix != "boys":
-        return jsonify({"error": "Kein Zugriff auf Girls-Verifizierung"}), 403
-    if _role == "g-verifizierung" and prefix != "girls":
-        return jsonify({"error": "Kein Zugriff auf Boys-Verifizierung"}), 403
+    _vroles = session.get("roles", ["paten"])
+    if _user_level(_vroles) < 3:
+        if prefix == "boys"  and "b-verifizierung" not in _vroles:
+            return jsonify({"error": "Kein Zugriff auf Boys-Verifizierung"}), 403
+        if prefix == "girls" and "g-verifizierung" not in _vroles:
+            return jsonify({"error": "Kein Zugriff auf Girls-Verifizierung"}), 403
     data    = request.get_json() or {}
     role_id = data.get("role_id")
     action  = data.get("action", "toggle")
@@ -1328,9 +1365,14 @@ def api_template_upload():
 @login_required
 def web_users():
     db = get_db()
-    users = [dict(r) for r in db.execute(
+    rows = db.execute(
         "SELECT id, username, role, created_at FROM web_users ORDER BY created_at"
-    ).fetchall()]
+    ).fetchall()
+    users = []
+    for r in rows:
+        u = dict(r)
+        u["roles"] = _parse_roles(u["role"])
+        users.append(u)
     db.close()
     return render_template("web_users.html", users=users)
 
@@ -1338,19 +1380,23 @@ def web_users():
 @app.route("/api/web-users/create", methods=["POST"])
 @login_required
 def api_web_user_create():
+    import json as _json
     data     = request.get_json() or {}
     username = data.get("username", "").strip()
     password = data.get("password", "").strip()
-    role     = data.get("role", "viewer")
+    roles    = data.get("roles", data.get("role", "paten"))
+    if isinstance(roles, str):
+        roles = [roles]
+    if not isinstance(roles, list) or not roles:
+        roles = ["paten"]
+    roles = [r for r in roles if r in VALID_ROLES] or ["paten"]
     if not username or not password:
         return jsonify({"error": "Benutzername und Passwort erforderlich"}), 400
-    if role not in VALID_ROLES:
-        return jsonify({"error": "Ungültige Rolle"}), 400
     db = get_db()
     try:
         db.execute(
             "INSERT INTO web_users (username, password_hash, role) VALUES (?,?,?)",
-            (username, generate_password_hash(password), role)
+            (username, generate_password_hash(password), _json.dumps(roles))
         )
         db.commit()
         new_id = db.execute("SELECT id, created_at FROM web_users WHERE username=?", (username,)).fetchone()
@@ -1359,33 +1405,35 @@ def api_web_user_create():
         db.close()
         return jsonify({"error": "Benutzername bereits vergeben"}), 409
     _discord_log("👤 Web-Nutzer erstellt",
-                 f"**Nutzer:** {username} | **Rolle:** {role} | **Von:** {session.get('username')}")
+                 f"**Nutzer:** {username} | **Rollen:** {', '.join(roles)} | **Von:** {session.get('username')}")
     return jsonify({"ok": True, "id": new_id["id"], "created_at": new_id["created_at"]})
 
 
 @app.route("/api/web-users/<int:uid>/edit", methods=["POST"])
 @login_required
 def api_web_user_edit(uid):
-    data     = request.get_json() or {}
-    role     = data.get("role")
-    password = data.get("password", "").strip()
+    import json as _json
+    data      = request.get_json() or {}
+    new_roles = data.get("roles", data.get("role"))
+    password  = data.get("password", "").strip()
     db = get_db()
     row = db.execute("SELECT username, role FROM web_users WHERE id=?", (uid,)).fetchone()
     if not row:
         db.close()
         return jsonify({"error": "Nutzer nicht gefunden"}), 404
-    # Letzten Owner/Developer nicht degradieren
-    if role and role in VALID_ROLES:
-        current_lvl = ROLE_LEVEL.get(row["role"], 0)
-        new_lvl     = ROLE_LEVEL.get(role, 0)
+    if new_roles is not None:
+        if isinstance(new_roles, str):
+            new_roles = [new_roles]
+        new_roles = [r for r in new_roles if r in VALID_ROLES] or ["paten"]
+        current_lvl = _user_level(_parse_roles(row["role"]))
+        new_lvl     = _user_level(new_roles)
         if current_lvl >= 6 and new_lvl < 6:
-            count = db.execute(
-                "SELECT COUNT(*) FROM web_users WHERE role IN ('developer','owner')"
-            ).fetchone()[0]
-            if count <= 1:
+            all_rows   = db.execute("SELECT role FROM web_users").fetchall()
+            high_count = sum(1 for r in all_rows if _user_level(_parse_roles(r["role"])) >= 6)
+            if high_count <= 1:
                 db.close()
                 return jsonify({"error": "Der letzte Owner/Developer kann nicht degradiert werden"}), 400
-        db.execute("UPDATE web_users SET role=? WHERE id=?", (role, uid))
+        db.execute("UPDATE web_users SET role=? WHERE id=?", (_json.dumps(new_roles), uid))
     if password:
         db.execute("UPDATE web_users SET password_hash=? WHERE id=?",
                    (generate_password_hash(password), uid))
@@ -1407,11 +1455,10 @@ def api_web_user_delete(uid):
     if row["username"] == session.get("username"):
         db.close()
         return jsonify({"error": "Du kannst deinen eigenen Account nicht löschen"}), 400
-    if ROLE_LEVEL.get(row["role"], 0) >= 6:
-        count = db.execute(
-            "SELECT COUNT(*) FROM web_users WHERE role IN ('developer','owner')"
-        ).fetchone()[0]
-        if count <= 1:
+    if _user_level(_parse_roles(row["role"])) >= 6:
+        all_rows   = db.execute("SELECT role FROM web_users").fetchall()
+        high_count = sum(1 for r in all_rows if _user_level(_parse_roles(r["role"])) >= 6)
+        if high_count <= 1:
             db.close()
             return jsonify({"error": "Der letzte Owner/Developer kann nicht gelöscht werden"}), 400
     db.execute("DELETE FROM web_users WHERE id=?", (uid,))

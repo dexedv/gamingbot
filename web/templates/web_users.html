@@ -38,6 +38,17 @@
     border-radius: 99px; border: 1px solid transparent;
   }
   .role-card { border-left: 3px solid var(--rc); }
+  /* Role checkboxes */
+  .role-check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem .75rem; }
+  .role-check-item {
+    display: flex; align-items: center; gap: .45rem;
+    padding: .35rem .6rem; border-radius: 8px;
+    border: 1px solid var(--border); cursor: pointer;
+    transition: border-color .14s, background .14s;
+  }
+  .role-check-item:hover { border-color: var(--accent); background: var(--glow); }
+  .role-check-item input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; flex-shrink: 0; }
+  .role-check-item label { cursor: pointer; font-size: .8rem; margin: 0; line-height: 1.2; }
 </style>
 {% endblock %}
 
@@ -72,7 +83,7 @@
       <thead>
         <tr>
           <th>Benutzername</th>
-          <th>Rolle</th>
+          <th>Rollen</th>
           <th>Erstellt</th>
           <th style="width:130px"></th>
         </tr>
@@ -82,7 +93,7 @@
         <tr>
           <td>
             <div class="d-flex align-items-center gap-2">
-              <div class="avatar" style="background:{{ avatar_color(u.role) }}">
+              <div class="avatar" style="background:{{ avatar_color(u.roles[0]) }}">
                 {{ u.username[0] | upper }}
               </div>
               <div>
@@ -91,12 +102,16 @@
               </div>
             </div>
           </td>
-          <td>{{ role_badge(u.role) }}</td>
+          <td>
+            <div class="d-flex flex-wrap gap-1">
+              {% for r in u.roles %}{{ role_badge(r) }}{% endfor %}
+            </div>
+          </td>
           <td style="color:var(--muted);font-size:.82rem">{{ u.created_at[:10] if u.created_at else '—' }}</td>
           <td>
             <div class="d-flex gap-2 justify-content-end">
               <button class="btn btn-sm" style="border:1px solid var(--border);color:var(--muted);border-radius:7px"
-                      onclick="openEdit({{ u.id }}, '{{ u.username }}', '{{ u.role }}')">
+                      onclick="openEdit({{ u.id }}, '{{ u.username }}', {{ u.roles | tojson }})">
                 <i class="bi bi-pencil"></i>
               </button>
               {% if u.username != session.get('username') %}
@@ -132,19 +147,19 @@
           <input type="password" id="cPassword" class="form-control" placeholder="Sicheres Passwort">
         </div>
         <div>
-          <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em">Rolle</label>
-          <select id="cRole" class="form-select">
-            <option value="paten">🤝 Paten — Dashboard & Ranglisten</option>
-            <option value="mediator">⚖️ Mediator — Grundzugang</option>
-            <option value="supporter">🎧 Supporter — Knast-Log & Kummerkasten</option>
-            <option value="b-verifizierung">♂️ B-Verifizierung — nur Boys-Tickets</option>
-            <option value="g-verifizierung">♀️ G-Verifizierung — nur Girls-Tickets</option>
-            <option value="moderator" selected>🛡️ Moderator — Nutzer verwalten</option>
-            <option value="admin">⚡ Admin — Server-Verwaltung</option>
-            <option value="co-owner">🔱 CO-Owner — Einstellungen & Templates</option>
-            <option value="owner">👑 Owner — Voller Zugriff</option>
-            <option value="developer">💻 Developer — Entwickler</option>
-          </select>
+          <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em">Rollen</label>
+          <div class="role-check-grid" id="cRoles">
+            <label class="role-check-item"><input type="checkbox" value="developer"><span style="color:#c084fc"><i class="bi bi-code-slash"></i> Developer</span></label>
+            <label class="role-check-item"><input type="checkbox" value="owner"><span style="color:#fbbf24"><i class="bi bi-star-fill"></i> Owner</span></label>
+            <label class="role-check-item"><input type="checkbox" value="co-owner"><span style="color:#fb923c"><i class="bi bi-shield-fill"></i> CO-Owner</span></label>
+            <label class="role-check-item"><input type="checkbox" value="admin"><span style="color:#818cf8"><i class="bi bi-lightning-fill"></i> Admin</span></label>
+            <label class="role-check-item"><input type="checkbox" value="moderator" checked><span style="color:#4ade80"><i class="bi bi-shield-half"></i> Moderator</span></label>
+            <label class="role-check-item"><input type="checkbox" value="b-verifizierung"><span style="color:#93c5fd"><i class="bi bi-gender-male"></i> B-Verifizierung</span></label>
+            <label class="role-check-item"><input type="checkbox" value="g-verifizierung"><span style="color:#f9a8d4"><i class="bi bi-gender-female"></i> G-Verifizierung</span></label>
+            <label class="role-check-item"><input type="checkbox" value="supporter"><span style="color:#2dd4bf"><i class="bi bi-headset"></i> Supporter</span></label>
+            <label class="role-check-item"><input type="checkbox" value="mediator"><span style="color:#22d3ee"><i class="bi bi-balance-scale"></i> Mediator</span></label>
+            <label class="role-check-item"><input type="checkbox" value="paten"><span style="color:var(--muted)"><i class="bi bi-hand-thumbs-up"></i> Paten</span></label>
+          </div>
         </div>
         <div id="createErr" class="text-danger" style="font-size:.82rem"></div>
       </div>
@@ -167,17 +182,19 @@
       <div class="modal-body d-flex flex-column gap-3">
         <input type="hidden" id="eId">
         <div>
-          <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em">Rolle</label>
-          <select id="eRole" class="form-select">
-            <option value="paten">🤝 Paten — Dashboard & Ranglisten</option>
-            <option value="mediator">⚖️ Mediator — Grundzugang</option>
-            <option value="supporter">🎧 Supporter — Knast-Log & Kummerkasten</option>
-            <option value="moderator">🛡️ Moderator — Nutzer verwalten</option>
-            <option value="admin">⚡ Admin — Server-Verwaltung</option>
-            <option value="co-owner">🔱 CO-Owner — Einstellungen & Templates</option>
-            <option value="owner">👑 Owner — Voller Zugriff</option>
-            <option value="developer">💻 Developer — Entwickler</option>
-          </select>
+          <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em">Rollen</label>
+          <div class="role-check-grid" id="eRoles">
+            <label class="role-check-item"><input type="checkbox" value="developer"><span style="color:#c084fc"><i class="bi bi-code-slash"></i> Developer</span></label>
+            <label class="role-check-item"><input type="checkbox" value="owner"><span style="color:#fbbf24"><i class="bi bi-star-fill"></i> Owner</span></label>
+            <label class="role-check-item"><input type="checkbox" value="co-owner"><span style="color:#fb923c"><i class="bi bi-shield-fill"></i> CO-Owner</span></label>
+            <label class="role-check-item"><input type="checkbox" value="admin"><span style="color:#818cf8"><i class="bi bi-lightning-fill"></i> Admin</span></label>
+            <label class="role-check-item"><input type="checkbox" value="moderator"><span style="color:#4ade80"><i class="bi bi-shield-half"></i> Moderator</span></label>
+            <label class="role-check-item"><input type="checkbox" value="b-verifizierung"><span style="color:#93c5fd"><i class="bi bi-gender-male"></i> B-Verifizierung</span></label>
+            <label class="role-check-item"><input type="checkbox" value="g-verifizierung"><span style="color:#f9a8d4"><i class="bi bi-gender-female"></i> G-Verifizierung</span></label>
+            <label class="role-check-item"><input type="checkbox" value="supporter"><span style="color:#2dd4bf"><i class="bi bi-headset"></i> Supporter</span></label>
+            <label class="role-check-item"><input type="checkbox" value="mediator"><span style="color:#22d3ee"><i class="bi bi-balance-scale"></i> Mediator</span></label>
+            <label class="role-check-item"><input type="checkbox" value="paten"><span style="color:var(--muted)"><i class="bi bi-hand-thumbs-up"></i> Paten</span></label>
+          </div>
         </div>
         <div>
           <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em">
@@ -204,8 +221,11 @@ const editModal   = new bootstrap.Modal(document.getElementById('editModal'));
 function openCreate() {
   document.getElementById('cUsername').value = '';
   document.getElementById('cPassword').value = '';
-  document.getElementById('cRole').value     = 'moderator';
   document.getElementById('createErr').textContent = '';
+  // Reset checkboxes — default: moderator only
+  document.querySelectorAll('#cRoles input').forEach(el => {
+    el.checked = el.value === 'moderator';
+  });
   createModal.show();
   setTimeout(() => document.getElementById('cUsername').focus(), 300);
 }
@@ -213,13 +233,14 @@ function openCreate() {
 function submitCreate() {
   const username = document.getElementById('cUsername').value.trim();
   const password = document.getElementById('cPassword').value.trim();
-  const role     = document.getElementById('cRole').value;
+  const roles    = [...document.querySelectorAll('#cRoles input:checked')].map(el => el.value);
   const err      = document.getElementById('createErr');
   if (!username || !password) { err.textContent = 'Benutzername und Passwort erforderlich.'; return; }
+  if (!roles.length) { err.textContent = 'Mindestens eine Rolle auswählen.'; return; }
   fetch('/api/web-users/create', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({username, password, role})
+    body: JSON.stringify({username, password, roles})
   })
   .then(r => r.json())
   .then(d => {
@@ -229,24 +250,27 @@ function submitCreate() {
   });
 }
 
-function openEdit(id, username, role) {
-  document.getElementById('eId').value              = id;
-  document.getElementById('eUsername').textContent  = username;
-  document.getElementById('eRole').value            = role;
-  document.getElementById('ePassword').value        = '';
-  document.getElementById('editErr').textContent    = '';
+function openEdit(id, username, roles) {
+  document.getElementById('eId').value             = id;
+  document.getElementById('eUsername').textContent = username;
+  document.getElementById('ePassword').value       = '';
+  document.getElementById('editErr').textContent   = '';
+  document.querySelectorAll('#eRoles input').forEach(el => {
+    el.checked = roles.includes(el.value);
+  });
   editModal.show();
 }
 
 function submitEdit() {
   const id       = document.getElementById('eId').value;
-  const role     = document.getElementById('eRole').value;
+  const roles    = [...document.querySelectorAll('#eRoles input:checked')].map(el => el.value);
   const password = document.getElementById('ePassword').value.trim();
   const err      = document.getElementById('editErr');
+  if (!roles.length) { err.textContent = 'Mindestens eine Rolle auswählen.'; return; }
   fetch(`/api/web-users/${id}/edit`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({role, ...(password ? {password} : {})})
+    body: JSON.stringify({roles, ...(password ? {password} : {})})
   })
   .then(r => r.json())
   .then(d => {

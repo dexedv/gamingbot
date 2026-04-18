@@ -255,9 +255,11 @@
     <div>Gaming<span>Bot</span></div>
   </div>
 
-  {% set _r   = session.get('role', 'paten') %}
+  {% set _roles = session.get('roles', ['paten']) %}
   {% set _lvl = {'developer':7,'owner':6,'co-owner':5,'admin':4,'moderator':3,'b-verifizierung':2,'g-verifizierung':2,'supporter':2,'mediator':1,'paten':0} %}
-  {% set _ul  = _lvl.get(_r, 0) %}
+  {% set ns = namespace(ul=0) %}
+  {% for _rr in _roles %}{% if _lvl.get(_rr, 0) > ns.ul %}{% set ns.ul = _lvl.get(_rr, 0) %}{% endif %}{% endfor %}
+  {% set _ul = ns.ul %}
 
   <div class="sb-nav">
     <div class="sb-section">Navigation</div>
@@ -313,14 +315,14 @@
     {% endif %}
     {% endif %}
 
-    {% if _ul >= 3 or _r in ['b-verifizierung', 'g-verifizierung'] %}
+    {% if _ul >= 3 or 'b-verifizierung' in _roles or 'g-verifizierung' in _roles %}
     <div class="sb-section" style="margin-top:1rem">Verifizierung</div>
-    {% if _ul >= 3 or _r == 'b-verifizierung' %}
+    {% if _ul >= 3 or 'b-verifizierung' in _roles %}
     <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'boys' %}active{% endif %}" href="/verifizierung/boys">
       <i class="bi bi-gender-male"></i> Boys-Verifizierung
     </a>
     {% endif %}
-    {% if _ul >= 3 or _r == 'g-verifizierung' %}
+    {% if _ul >= 3 or 'g-verifizierung' in _roles %}
     <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'girls' %}active{% endif %}" href="/verifizierung/girls">
       <i class="bi bi-gender-female"></i> Girls-Verifizierung
     </a>
@@ -340,22 +342,24 @@
       <span class="dot"></span>
       <span>Bot online</span>
     </div>
-    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;font-size:.8rem;color:var(--text)">
+    <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.4rem;font-size:.8rem;color:var(--text);flex-wrap:wrap">
       <i class="bi bi-person-circle" style="color:var(--accent)"></i>
       <span>{{ session.get('username', '') }}</span>
+      {% for _rr in _roles %}
       <span style="font-size:.65rem;padding:.1rem .45rem;border-radius:99px;font-weight:600;
-        {%- if _r == 'developer' %}background:rgba(168,85,247,.25);color:#c084fc;
-        {%- elif _r == 'owner' %}background:rgba(245,158,11,.25);color:#fbbf24;
-        {%- elif _r == 'co-owner' %}background:rgba(249,115,22,.2);color:#fb923c;
-        {%- elif _r == 'admin' %}background:rgba(88,101,242,.25);color:#818cf8;
-        {%- elif _r == 'moderator' %}background:rgba(34,197,94,.2);color:#4ade80;
-        {%- elif _r == 'b-verifizierung' %}background:rgba(88,101,242,.2);color:#93c5fd;
-        {%- elif _r == 'g-verifizierung' %}background:rgba(236,72,153,.2);color:#f9a8d4;
-        {%- elif _r == 'supporter' %}background:rgba(20,184,166,.2);color:#2dd4bf;
-        {%- elif _r == 'mediator' %}background:rgba(6,182,212,.2);color:#22d3ee;
+        {%- if _rr == 'developer' %}background:rgba(168,85,247,.25);color:#c084fc;
+        {%- elif _rr == 'owner' %}background:rgba(245,158,11,.25);color:#fbbf24;
+        {%- elif _rr == 'co-owner' %}background:rgba(249,115,22,.2);color:#fb923c;
+        {%- elif _rr == 'admin' %}background:rgba(88,101,242,.25);color:#818cf8;
+        {%- elif _rr == 'moderator' %}background:rgba(34,197,94,.2);color:#4ade80;
+        {%- elif _rr == 'b-verifizierung' %}background:rgba(88,101,242,.2);color:#93c5fd;
+        {%- elif _rr == 'g-verifizierung' %}background:rgba(236,72,153,.2);color:#f9a8d4;
+        {%- elif _rr == 'supporter' %}background:rgba(20,184,166,.2);color:#2dd4bf;
+        {%- elif _rr == 'mediator' %}background:rgba(6,182,212,.2);color:#22d3ee;
         {%- else %}background:var(--border);color:var(--muted);{%- endif %}">
-        {{ _r | upper }}
+        {{ _rr | upper }}
       </span>
+      {% endfor %}
     </div>
     <a href="/logout"><i class="bi bi-box-arrow-right"></i> Abmelden</a>
   </div>
