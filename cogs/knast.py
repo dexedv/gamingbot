@@ -88,8 +88,9 @@ class KnastCog(commands.Cog, name="Knast"):
 
     @knast_cmd.command(name="setup")
     @commands.has_permissions(administrator=True)
-    async def knast_setup(self, ctx: commands.Context):
-        """Erstellt Kategorie, Kanäle und Rolle für den Knast (nur einmal nötig)."""
+    async def knast_setup(self, ctx: commands.Context, category_id: int = None):
+        """Richtet das Knast-System ein. Optionale Kategorie-ID für eine bestehende Kategorie.
+        Beispiel: %knast setup 1494945960957050941"""
         guild = ctx.guild
         msg = await ctx.send("⏳ Richte Knast-System ein…")
 
@@ -102,25 +103,33 @@ class KnastCog(commands.Cog, name="Knast"):
                 reason="Knast-System Setup",
             )
 
-        # Kategorie mit Overrides anlegen
+        # Kategorie — entweder per ID oder neu erstellen
+        if category_id:
+            jail_cat = guild.get_channel(category_id)
+            if not jail_cat or not isinstance(jail_cat, discord.CategoryChannel):
+                await msg.edit(content=f"❌ Keine Kategorie mit ID `{category_id}` gefunden.")
+                return
+        else:
+            jail_cat = discord.utils.get(guild.categories, name="Gefängnis")
+
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
             jail_role: discord.PermissionOverwrite(
                 view_channel=True,
                 send_messages=True,
                 read_message_history=True,
-                speak=False,          # Voice-Sprechen standardmäßig aus
+                speak=False,
                 connect=True,
             ),
         }
-        jail_cat = discord.utils.get(guild.categories, name="Gefängnis")
+
         if not jail_cat:
             jail_cat = await guild.create_category("Gefängnis", overwrites=overwrites)
         else:
             await jail_cat.edit(overwrites=overwrites)
 
-        # Text-Kanal
-        text_ch = discord.utils.get(jail_cat.text_channels, name="gefaengnis-zelle")
+        # Text-Kanal (ersten bestehenden nehmen oder neu erstellen)
+        text_ch = jail_cat.text_channels[0] if jail_cat.text_channels else None
         if not text_ch:
             text_ch = await guild.create_text_channel(
                 "gefaengnis-zelle",
@@ -128,8 +137,8 @@ class KnastCog(commands.Cog, name="Knast"):
                 topic="Du bist im Knast. Warte auf einen Moderator.",
             )
 
-        # Voice-Kanal
-        voice_ch = discord.utils.get(jail_cat.voice_channels)
+        # Voice-Kanal (ersten bestehenden nehmen oder neu erstellen)
+        voice_ch = jail_cat.voice_channels[0] if jail_cat.voice_channels else None
         if not voice_ch:
             voice_ch = await guild.create_voice_channel(
                 "🔒 Gefängnis",
@@ -138,19 +147,19 @@ class KnastCog(commands.Cog, name="Knast"):
 
         # Einstellungen speichern
         _save_knast_settings({
-            "knast_category":     jail_cat.id,
-            "knast_text_channel": text_ch.id,
+            "knast_category":      jail_cat.id,
+            "knast_text_channel":  text_ch.id,
             "knast_voice_channel": voice_ch.id,
-            "knast_role":         jail_role.id,
+            "knast_role":          jail_role.id,
         })
 
         embed = discord.Embed(
             title="✅ Knast-System eingerichtet",
             color=discord.Color.from_rgb(34, 197, 94),
         )
-        embed.add_field(name="📂 Kategorie",  value=jail_cat.name,   inline=True)
+        embed.add_field(name="📂 Kategorie",  value=f"{jail_cat.name} (`{jail_cat.id}`)", inline=False)
         embed.add_field(name="💬 Text",       value=f"#{text_ch.name}", inline=True)
-        embed.add_field(name="🔊 Voice",      value=voice_ch.name,   inline=True)
+        embed.add_field(name="🔊 Voice",      value=voice_ch.name,      inline=True)
         embed.add_field(name="🎭 Rolle",      value=f"@{jail_role.name}", inline=True)
         embed.set_footer(text="Nutze %knast add @nutzer um jemanden einzusperren")
         await msg.edit(content="", embed=embed)
