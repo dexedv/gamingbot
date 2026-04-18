@@ -57,6 +57,32 @@ def _get_verify_text() -> tuple[str, str]:
         return defaults
 
 
+def _get_ticket_text() -> tuple[str, str]:
+    """Gibt (titel, beschreibung) der Ticket-Willkommensnachricht zurück."""
+    defaults = (
+        "🎫 Verifizierungs-Ticket",
+        "Willkommen {mention}!\n\n"
+        "Ein Moderator wird sich in Kürze um dein Ticket kümmern.\n"
+        "Schreibe hier dein Anliegen oder warte auf weitere Anweisungen.\n\n"
+        "Zum Schließen des Tickets den Button unten nutzen.",
+    )
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        title = conn.execute(
+            "SELECT value FROM bot_settings WHERE key = 'ticket_title'"
+        ).fetchone()
+        desc = conn.execute(
+            "SELECT value FROM bot_settings WHERE key = 'ticket_description'"
+        ).fetchone()
+        conn.close()
+        return (
+            json.loads(title[0]) if title else defaults[0],
+            json.loads(desc[0])  if desc  else defaults[1],
+        )
+    except Exception:
+        return defaults
+
+
 def _save_verify_text(key: str, value: str):
     conn = sqlite3.connect(DB_PATH)
     conn.execute(
@@ -146,14 +172,10 @@ class VerifyView(discord.ui.View):
             return
 
         # Willkommensnachricht im Ticket
+        t_title, t_desc = _get_ticket_text()
         embed = discord.Embed(
-            title="🎫 Verifizierungs-Ticket",
-            description=(
-                f"Willkommen {user.mention}!\n\n"
-                "Ein Moderator wird sich in Kürze um dein Ticket kümmern.\n"
-                "Schreibe hier dein Anliegen oder warte auf weitere Anweisungen.\n\n"
-                "Zum Schließen des Tickets den Button unten nutzen."
-            ),
+            title=t_title,
+            description=t_desc.replace("{mention}", user.mention),
             color=discord.Color.from_rgb(88, 101, 242),
         )
         embed.set_thumbnail(url=user.display_avatar.url)
@@ -219,11 +241,17 @@ class VerifizierungCog(commands.Cog, name="Verifizierung"):
         embed = discord.Embed(
             title="🎫 Verifizierungs-System",
             description=(
+                "**Verifizierungs-Embed (Button-Kanal)**\n"
                 "`%verifizierung setup` — Sendet die Verifizierungs-Nachricht\n"
                 "`%verifizierung titel <Text>` — Titel des Embeds ändern\n"
                 "`%verifizierung text <Text>` — Beschreibung des Embeds ändern\n"
                 "`%verifizierung vorschau` — Aktuelle Nachricht anzeigen\n"
-                "`%verifizierung modrole @rolle` — Moderatoren-Rolle hinzufügen/entfernen"
+                "`%verifizierung modrole @rolle` — Moderatoren-Rolle hinzufügen/entfernen\n\n"
+                "**Ticket-Willkommensnachricht (im Ticket)**\n"
+                "`%verifizierung tickettitel <Text>` — Titel der Ticket-Nachricht ändern\n"
+                "`%verifizierung tickettext <Text>` — Text der Ticket-Nachricht ändern\n"
+                "`%verifizierung ticketvorschau` — Ticket-Nachricht-Vorschau anzeigen\n"
+                "_(Tipp: `{mention}` wird durch den Nutzernamen ersetzt)_"
             ),
             color=discord.Color.from_rgb(88, 101, 242),
         )
@@ -279,6 +307,38 @@ class VerifizierungCog(commands.Cog, name="Verifizierung"):
         )
         embed.set_footer(text="Pink Horizoon Bot · Verifizierungs-System  |  Vorschau")
         await ctx.send("👁️ Vorschau:", embed=embed)
+
+    @verifizierung_cmd.command(name="tickettitel")
+    @commands.has_permissions(administrator=True)
+    async def verifizierung_tickettitel(self, ctx: commands.Context, *, titel: str):
+        """Ändert den Titel der Ticket-Willkommensnachricht.
+        Beispiel: %verifizierung tickettitel 🎫 Dein Ticket"""
+        _save_verify_text("ticket_title", titel)
+        await ctx.send(f"✅ Ticket-Titel gespeichert: **{titel}**")
+
+    @verifizierung_cmd.command(name="tickettext")
+    @commands.has_permissions(administrator=True)
+    async def verifizierung_tickettext(self, ctx: commands.Context, *, text: str):
+        """Ändert den Text der Ticket-Willkommensnachricht.
+        Zeilenumbrüche mit \\n, Nutzer-Erwähnung mit {mention}.
+        Beispiel: %verifizierung tickettext Willkommen {mention}!\\nEin Mod meldet sich."""
+        text = text.replace("\\n", "\n")
+        _save_verify_text("ticket_description", text)
+        await ctx.send("✅ Ticket-Text gespeichert.\n_(Tipp: `{mention}` wird durch den Nutzernamen ersetzt)_")
+
+    @verifizierung_cmd.command(name="ticketvorschau")
+    @commands.has_permissions(administrator=True)
+    async def verifizierung_ticketvorschau(self, ctx: commands.Context):
+        """Zeigt eine Vorschau der Ticket-Willkommensnachricht."""
+        t_title, t_desc = _get_ticket_text()
+        embed = discord.Embed(
+            title=t_title,
+            description=t_desc.replace("{mention}", ctx.author.mention),
+            color=discord.Color.from_rgb(88, 101, 242),
+        )
+        embed.set_thumbnail(url=ctx.author.display_avatar.url)
+        embed.set_footer(text=f"User-ID: {ctx.author.id}  |  Vorschau")
+        await ctx.send("👁️ Ticket-Vorschau:", embed=embed)
 
     @verifizierung_cmd.command(name="modrole")
     @commands.has_permissions(administrator=True)
