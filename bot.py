@@ -42,6 +42,7 @@ COGS = [
     "cogs.polls",
     "cogs.stats_tracker",
     "cogs.knast",
+    "cogs.kummerkasten",
 ]
 
 
