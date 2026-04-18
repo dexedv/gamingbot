@@ -98,7 +98,7 @@ async def on_ready():
     await bot.change_presence(
         activity=discord.Activity(
             type=discord.ActivityType.playing,
-            name="%hilfe | %slots | %tictactoe",
+            name="IN LOVE WITH ⛧༒ ARIEL༒⛧",
         )
     )
 
