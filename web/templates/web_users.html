@@ -2,14 +2,16 @@
 {% block title %}Web-Nutzer{% endblock %}
 
 {% set role_meta = [
-  ('developer', 'bi-code-slash',     '#a855f7', 'Entwickler — Voller Zugriff + System'),
-  ('owner',     'bi-star-fill',      '#f59e0b', 'Owner — Voller Zugriff inkl. User-Mgmt'),
-  ('co-owner',  'bi-shield-fill',    '#f97316', 'CO-Owner — Einstellungen & Templates'),
-  ('admin',     'bi-lightning-fill', '#5865f2', 'Admin — Server-Verwaltung & Broadcast'),
-  ('moderator', 'bi-shield-half',    '#22c55e', 'Moderator — Knast, Verifizierung, Umfragen'),
-  ('supporter', 'bi-headset',        '#14b8a6', 'Supporter — Knast-Log & Kummerkasten lesen'),
-  ('mediator',  'bi-balance-scale',  '#06b6d4', 'Mediator — Grundzugang'),
-  ('paten',     'bi-hand-thumbs-up', '#8892a4', 'Paten — Dashboard & Ranglisten'),
+  ('developer',       'bi-code-slash',        '#a855f7', 'Entwickler — Voller Zugriff + System'),
+  ('owner',           'bi-star-fill',         '#f59e0b', 'Owner — Voller Zugriff inkl. User-Mgmt'),
+  ('co-owner',        'bi-shield-fill',       '#f97316', 'CO-Owner — Einstellungen & Templates'),
+  ('admin',           'bi-lightning-fill',    '#5865f2', 'Admin — Server-Verwaltung & Broadcast'),
+  ('moderator',       'bi-shield-half',       '#22c55e', 'Moderator — Knast, Verifizierung, Umfragen'),
+  ('b-verifizierung', 'bi-gender-male',       '#93c5fd', 'Boys-Verifizierung — nur Boys-Tickets'),
+  ('g-verifizierung', 'bi-gender-female',     '#f9a8d4', 'Girls-Verifizierung — nur Girls-Tickets'),
+  ('supporter',       'bi-headset',           '#14b8a6', 'Supporter — Knast-Log & Kummerkasten lesen'),
+  ('mediator',        'bi-balance-scale',     '#06b6d4', 'Mediator — Grundzugang'),
+  ('paten',           'bi-hand-thumbs-up',    '#8892a4', 'Paten — Dashboard & Ranglisten'),
 ] %}
 
 {% macro role_badge(r) %}
@@ -18,13 +20,15 @@
   {% elif r == 'co-owner' %}<span class="role-tag" style="background:rgba(249,115,22,.15);color:#fb923c;border-color:rgba(249,115,22,.3)"><i class="bi bi-shield-fill"></i> CO-Owner</span>
   {% elif r == 'admin' %}<span class="role-tag" style="background:rgba(88,101,242,.2);color:#818cf8;border-color:rgba(88,101,242,.35)"><i class="bi bi-lightning-fill"></i> Admin</span>
   {% elif r == 'moderator' %}<span class="role-tag" style="background:rgba(34,197,94,.15);color:#4ade80;border-color:rgba(34,197,94,.3)"><i class="bi bi-shield-half"></i> Moderator</span>
+  {% elif r == 'b-verifizierung' %}<span class="role-tag" style="background:rgba(88,101,242,.2);color:#93c5fd;border-color:rgba(88,101,242,.35)"><i class="bi bi-gender-male"></i> B-Verifizierung</span>
+  {% elif r == 'g-verifizierung' %}<span class="role-tag" style="background:rgba(236,72,153,.15);color:#f9a8d4;border-color:rgba(236,72,153,.3)"><i class="bi bi-gender-female"></i> G-Verifizierung</span>
   {% elif r == 'supporter' %}<span class="role-tag" style="background:rgba(20,184,166,.15);color:#2dd4bf;border-color:rgba(20,184,166,.3)"><i class="bi bi-headset"></i> Supporter</span>
   {% elif r == 'mediator' %}<span class="role-tag" style="background:rgba(6,182,212,.15);color:#22d3ee;border-color:rgba(6,182,212,.3)"><i class="bi bi-balance-scale"></i> Mediator</span>
   {% else %}<span class="role-tag" style="background:var(--border);color:var(--muted);border-color:var(--faint)"><i class="bi bi-hand-thumbs-up"></i> Paten</span>
   {% endif %}
 {% endmacro %}
 
-{% macro avatar_color(r) %}{% if r=='developer' %}#a855f7{% elif r=='owner' %}#f59e0b{% elif r=='co-owner' %}#f97316{% elif r=='admin' %}#5865f2{% elif r=='moderator' %}#22c55e{% elif r=='supporter' %}#14b8a6{% elif r=='mediator' %}#06b6d4{% else %}#2e3447{% endif %}{% endmacro %}
+{% macro avatar_color(r) %}{% if r=='developer' %}#a855f7{% elif r=='owner' %}#f59e0b{% elif r=='co-owner' %}#f97316{% elif r=='admin' %}#5865f2{% elif r=='moderator' %}#22c55e{% elif r=='b-verifizierung' %}#5865f2{% elif r=='g-verifizierung' %}#ec4899{% elif r=='supporter' %}#14b8a6{% elif r=='mediator' %}#06b6d4{% else %}#2e3447{% endif %}{% endmacro %}
 
 {% block head %}
 <style>
@@ -133,6 +137,8 @@
             <option value="paten">🤝 Paten — Dashboard & Ranglisten</option>
             <option value="mediator">⚖️ Mediator — Grundzugang</option>
             <option value="supporter">🎧 Supporter — Knast-Log & Kummerkasten</option>
+            <option value="b-verifizierung">♂️ B-Verifizierung — nur Boys-Tickets</option>
+            <option value="g-verifizierung">♀️ G-Verifizierung — nur Girls-Tickets</option>
             <option value="moderator" selected>🛡️ Moderator — Nutzer verwalten</option>
             <option value="admin">⚡ Admin — Server-Verwaltung</option>
             <option value="co-owner">🔱 CO-Owner — Einstellungen & Templates</option>

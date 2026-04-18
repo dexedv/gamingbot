@@ -256,7 +256,7 @@
   </div>
 
   {% set _r   = session.get('role', 'paten') %}
-  {% set _lvl = {'developer':7,'owner':6,'co-owner':5,'admin':4,'moderator':3,'supporter':2,'mediator':1,'paten':0} %}
+  {% set _lvl = {'developer':7,'owner':6,'co-owner':5,'admin':4,'moderator':3,'b-verifizierung':2,'g-verifizierung':2,'supporter':2,'mediator':1,'paten':0} %}
   {% set _ul  = _lvl.get(_r, 0) %}
 
   <div class="sb-nav">
@@ -313,14 +313,18 @@
     {% endif %}
     {% endif %}
 
-    {% if _ul >= 3 %}
+    {% if _ul >= 3 or _r in ['b-verifizierung', 'g-verifizierung'] %}
     <div class="sb-section" style="margin-top:1rem">Verifizierung</div>
+    {% if _ul >= 3 or _r == 'b-verifizierung' %}
     <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'boys' %}active{% endif %}" href="/verifizierung/boys">
       <i class="bi bi-gender-male"></i> Boys-Verifizierung
     </a>
+    {% endif %}
+    {% if _ul >= 3 or _r == 'g-verifizierung' %}
     <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'girls' %}active{% endif %}" href="/verifizierung/girls">
       <i class="bi bi-gender-female"></i> Girls-Verifizierung
     </a>
+    {% endif %}
     {% endif %}
 
     {% if _ul >= 6 %}
@@ -345,6 +349,8 @@
         {%- elif _r == 'co-owner' %}background:rgba(249,115,22,.2);color:#fb923c;
         {%- elif _r == 'admin' %}background:rgba(88,101,242,.25);color:#818cf8;
         {%- elif _r == 'moderator' %}background:rgba(34,197,94,.2);color:#4ade80;
+        {%- elif _r == 'b-verifizierung' %}background:rgba(88,101,242,.2);color:#93c5fd;
+        {%- elif _r == 'g-verifizierung' %}background:rgba(236,72,153,.2);color:#f9a8d4;
         {%- elif _r == 'supporter' %}background:rgba(20,184,166,.2);color:#2dd4bf;
         {%- elif _r == 'mediator' %}background:rgba(6,182,212,.2);color:#22d3ee;
         {%- else %}background:var(--border);color:var(--muted);{%- endif %}">

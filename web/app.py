@@ -28,14 +28,16 @@ def login_required(f):
 
 # Numerisches Level je Rolle (höher = mehr Rechte)
 ROLE_LEVEL = {
-    "developer": 7,
-    "owner":     6,
-    "co-owner":  5,
-    "admin":     4,
-    "moderator": 3,
-    "supporter": 2,
-    "mediator":  1,
-    "paten":     0,
+    "developer":       7,
+    "owner":           6,
+    "co-owner":        5,
+    "admin":           4,
+    "moderator":       3,
+    "b-verifizierung": 2,
+    "g-verifizierung": 2,
+    "supporter":       2,
+    "mediator":        1,
+    "paten":           0,
 }
 
 VALID_ROLES = tuple(ROLE_LEVEL.keys())
@@ -71,9 +73,10 @@ ROUTE_MIN_LEVEL = {
     "umfragen":                  3,
     "api_umfragen_erstellen":    3,
     "api_umfragen_schliessen":   3,
-    "verifizierung":             3,
-    "api_verifizierung_setup":   3,
-    "api_verifizierung_modrole": 3,
+    # Verifizierung: Moderator+ ODER die speziellen Verifizierungs-Rollen
+    "verifizierung":             (3, {"b-verifizierung", "g-verifizierung"}),
+    "api_verifizierung_setup":   (3, {"b-verifizierung", "g-verifizierung"}),
+    "api_verifizierung_modrole": (3, {"b-verifizierung", "g-verifizierung"}),
     # Supporter+ (2): Einblick für Support-Team
     "kummerkasten":              2,
     "knast_log":                 2,
@@ -86,10 +89,16 @@ def check_role():
         return
     if not session.get("logged_in"):
         return
-    if request.endpoint in ROUTE_MIN_LEVEL:
-        user_level = ROLE_LEVEL.get(session.get("role", "paten"), 0)
-        if user_level < ROUTE_MIN_LEVEL[request.endpoint]:
-            return render_template("403.html", role=session.get("role")), 403
+    entry = ROUTE_MIN_LEVEL.get(request.endpoint)
+    if entry is not None:
+        role       = session.get("role", "paten")
+        user_level = ROLE_LEVEL.get(role, 0)
+        if isinstance(entry, tuple):
+            min_level, extra_roles = entry
+        else:
+            min_level, extra_roles = entry, set()
+        if user_level < min_level and role not in extra_roles:
+            return render_template("403.html", role=role), 403
 
 
 def _ensure_admin_user():
@@ -917,6 +926,11 @@ def verifizierung(prefix):
     import json as _json
     if prefix not in ("boys", "girls"):
         return redirect(url_for("verifizierung", prefix="boys"))
+    _role = session.get("role", "paten")
+    if _role == "b-verifizierung" and prefix != "boys":
+        return render_template("403.html", role=_role), 403
+    if _role == "g-verifizierung" and prefix != "girls":
+        return render_template("403.html", role=_role), 403
 
     db = get_db()
     defs = VERIFY_DEFAULTS[prefix]
@@ -1007,6 +1021,11 @@ def api_verifizierung_setup(prefix):
     import json as _json
     if prefix not in ("boys", "girls"):
         return jsonify({"error": "Ungültiger Prefix"}), 400
+    _role = session.get("role", "paten")
+    if _role == "b-verifizierung" and prefix != "boys":
+        return jsonify({"error": "Kein Zugriff auf Girls-Verifizierung"}), 403
+    if _role == "g-verifizierung" and prefix != "girls":
+        return jsonify({"error": "Kein Zugriff auf Boys-Verifizierung"}), 403
     bot  = current_app.config.get("BOT")
     loop = current_app.config.get("LOOP")
     if not bot or not loop:
@@ -1061,6 +1080,11 @@ def api_verifizierung_modrole(prefix):
     import json as _json
     if prefix not in ("boys", "girls"):
         return jsonify({"error": "Ungültiger Prefix"}), 400
+    _role = session.get("role", "paten")
+    if _role == "b-verifizierung" and prefix != "boys":
+        return jsonify({"error": "Kein Zugriff auf Girls-Verifizierung"}), 403
+    if _role == "g-verifizierung" and prefix != "girls":
+        return jsonify({"error": "Kein Zugriff auf Boys-Verifizierung"}), 403
     data    = request.get_json() or {}
     role_id = data.get("role_id")
     action  = data.get("action", "toggle")
