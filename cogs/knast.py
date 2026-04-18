@@ -13,6 +13,9 @@ KNAST_ALLOWED_ROLES = {
     1494042802659524829,
 }
 
+# Diese Nutzer können niemals eingesperrt werden
+KNAST_PROTECTED_USERS = {307210134856400908}
+
 
 def has_knast_permission():
     """Check: Nutzer muss eine der erlaubten Knast-Rollen haben."""
@@ -98,6 +101,9 @@ class KnastCog(commands.Cog, name="Knast"):
     ) -> dict:
         """Sperrt einen Nutzer ein. Gibt {'ok': True} oder {'error': '...'} zurück."""
         from utils import send_log
+
+        if member.id in KNAST_PROTECTED_USERS:
+            return {"error": "Dieser Nutzer kann nicht eingesperrt werden."}
 
         settings = _load_knast_settings()
         if not settings.get("knast_category"):
