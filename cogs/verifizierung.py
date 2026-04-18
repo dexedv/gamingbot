@@ -32,6 +32,42 @@ def _save_mod_roles(role_ids: list[int]):
     conn.close()
 
 
+def _get_verify_text() -> tuple[str, str]:
+    """Gibt (titel, beschreibung) des Verifizierungs-Embeds zurück."""
+    defaults = (
+        "✅ Verifizierung",
+        "Klicke auf den Button unten, um ein Ticket zu öffnen.\n"
+        "Ein Moderator wird dich dann verifizieren.\n\n"
+        "🎫 **Ticket erstellen** → Button drücken",
+    )
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        title = conn.execute(
+            "SELECT value FROM bot_settings WHERE key = 'verify_title'"
+        ).fetchone()
+        desc = conn.execute(
+            "SELECT value FROM bot_settings WHERE key = 'verify_description'"
+        ).fetchone()
+        conn.close()
+        return (
+            json.loads(title[0]) if title else defaults[0],
+            json.loads(desc[0])  if desc  else defaults[1],
+        )
+    except Exception:
+        return defaults
+
+
+def _save_verify_text(key: str, value: str):
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute(
+        "INSERT INTO bot_settings (key, value) VALUES (?, ?)"
+        " ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        (key, json.dumps(value))
+    )
+    conn.commit()
+    conn.close()
+
+
 # ── Views ─────────────────────────────────────────────────────────────────────
 
 class VerifyView(discord.ui.View):
@@ -184,6 +220,9 @@ class VerifizierungCog(commands.Cog, name="Verifizierung"):
             title="🎫 Verifizierungs-System",
             description=(
                 "`%verifizierung setup` — Sendet die Verifizierungs-Nachricht\n"
+                "`%verifizierung titel <Text>` — Titel des Embeds ändern\n"
+                "`%verifizierung text <Text>` — Beschreibung des Embeds ändern\n"
+                "`%verifizierung vorschau` — Aktuelle Nachricht anzeigen\n"
                 "`%verifizierung modrole @rolle` — Moderatoren-Rolle hinzufügen/entfernen"
             ),
             color=discord.Color.from_rgb(88, 101, 242),
@@ -199,19 +238,47 @@ class VerifizierungCog(commands.Cog, name="Verifizierung"):
             await ctx.send(f"❌ Kanal `{VERIFY_CHANNEL_ID}` nicht gefunden.")
             return
 
+        title, description = _get_verify_text()
         embed = discord.Embed(
-            title="✅ Verifizierung",
-            description=(
-                "Klicke auf den Button unten, um ein Ticket zu öffnen.\n"
-                "Ein Moderator wird dich dann verifizieren.\n\n"
-                "🎫 **Ticket erstellen** → Button drücken"
-            ),
+            title=title,
+            description=description,
             color=discord.Color.from_rgb(88, 101, 242),
         )
         embed.set_footer(text="Pink Horizoon Bot · Verifizierungs-System")
 
         await channel.send(embed=embed, view=VerifyView())
         await ctx.send(f"✅ Verifizierungs-Nachricht wurde in {channel.mention} gesendet!")
+
+    @verifizierung_cmd.command(name="titel")
+    @commands.has_permissions(administrator=True)
+    async def verifizierung_titel(self, ctx: commands.Context, *, titel: str):
+        """Ändert den Titel des Verifizierungs-Embeds.
+        Beispiel: %verifizierung titel ✅ Willkommen – Verifizierung"""
+        _save_verify_text("verify_title", titel)
+        await ctx.send(f"✅ Titel gespeichert: **{titel}**\nMit `%verifizierung setup` neu posten.")
+
+    @verifizierung_cmd.command(name="text")
+    @commands.has_permissions(administrator=True)
+    async def verifizierung_text(self, ctx: commands.Context, *, text: str):
+        """Ändert die Beschreibung des Verifizierungs-Embeds.
+        Zeilenumbrüche mit \\n einfügen.
+        Beispiel: %verifizierung text Drücke den Button um dich zu verifizieren!"""
+        text = text.replace("\\n", "\n")
+        _save_verify_text("verify_description", text)
+        await ctx.send(f"✅ Text gespeichert.\nMit `%verifizierung setup` neu posten.")
+
+    @verifizierung_cmd.command(name="vorschau")
+    @commands.has_permissions(administrator=True)
+    async def verifizierung_vorschau(self, ctx: commands.Context):
+        """Zeigt eine Vorschau der aktuellen Verifizierungs-Nachricht."""
+        title, description = _get_verify_text()
+        embed = discord.Embed(
+            title=title,
+            description=description,
+            color=discord.Color.from_rgb(88, 101, 242),
+        )
+        embed.set_footer(text="Pink Horizoon Bot · Verifizierungs-System  |  Vorschau")
+        await ctx.send("👁️ Vorschau:", embed=embed)
 
     @verifizierung_cmd.command(name="modrole")
     @commands.has_permissions(administrator=True)
