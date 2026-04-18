@@ -167,7 +167,7 @@ async def _do_open_ticket(interaction: discord.Interaction, prefix: str):
         color=color,
     )
     embed.set_thumbnail(url=user.display_avatar.url)
-    embed.set_footer(text=f"User-ID: {user.id}")
+    embed.set_footer(text=f"{user.display_name} · {user.id}")
 
     close_view = BoysCloseView() if prefix == "boys" else GirlsCloseView()
     await channel.send(user.mention, embed=embed, view=close_view)
