@@ -66,6 +66,7 @@ def _user_level(roles: list) -> int:
 # ── Feature-basiertes Berechtigungssystem ────────────────────────────────────
 
 FEATURES = {
+    "nutzer":               {"label": "Nutzerliste",             "icon": "bi-people",          "desc": "Discord-Nutzer einsehen & Detailseiten aufrufen"},
     "knast_log":            {"label": "Knast-Log",               "icon": "bi-lock",           "desc": "Knast-Log & aktive Knast-Einträge lesen"},
     "kummerkasten":         {"label": "Kummerkasten",            "icon": "bi-envelope-heart",  "desc": "Kummerkasten-Statistiken einsehen"},
     "nutzer_verwalten":     {"label": "Nutzerverwaltung",        "icon": "bi-person-gear",     "desc": "Nutzer sperren, Coins & Level bearbeiten"},
@@ -84,6 +85,7 @@ FEATURES = {
 # Endpoint-Name → Feature
 # Verifizierung-Routen sind NICHT hier — die prüfen ihr Feature selbst im Handler
 FEATURE_ROUTES: dict[str, set] = {
+    "nutzer":               {"users", "user_detail"},
     "knast_log":            {"knast_log"},
     "kummerkasten":         {"kummerkasten"},
     "nutzer_verwalten":     {"verwaltung", "edit_user", "api_user_knast"},
@@ -108,17 +110,17 @@ for _feat, _eps in FEATURE_ROUTES.items():
 DEFAULT_PERMISSIONS: dict[str, list] = {
     "developer":       list(FEATURES.keys()),
     "owner":           list(FEATURES.keys()),
-    "co-owner":        ["knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
+    "co-owner":        ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
                         "verifizierung_boys", "verifizierung_girls",
                         "broadcast", "willkommen", "cogs", "templates", "einstellungen"],
-    "admin":           ["knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
+    "admin":           ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
                         "verifizierung_boys", "verifizierung_girls", "broadcast", "willkommen"],
-    "moderator":       ["knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
+    "moderator":       ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
                         "verifizierung_boys", "verifizierung_girls"],
     "b-verifizierung": ["verifizierung_boys"],
     "g-verifizierung": ["verifizierung_girls"],
-    "supporter":       ["knast_log", "kummerkasten"],
-    "mediator":        [],
+    "supporter":       ["nutzer", "knast_log", "kummerkasten"],
+    "mediator":        ["nutzer"],
     "paten":           [],
 }
 
