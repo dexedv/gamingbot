@@ -59,7 +59,7 @@
       position: absolute; left: .85rem; top: 50%; transform: translateY(-50%);
       color: var(--muted); font-size: .95rem; pointer-events: none;
     }
-    input[type="password"] {
+    .field-wrap input {
       width: 100%;
       background: var(--bg); border: 1px solid var(--border);
       color: var(--text); border-radius: 9px;
@@ -67,7 +67,7 @@
       font-size: .9rem; outline: none;
       transition: border-color .15s, box-shadow .15s;
     }
-    input[type="password"]:focus {
+    .field-wrap input:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 3px var(--glow);
     }
@@ -107,12 +107,20 @@
       {% endif %}
 
       <form method="POST">
+        <label class="field-label" for="un">Benutzername</label>
+        <div class="field-wrap">
+          <i class="bi bi-person"></i>
+          <input type="text" id="un" name="username"
+            placeholder="admin" autofocus autocomplete="username">
+        </div>
+
         <label class="field-label" for="pw">Passwort</label>
         <div class="field-wrap">
           <i class="bi bi-lock"></i>
           <input type="password" id="pw" name="password"
-            placeholder="••••••••" autofocus autocomplete="current-password">
+            placeholder="••••••••" autocomplete="current-password">
         </div>
+
         <button type="submit" class="btn-login">
           Anmelden <i class="bi bi-arrow-right ms-1"></i>
         </button>

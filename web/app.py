@@ -9,6 +9,8 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, c
 app = Flask(__name__)
 app.secret_key = os.getenv("WEB_SECRET", "changeme-set-WEB_SECRET-in-env")
 
+from werkzeug.security import generate_password_hash, check_password_hash
+
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'gamingbot.db')
 _bot_start_time = time.time()
 
@@ -22,17 +24,98 @@ def login_required(f):
     return decorated
 
 
+# ── Rollen & Rechte ───────────────────────────────────────────────────────────
+
+# Routen ohne Eintrag sind für alle eingeloggten Nutzer zugänglich.
+ROUTE_ROLES = {
+    # Nur Admin
+    "settings":                  ["admin"],
+    "templates":                 ["admin"],
+    "api_templates_list":        ["admin"],
+    "api_templates_create":      ["admin"],
+    "api_templates_restore":     ["admin"],
+    "api_template_detail":       ["admin"],
+    "api_template_download":     ["admin"],
+    "api_template_upload":       ["admin"],
+    "toggle_cog":                ["admin"],
+    "web_users":                 ["admin"],
+    "api_web_user_create":       ["admin"],
+    "api_web_user_edit":         ["admin"],
+    "api_web_user_delete":       ["admin"],
+    # Admin + Mod
+    "willkommen":                ["admin", "mod"],
+    "api_willkommen_test":       ["admin", "mod"],
+    "broadcast":                 ["admin", "mod"],
+    "api_send_message":          ["admin", "mod"],
+    "verwaltung":                ["admin", "mod"],
+    "api_user_knast":            ["admin", "mod"],
+    "edit_user":                 ["admin", "mod"],
+    "umfragen":                  ["admin", "mod"],
+    "api_umfragen_erstellen":    ["admin", "mod"],
+    "api_umfragen_schliessen":   ["admin", "mod"],
+    "verifizierung":             ["admin", "mod"],
+    "api_verifizierung_setup":   ["admin", "mod"],
+    "api_verifizierung_modrole": ["admin", "mod"],
+    "trigger_nickname_update":   ["admin", "mod"],
+}
+
+
+@app.before_request
+def check_role():
+    if request.endpoint in (None, "login", "logout", "static"):
+        return
+    if not session.get("logged_in"):
+        return
+    if request.endpoint in ROUTE_ROLES:
+        if session.get("role", "viewer") not in ROUTE_ROLES[request.endpoint]:
+            return render_template("403.html", role=session.get("role")), 403
+
+
+def _ensure_admin_user():
+    """Erstellt den ersten Admin-Account wenn web_users leer ist."""
+    try:
+        db = get_db()
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS web_users (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                username      TEXT    UNIQUE NOT NULL,
+                password_hash TEXT    NOT NULL,
+                role          TEXT    NOT NULL DEFAULT 'viewer',
+                created_at    TEXT    DEFAULT (datetime('now'))
+            )
+        """)
+        db.commit()
+        if db.execute("SELECT COUNT(*) FROM web_users").fetchone()[0] == 0:
+            uname = os.getenv("WEB_ADMIN_USER", "admin")
+            pw    = os.getenv("WEB_PASSWORD", "admin")
+            db.execute(
+                "INSERT INTO web_users (username, password_hash, role) VALUES (?,?,?)",
+                (uname, generate_password_hash(pw), "admin")
+            )
+            db.commit()
+        db.close()
+    except Exception:
+        pass
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    _ensure_admin_user()
     error = None
     if request.method == "POST":
-        entered = request.form.get("password", "")
-        valid_passwords = {os.getenv("WEB_PASSWORD", "admin"), os.getenv("WEB_PASSWORD_2", "")}
-        valid_passwords.discard("")  # leere Einträge ignorieren
-        if entered in valid_passwords:
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        db = get_db()
+        row = db.execute(
+            "SELECT password_hash, role FROM web_users WHERE username=?", (username,)
+        ).fetchone()
+        db.close()
+        if row and check_password_hash(row["password_hash"], password):
             session["logged_in"] = True
+            session["username"]  = username
+            session["role"]      = row["role"]
             return redirect(request.args.get("next") or url_for("dashboard"))
-        error = "Falsches Passwort"
+        error = "Benutzername oder Passwort falsch"
     return render_template("login.html", error=error)
 
 
@@ -1193,6 +1276,100 @@ def api_template_upload():
         return jsonify({"ok": True, "name": name})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+# ── Web-User-Verwaltung ───────────────────────────────────────────────────────
+
+@app.route("/web-users")
+@login_required
+def web_users():
+    db = get_db()
+    users = [dict(r) for r in db.execute(
+        "SELECT id, username, role, created_at FROM web_users ORDER BY created_at"
+    ).fetchall()]
+    db.close()
+    return render_template("web_users.html", users=users)
+
+
+@app.route("/api/web-users/create", methods=["POST"])
+@login_required
+def api_web_user_create():
+    data     = request.get_json() or {}
+    username = data.get("username", "").strip()
+    password = data.get("password", "").strip()
+    role     = data.get("role", "viewer")
+    if not username or not password:
+        return jsonify({"error": "Benutzername und Passwort erforderlich"}), 400
+    if role not in ("admin", "mod", "viewer"):
+        return jsonify({"error": "Ungültige Rolle"}), 400
+    db = get_db()
+    try:
+        db.execute(
+            "INSERT INTO web_users (username, password_hash, role) VALUES (?,?,?)",
+            (username, generate_password_hash(password), role)
+        )
+        db.commit()
+        new_id = db.execute("SELECT id, created_at FROM web_users WHERE username=?", (username,)).fetchone()
+        db.close()
+    except Exception:
+        db.close()
+        return jsonify({"error": "Benutzername bereits vergeben"}), 409
+    _discord_log("👤 Web-Nutzer erstellt",
+                 f"**Nutzer:** {username} | **Rolle:** {role} | **Von:** {session.get('username')}")
+    return jsonify({"ok": True, "id": new_id["id"], "created_at": new_id["created_at"]})
+
+
+@app.route("/api/web-users/<int:uid>/edit", methods=["POST"])
+@login_required
+def api_web_user_edit(uid):
+    data     = request.get_json() or {}
+    role     = data.get("role")
+    password = data.get("password", "").strip()
+    db = get_db()
+    row = db.execute("SELECT username, role FROM web_users WHERE id=?", (uid,)).fetchone()
+    if not row:
+        db.close()
+        return jsonify({"error": "Nutzer nicht gefunden"}), 404
+    # Letzten Admin nicht degradieren
+    if role and role != "admin" and row["role"] == "admin":
+        count = db.execute("SELECT COUNT(*) FROM web_users WHERE role='admin'").fetchone()[0]
+        if count <= 1:
+            db.close()
+            return jsonify({"error": "Der letzte Admin kann nicht degradiert werden"}), 400
+    if role and role in ("admin", "mod", "viewer"):
+        db.execute("UPDATE web_users SET role=? WHERE id=?", (role, uid))
+    if password:
+        db.execute("UPDATE web_users SET password_hash=? WHERE id=?",
+                   (generate_password_hash(password), uid))
+    db.commit()
+    db.close()
+    _discord_log("✏️ Web-Nutzer bearbeitet",
+                 f"**Nutzer:** {row['username']} | **Von:** {session.get('username')}")
+    return jsonify({"ok": True})
+
+
+@app.route("/api/web-users/<int:uid>/delete", methods=["POST"])
+@login_required
+def api_web_user_delete(uid):
+    db = get_db()
+    row = db.execute("SELECT username, role FROM web_users WHERE id=?", (uid,)).fetchone()
+    if not row:
+        db.close()
+        return jsonify({"error": "Nutzer nicht gefunden"}), 404
+    if row["username"] == session.get("username"):
+        db.close()
+        return jsonify({"error": "Du kannst deinen eigenen Account nicht löschen"}), 400
+    if row["role"] == "admin":
+        count = db.execute("SELECT COUNT(*) FROM web_users WHERE role='admin'").fetchone()[0]
+        if count <= 1:
+            db.close()
+            return jsonify({"error": "Der letzte Admin kann nicht gelöscht werden"}), 400
+    db.execute("DELETE FROM web_users WHERE id=?", (uid,))
+    db.commit()
+    db.close()
+    _discord_log("🗑️ Web-Nutzer gelöscht",
+                 f"**Nutzer:** {row['username']} | **Von:** {session.get('username')}")
+    return jsonify({"ok": True})
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)

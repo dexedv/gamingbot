@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}Web-Nutzer{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between">
+  <div>
+    <h1><i class="bi bi-people-fill" style="color:var(--accent)"></i> Web-Nutzer</h1>
+    <p>Dashboard-Accounts und Zugriffsrechte verwalten.</p>
+  </div>
+  <button class="btn-accent btn" onclick="openCreate()">
+    <i class="bi bi-plus-lg"></i> Nutzer erstellen
+  </button>
+</div>
+
+<!-- Role info -->
+<div class="row g-3 mb-3">
+  {% for r, icon, color, desc in [
+    ('admin', 'bi-shield-fill',    '#5865f2', 'Voller Zugriff auf alle Funktionen und Einstellungen'),
+    ('mod',   'bi-shield-half',    '#f59e0b', 'Kann Nutzer und Inhalte verwalten, keine System-Einstellungen'),
+    ('viewer','bi-eye',            '#8892a4', 'Nur lesender Zugriff auf Dashboard, Ranglisten und Statistiken'),
+  ] %}
+  <div class="col-md-4">
+    <div class="stat-card" style="--card-accent:{{ color }}">
+      <div class="s-label"><i class="bi {{ icon }}" style="color:{{ color }}"></i> {{ r | upper }}</div>
+      <div class="s-sub">{{ desc }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- User table -->
+<div class="card">
+  <div class="card-header">Alle Accounts ({{ users | length }})</div>
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>Benutzername</th>
+          <th>Rolle</th>
+          <th>Erstellt</th>
+          <th style="width:130px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="avatar" style="background:{% if u.role=='admin' %}#5865f2{% elif u.role=='mod' %}#f59e0b{% else %}#2e3447{% endif %}">
+                {{ u.username[0] | upper }}
+              </div>
+              <div>
+                <div style="color:#fff;font-weight:500">{{ u.username }}</div>
+                {% if u.username == session.get('username') %}<div style="font-size:.72rem;color:var(--muted)">Du</div>{% endif %}
+              </div>
+            </div>
+          </td>
+          <td>
+            {% if u.role == 'admin' %}
+              <span class="badge" style="background:rgba(88,101,242,.2);color:#818cf8;border:1px solid rgba(88,101,242,.3)"><i class="bi bi-shield-fill"></i> Admin</span>
+            {% elif u.role == 'mod' %}
+              <span class="badge" style="background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.3)"><i class="bi bi-shield-half"></i> Mod</span>
+            {% else %}
+              <span class="badge" style="background:var(--border);color:var(--muted)"><i class="bi bi-eye"></i> Viewer</span>
+            {% endif %}
+          </td>
+          <td style="color:var(--muted);font-size:.82rem">{{ u.created_at[:10] if u.created_at else '—' }}</td>
+          <td>
+            <div class="d-flex gap-2 justify-content-end">
+              <button class="btn btn-sm" style="border:1px solid var(--border);color:var(--muted);border-radius:7px"
+                      onclick="openEdit({{ u.id }}, '{{ u.username }}', '{{ u.role }}')">
+                <i class="bi bi-pencil"></i>
+              </button>
+              {% if u.username != session.get('username') %}
+              <button class="btn btn-sm" style="border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:7px"
+                      onclick="deleteUser({{ u.id }}, '{{ u.username }}')">
+                <i class="bi bi-trash"></i>
+              </button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Create Modal ── -->
+<div class="modal fade" id="createModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:var(--card);border:1px solid var(--border);border-radius:14px">
+      <div class="modal-header" style="border-color:var(--border)">
+        <h5 class="modal-title text-white"><i class="bi bi-person-plus"></i> Nutzer erstellen</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body d-flex flex-column gap-3">
+        <div>
+          <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em">Benutzername</label>
+          <input type="text" id="cUsername" class="form-control" placeholder="z.B. moderator1">
+        </div>
+        <div>
+          <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em">Passwort</label>
+          <input type="password" id="cPassword" class="form-control" placeholder="Sicheres Passwort">
+        </div>
+        <div>
+          <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em">Rolle</label>
+          <select id="cRole" class="form-select">
+            <option value="viewer">👁️ Viewer — nur lesen</option>
+            <option value="mod">🛡️ Mod — verwalten</option>
+            <option value="admin">⚡ Admin — voller Zugriff</option>
+          </select>
+        </div>
+        <div id="createErr" class="text-danger" style="font-size:.82rem"></div>
+      </div>
+      <div class="modal-footer" style="border-color:var(--border)">
+        <button class="btn" style="color:var(--muted)" data-bs-dismiss="modal">Abbrechen</button>
+        <button class="btn-accent btn" onclick="submitCreate()"><i class="bi bi-check-lg"></i> Erstellen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Modal ── -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:var(--card);border:1px solid var(--border);border-radius:14px">
+      <div class="modal-header" style="border-color:var(--border)">
+        <h5 class="modal-title text-white"><i class="bi bi-pencil-square"></i> Nutzer bearbeiten — <span id="eUsername"></span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body d-flex flex-column gap-3">
+        <input type="hidden" id="eId">
+        <div>
+          <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em">Rolle ändern</label>
+          <select id="eRole" class="form-select">
+            <option value="viewer">👁️ Viewer — nur lesen</option>
+            <option value="mod">🛡️ Mod — verwalten</option>
+            <option value="admin">⚡ Admin — voller Zugriff</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em">Neues Passwort <span style="font-size:.7rem;font-weight:400">(leer lassen = nicht ändern)</span></label>
+          <input type="password" id="ePassword" class="form-control" placeholder="Neues Passwort…">
+        </div>
+        <div id="editErr" class="text-danger" style="font-size:.82rem"></div>
+      </div>
+      <div class="modal-footer" style="border-color:var(--border)">
+        <button class="btn" style="color:var(--muted)" data-bs-dismiss="modal">Abbrechen</button>
+        <button class="btn-accent btn" onclick="submitEdit()"><i class="bi bi-check-lg"></i> Speichern</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const createModal = new bootstrap.Modal(document.getElementById('createModal'));
+const editModal   = new bootstrap.Modal(document.getElementById('editModal'));
+
+function openCreate() {
+  document.getElementById('cUsername').value = '';
+  document.getElementById('cPassword').value = '';
+  document.getElementById('cRole').value     = 'viewer';
+  document.getElementById('createErr').textContent = '';
+  createModal.show();
+  setTimeout(() => document.getElementById('cUsername').focus(), 300);
+}
+
+function submitCreate() {
+  const username = document.getElementById('cUsername').value.trim();
+  const password = document.getElementById('cPassword').value.trim();
+  const role     = document.getElementById('cRole').value;
+  const err      = document.getElementById('createErr');
+  if (!username || !password) { err.textContent = 'Benutzername und Passwort erforderlich.'; return; }
+  fetch('/api/web-users/create', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({username, password, role})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.error) { err.textContent = d.error; return; }
+    createModal.hide();
+    location.reload();
+  });
+}
+
+function openEdit(id, username, role) {
+  document.getElementById('eId').value       = id;
+  document.getElementById('eUsername').textContent = username;
+  document.getElementById('eRole').value     = role;
+  document.getElementById('ePassword').value = '';
+  document.getElementById('editErr').textContent  = '';
+  editModal.show();
+}
+
+function submitEdit() {
+  const id       = document.getElementById('eId').value;
+  const role     = document.getElementById('eRole').value;
+  const password = document.getElementById('ePassword').value.trim();
+  const err      = document.getElementById('editErr');
+  fetch(`/api/web-users/${id}/edit`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({role, password: password || undefined})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.error) { err.textContent = d.error; return; }
+    editModal.hide();
+    location.reload();
+  });
+}
+
+function deleteUser(id, username) {
+  if (!confirm(`Nutzer "${username}" wirklich löschen?`)) return;
+  fetch(`/api/web-users/${id}/delete`, {method: 'POST'})
+  .then(r => r.json())
+  .then(d => {
+    if (d.error) { alert(d.error); return; }
+    location.reload();
+  });
+}
+</script>
+{% endblock %}

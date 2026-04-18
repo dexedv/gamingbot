@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Kein Zugriff{% endblock %}
+{% block content %}
+<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;gap:1rem">
+  <div style="font-size:3.5rem">🚫</div>
+  <h1 style="font-size:1.6rem;font-weight:700;color:#fff">Kein Zugriff</h1>
+  <p style="color:var(--muted);max-width:380px">
+    Deine Rolle <strong style="color:var(--text)">{{ role or 'viewer' }}</strong>
+    hat keine Berechtigung für diese Seite.
+    Wende dich an einen Administrator.
+  </p>
+  <a href="/" style="margin-top:.5rem;padding:.55rem 1.4rem;background:var(--accent);color:#fff;border-radius:9px;text-decoration:none;font-weight:500">
+    <i class="bi bi-arrow-left"></i> Zurück zum Dashboard
+  </a>
+</div>
+{% endblock %}

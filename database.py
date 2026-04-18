@@ -88,6 +88,15 @@ class Database:
                     created_at TEXT    DEFAULT (datetime('now'))
                 )
             """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS web_users (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username      TEXT    UNIQUE NOT NULL,
+                    password_hash TEXT    NOT NULL,
+                    role          TEXT    NOT NULL DEFAULT 'viewer',
+                    created_at    TEXT    DEFAULT (datetime('now'))
+                )
+            """)
             await db.commit()
         print("✅ Datenbank bereit")
 
