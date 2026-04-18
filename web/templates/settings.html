@@ -124,6 +124,113 @@
     </div>
   </div>
 
+  <!-- ── GIF-Limit ────────────────────────────────────────────────── -->
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex align-items-center gap-2">
+        🎞️ GIF-Limit
+        <span style="font-size:.75rem;color:var(--muted);font-weight:400">— Anzahl erlaubter GIFs pro Minute pro Nutzer</span>
+      </div>
+      <div class="card-body">
+        <div class="row g-4">
+
+          <!-- Toggle + Limit-Zahl -->
+          <div class="col-lg-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <div>
+                <div class="fw-semibold" style="font-size:.9rem">GIF-Limit aktivieren</div>
+                <div style="font-size:.78rem;color:var(--muted);margin-top:.15rem">Überschrittene GIFs werden automatisch behandelt</div>
+              </div>
+              <div class="form-check form-switch ms-2 flex-shrink-0">
+                <input class="form-check-input" type="checkbox" name="gif_limit_enabled" id="gifLimitToggle"
+                  {% if settings.gif_limit_enabled %}checked{% endif %}
+                  onchange="toggleGifSettings()">
+              </div>
+            </div>
+            <div id="gifLimitSettings" {% if not settings.gif_limit_enabled %}style="opacity:.45;pointer-events:none"{% endif %}>
+              <div class="fw-semibold mb-1" style="font-size:.88rem">GIFs pro Minute</div>
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <input type="range" class="form-range" name="gif_limit_per_minute" id="gifSlider"
+                  min="1" max="20" value="{{ settings.gif_limit_per_minute }}"
+                  oninput="document.getElementById('gifSliderVal').textContent=this.value"
+                  style="flex:1">
+                <span id="gifSliderVal" style="min-width:2.5rem;text-align:center;font-weight:700;color:var(--accent2)">
+                  {{ settings.gif_limit_per_minute }}
+                </span>
+              </div>
+              <div style="font-size:.75rem;color:var(--muted)">Max. GIFs pro Nutzer pro 60 Sekunden</div>
+            </div>
+          </div>
+
+          <!-- Aktionen -->
+          <div class="col-lg-3">
+            <div class="fw-semibold mb-2" style="font-size:.88rem">Aktionen bei Überschreitung</div>
+            <div id="gifActions" {% if not settings.gif_limit_enabled %}style="opacity:.45;pointer-events:none"{% endif %}>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="gif_limit_delete" id="gifDelete"
+                  {% if settings.gif_limit_delete %}checked{% endif %}>
+                <label class="form-check-label" for="gifDelete" style="font-size:.85rem">
+                  Nachricht löschen
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="gif_limit_warn" id="gifWarn"
+                  {% if settings.gif_limit_warn %}checked{% endif %}>
+                <label class="form-check-label" for="gifWarn" style="font-size:.85rem">
+                  Nutzer warnen <span style="font-size:.75rem;color:var(--muted)">(8s sichtbar)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bypass-Rollen -->
+          <div class="col-lg-2">
+            <div class="fw-semibold mb-1" style="font-size:.88rem">Ausgenommene Rollen</div>
+            <div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Rollen-IDs, kommagetrennt. Admins sind immer ausgenommen.</div>
+            <input type="text" class="form-control form-control-sm font-monospace"
+              name="gif_limit_bypass_roles"
+              value="{{ settings.gif_limit_bypass_roles | join(', ') }}"
+              placeholder="123456, 789012…"
+              {% if not settings.gif_limit_enabled %}disabled{% endif %}
+              id="gifBypassRoles">
+          </div>
+
+          <!-- Ausgenommene Kanäle -->
+          <div class="col-lg-3">
+            <div class="fw-semibold mb-1" style="font-size:.88rem">Ausgenommene Kanäle</div>
+            <div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">Kanal-IDs, kommagetrennt. In diesen Kanälen gilt kein Limit.</div>
+            <input type="text" class="form-control form-control-sm font-monospace"
+              name="gif_limit_exempt_channels"
+              value="{{ settings.gif_limit_exempt_channels | join(', ') }}"
+              placeholder="123456, 789012…"
+              {% if not settings.gif_limit_enabled %}disabled{% endif %}
+              id="gifExemptChannels">
+            <div style="font-size:.75rem;color:var(--muted);margin-top:.4rem">
+              Tipp: Leer lassen = alle Kanäle gelten
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Status-Banner -->
+        <div class="mt-3 px-3 py-2 rounded-3 d-flex align-items-center gap-2"
+             id="gifStatusBanner"
+             style="background:{% if settings.gif_limit_enabled %}rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25){% else %}rgba(255,255,255,.04);border:1px solid var(--border){% endif %};font-size:.82rem">
+          <span id="gifStatusDot" style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:{% if settings.gif_limit_enabled %}#22c55e{% else %}var(--faint){% endif %}"></span>
+          <span id="gifStatusText" style="color:{% if settings.gif_limit_enabled %}#22c55e{% else %}var(--muted){% endif %}">
+            {% if settings.gif_limit_enabled %}
+              GIF-Limit aktiv — max. {{ settings.gif_limit_per_minute }} GIFs/Minute pro Nutzer
+              {% if settings.gif_limit_delete %} · GIFs werden gelöscht{% endif %}
+              {% if settings.gif_limit_warn %} · Nutzer wird gewarnt{% endif %}
+            {% else %}
+              GIF-Limit deaktiviert — alle GIFs erlaubt
+            {% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Nickname-Verwaltung ───────────────────────────────────────── -->
   <div class="col-lg-6">
     <div class="card">
@@ -233,6 +340,46 @@ async function loadCogs() {
   } catch(e) {}
 }
 loadCogs();
+
+function toggleGifSettings() {
+  const on = document.getElementById('gifLimitToggle').checked;
+  const opacity = on ? '1' : '.45';
+  const pe      = on ? '' : 'none';
+  ['gifLimitSettings','gifActions'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.style.opacity = opacity; el.style.pointerEvents = pe; }
+  });
+  ['gifBypassRoles','gifExemptChannels'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !on;
+  });
+  // Status-Banner
+  const banner = document.getElementById('gifStatusBanner');
+  const dot    = document.getElementById('gifStatusDot');
+  const txt    = document.getElementById('gifStatusText');
+  const limit  = document.getElementById('gifSlider').value;
+  if (on) {
+    banner.style.background = 'rgba(34,197,94,.08)';
+    banner.style.border     = '1px solid rgba(34,197,94,.25)';
+    dot.style.background    = '#22c55e';
+    txt.style.color         = '#22c55e';
+    txt.textContent         = `GIF-Limit aktiv — max. ${limit} GIFs/Minute pro Nutzer`;
+  } else {
+    banner.style.background = 'rgba(255,255,255,.04)';
+    banner.style.border     = '1px solid var(--border)';
+    dot.style.background    = 'var(--faint)';
+    txt.style.color         = 'var(--muted)';
+    txt.textContent         = 'GIF-Limit deaktiviert — alle GIFs erlaubt';
+  }
+}
+
+// Slider ändert auch Status-Banner
+document.getElementById('gifSlider')?.addEventListener('input', function() {
+  if (document.getElementById('gifLimitToggle').checked) {
+    document.getElementById('gifStatusText').textContent =
+      `GIF-Limit aktiv — max. ${this.value} GIFs/Minute pro Nutzer`;
+  }
+});
 
 async function triggerNicknameUpdate() {
   const btn = document.getElementById('nickUpdateBtn');

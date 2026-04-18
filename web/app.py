@@ -240,6 +240,12 @@ SETTINGS_DEFAULTS = {
     "welcome_paten_text":     "Neu hier? Wir haben ein **Paten-System**!\nEin erfahrenes Mitglied begleitet dich.",
     "welcome_footer":         "{guild} • Viel Spaß!",
     "welcome_show_banner":    True,
+    "gif_limit_enabled":          False,
+    "gif_limit_per_minute":       3,
+    "gif_limit_warn":             True,
+    "gif_limit_delete":           True,
+    "gif_limit_bypass_roles":     [],
+    "gif_limit_exempt_channels":  [],
 }
 
 def load_settings():
@@ -298,12 +304,31 @@ def settings():
         notify_ch = request.form.get("notify_channel", "").strip()
         if notify_ch.isdigit():
             s["notify_channel"] = int(notify_ch)
+        # GIF-Limit
+        s["gif_limit_enabled"] = "gif_limit_enabled" in request.form
+        s["gif_limit_warn"]    = "gif_limit_warn"    in request.form
+        s["gif_limit_delete"]  = "gif_limit_delete"  in request.form
+        gif_per_min = request.form.get("gif_limit_per_minute", type=int)
+        if gif_per_min is not None and 1 <= gif_per_min <= 60:
+            s["gif_limit_per_minute"] = gif_per_min
+        # Bypass-Rollen: kommagetrennte IDs
+        bypass_raw = request.form.get("gif_limit_bypass_roles", "").strip()
+        s["gif_limit_bypass_roles"] = [
+            int(x.strip()) for x in bypass_raw.split(",") if x.strip().isdigit()
+        ]
+        # Ausgenommene Kanäle: kommagetrennte IDs
+        exempt_raw = request.form.get("gif_limit_exempt_channels", "").strip()
+        s["gif_limit_exempt_channels"] = [
+            int(x.strip()) for x in exempt_raw.split(",") if x.strip().isdigit()
+        ]
         save_settings(s)
         _discord_log("⚙️ Einstellungen gespeichert",
                      f"💬  **Nachrichten-XP:** {s.get('msg_xp')} | Max: {s.get('msg_xp_per_min')}/min\n"
                      f"🎙️  **Voice-XP/30s:** {s.get('voice_xp_per_30s')}\n"
                      f"🎁  **Tages-XP:** {s.get('daily_xp')}\n"
-                     f"🏷️  **Nickname-Updates:** {'✅ An' if s.get('nickname_updates') else '⛔ Aus'}")
+                     f"🏷️  **Nickname-Updates:** {'✅ An' if s.get('nickname_updates') else '⛔ Aus'}\n"
+                     f"🎞️  **GIF-Limit:** {'✅ An' if s.get('gif_limit_enabled') else '⛔ Aus'}"
+                     + (f" · max {s.get('gif_limit_per_minute')}/min" if s.get('gif_limit_enabled') else ""))
         return redirect(url_for("settings"))
     return render_template("settings.html", settings=s)
 
@@ -336,7 +361,8 @@ COGS_INFO = {
     "cogs.blackjack": {"label": "Blackjack",          "icon": "🃏", "desc": "Blackjack gegen den Dealer"},
     "cogs.roulette":  {"label": "Roulette",           "icon": "🎡", "desc": "Roulette mit Zahlen & Farben"},
     "cogs.minigames": {"label": "Minispiele",         "icon": "🎲", "desc": "Coinflip, Würfeln, Higher or Lower"},
-    "cogs.welcome":   {"label": "Willkommensnachrichten", "icon": "👋", "desc": "Begrüßt neue Mitglieder"},
+    "cogs.welcome":    {"label": "Willkommensnachrichten", "icon": "👋", "desc": "Begrüßt neue Mitglieder"},
+    "cogs.gif_limit":  {"label": "GIF-Limit",             "icon": "🎞️", "desc": "GIFs pro Minute pro Nutzer begrenzen"},
 }
 
 
