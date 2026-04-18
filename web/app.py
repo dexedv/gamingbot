@@ -787,26 +787,50 @@ def api_willkommen_test():
 
 # ── Verifizierung ─────────────────────────────────────────────────────────────
 
-@app.route("/verifizierung", methods=["GET", "POST"])
-@login_required
-def verifizierung():
-    import json as _json
-    db = get_db()
+VERIFY_DEFAULTS = {
+    "boys": {
+        "verify_title":       "✅ Boys-Verifizierung",
+        "verify_description": "Klicke auf den Button unten, um ein Ticket zu öffnen.\nEin Moderator wird dich dann verifizieren.\n\n🎫 **Ticket erstellen** → Button drücken",
+        "ticket_title":       "🎫 Boys-Verifizierungs-Ticket",
+        "ticket_description": "Willkommen {mention}!\n\nEin Moderator wird sich in Kürze um dein Ticket kümmern.\nSchreibe hier dein Anliegen oder warte auf weitere Anweisungen.\n\nZum Schließen des Tickets den Button unten nutzen.",
+        "verify_channel":     1494483085687914657,
+        "ticket_category":    1494482692039774331,
+    },
+    "girls": {
+        "verify_title":       "✅ Girls-Verifizierung",
+        "verify_description": "Klicke auf den Button unten, um ein Ticket zu öffnen.\nEin Moderator wird dich dann verifizieren.\n\n🎫 **Ticket erstellen** → Button drücken",
+        "ticket_title":       "🎫 Girls-Verifizierungs-Ticket",
+        "ticket_description": "Willkommen {mention}!\n\nEin Moderator wird sich in Kürze um dein Ticket kümmern.\nSchreibe hier dein Anliegen oder warte auf weitere Anweisungen.\n\nZum Schließen des Tickets den Button unten nutzen.",
+        "verify_channel":     0,
+        "ticket_category":    0,
+    },
+}
 
-    def _get(key, default=""):
-        row = db.execute("SELECT value FROM bot_settings WHERE key=?", (key,)).fetchone()
+
+@app.route("/verifizierung/<prefix>", methods=["GET", "POST"])
+@login_required
+def verifizierung(prefix):
+    import json as _json
+    if prefix not in ("boys", "girls"):
+        return redirect(url_for("verifizierung", prefix="boys"))
+
+    db = get_db()
+    defs = VERIFY_DEFAULTS[prefix]
+
+    def _get_db(key, default=""):
+        row = db.execute("SELECT value FROM bot_settings WHERE key=?", (f"{prefix}_{key}",)).fetchone()
         return _json.loads(row[0]) if row else default
 
-    def _set(key, val):
+    def _set_db(key, val):
         db.execute(
             "INSERT INTO bot_settings (key, value) VALUES (?,?)"
             " ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-            (key, _json.dumps(val))
+            (f"{prefix}_{key}", _json.dumps(val))
         )
 
     if request.method == "POST":
         changed = []
-        for key, label in [
+        for key, lbl in [
             ("verify_title",        "Verify-Titel"),
             ("verify_description",  "Verify-Text"),
             ("ticket_title",        "Ticket-Titel"),
@@ -816,123 +840,147 @@ def verifizierung():
             if key in ("verify_description", "ticket_description"):
                 val = val.replace("\\n", "\n")
             if val:
-                _set(key, val)
-                changed.append(label)
+                _set_db(key, val)
+                changed.append(lbl)
+        ch = request.form.get("verify_channel", "").strip()
+        if ch.isdigit():
+            _set_db("verify_channel", int(ch))
+        cat = request.form.get("ticket_category", "").strip()
+        if cat.isdigit():
+            _set_db("ticket_category", int(cat))
         db.commit()
-        if changed:
-            _discord_log("🎫 Verifizierung bearbeitet",
-                         f"✏️  **Geändert:** {', '.join(changed)}\n"
-                         f"🌐  **Via:** Dashboard")
         db.close()
-        return redirect(url_for("verifizierung"))
+        if changed:
+            plabel = "Boys" if prefix == "boys" else "Girls"
+            _discord_log(f"🎫 {plabel}-Verifizierung bearbeitet",
+                         f"✏️  **Geändert:** {', '.join(changed)}\n🌐  **Via:** Dashboard")
+        return redirect(url_for("verifizierung", prefix=prefix))
 
-    verify_title       = _get("verify_title",       "✅ Verifizierung")
-    verify_description = _get("verify_description",
-                               "Klicke auf den Button unten, um ein Ticket zu öffnen.\n"
-                               "Ein Moderator wird dich dann verifizieren.\n\n"
-                               "🎫 **Ticket erstellen** → Button drücken")
-    ticket_title       = _get("ticket_title",       "🎫 Verifizierungs-Ticket")
-    ticket_description = _get("ticket_description",
-                               "Willkommen {mention}!\n\n"
-                               "Ein Moderator wird sich in Kürze um dein Ticket kümmern.\n"
-                               "Schreibe hier dein Anliegen oder warte auf weitere Anweisungen.\n\n"
-                               "Zum Schließen des Tickets den Button unten nutzen.")
-    mod_role_ids = _get("ticket_mod_roles", [])
+    verify_title       = _get_db("verify_title",       defs["verify_title"])
+    verify_description = _get_db("verify_description", defs["verify_description"])
+    ticket_title       = _get_db("ticket_title",       defs["ticket_title"])
+    ticket_description = _get_db("ticket_description", defs["ticket_description"])
+    verify_channel_id  = _get_db("verify_channel",     defs["verify_channel"])
+    ticket_category_id = _get_db("ticket_category",    defs["ticket_category"])
+    mod_role_ids       = _get_db("mod_roles",          [])
     db.close()
 
     bot = current_app.config.get("BOT")
-    mod_roles = []
+    mod_roles  = []
+    channels   = []
+    categories = []
     if bot and bot.guilds:
         guild = bot.guilds[0]
         for rid in mod_role_ids:
             role = guild.get_role(int(rid))
             mod_roles.append({"id": rid, "name": role.name if role else f"ID {rid}"})
+        for ch in sorted(guild.text_channels, key=lambda c: (c.category.position if c.category else -1, c.position)):
+            channels.append({
+                "id": str(ch.id),
+                "name": ch.name,
+                "category": ch.category.name if ch.category else "Ohne Kategorie",
+            })
+        for cat in sorted(guild.categories, key=lambda c: c.position):
+            categories.append({"id": str(cat.id), "name": cat.name})
 
-    return render_template("verifizierung.html",
+    return render_template("verify_system.html",
+        prefix=prefix,
         verify_title=verify_title,
         verify_description=verify_description,
         ticket_title=ticket_title,
         ticket_description=ticket_description,
+        verify_channel_id=str(verify_channel_id),
+        ticket_category_id=str(ticket_category_id),
         mod_roles=mod_roles,
+        channels=channels,
+        categories=categories,
     )
 
 
-@app.route("/api/verifizierung/setup", methods=["POST"])
+@app.route("/api/verifizierung/<prefix>/setup", methods=["POST"])
 @login_required
-def api_verifizierung_setup():
+def api_verifizierung_setup(prefix):
     import json as _json
+    if prefix not in ("boys", "girls"):
+        return jsonify({"error": "Ungültiger Prefix"}), 400
     bot  = current_app.config.get("BOT")
     loop = current_app.config.get("LOOP")
     if not bot or not loop:
         return jsonify({"error": "Bot nicht verfügbar"}), 503
 
-    VERIFY_CHANNEL_ID = 1494483085687914657
+    defs = VERIFY_DEFAULTS[prefix]
 
     async def _send():
         import discord as _d
-        import sqlite3 as _sq, os as _os
+        import sqlite3 as _sq, os as _os, sys as _sys
         db_path = _os.path.join(_os.path.dirname(__file__), '..', 'data', 'gamingbot.db')
         conn = _sq.connect(db_path)
 
-        def _get(key, default):
-            row = conn.execute("SELECT value FROM bot_settings WHERE key=?", (key,)).fetchone()
+        def _g(key, default):
+            row = conn.execute("SELECT value FROM bot_settings WHERE key=?", (f"{prefix}_{key}",)).fetchone()
             return _json.loads(row[0]) if row else default
 
-        title = _get("verify_title", "✅ Verifizierung")
-        desc  = _get("verify_description",
-                     "Klicke auf den Button unten, um ein Ticket zu öffnen.\n"
-                     "Ein Moderator wird dich dann verifizieren.\n\n"
-                     "🎫 **Ticket erstellen** → Button drücken")
+        title  = _g("verify_title",       defs["verify_title"])
+        desc   = _g("verify_description", defs["verify_description"])
+        ch_id  = _g("verify_channel",     defs["verify_channel"])
         conn.close()
 
-        channel = bot.get_channel(VERIFY_CHANNEL_ID)
+        channel = bot.get_channel(int(ch_id))
         if not channel:
-            raise ValueError(f"Kanal {VERIFY_CHANNEL_ID} nicht gefunden")
+            raise ValueError(f"Kanal {ch_id} nicht gefunden")
 
-        import sys as _sys
         _sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), '..'))
-        from cogs.verifizierung import VerifyView
+        if prefix == "boys":
+            from cogs.verifizierung import BoysVerifyView as VView
+            color = _d.Color.from_rgb(88, 101, 242)
+        else:
+            from cogs.verifizierung import GirlsVerifyView as VView
+            color = _d.Color.from_rgb(236, 72, 153)
 
-        embed = _d.Embed(title=title, description=desc, color=_d.Color.from_rgb(88, 101, 242))
-        embed.set_footer(text="Pink Horizoon Bot · Verifizierungs-System")
-        await channel.send(embed=embed, view=VerifyView())
+        plabel = "Boys" if prefix == "boys" else "Girls"
+        embed = _d.Embed(title=title, description=desc, color=color)
+        embed.set_footer(text=f"Pink Horizoon Bot · {plabel}-Verifizierung")
+        await channel.send(embed=embed, view=VView())
 
     try:
         asyncio.run_coroutine_threadsafe(_send(), loop).result(timeout=15)
-        _discord_log("✅ Verifizierungs-Nachricht gesendet",
-                     f"📢  **Via:** Dashboard")
+        plabel = "Boys" if prefix == "boys" else "Girls"
+        _discord_log(f"✅ {plabel}-Verifizierungs-Nachricht gesendet", "📢  **Via:** Dashboard")
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/verifizierung/modrole", methods=["POST"])
+@app.route("/api/verifizierung/<prefix>/modrole", methods=["POST"])
 @login_required
-def api_verifizierung_modrole():
+def api_verifizierung_modrole(prefix):
     import json as _json
+    if prefix not in ("boys", "girls"):
+        return jsonify({"error": "Ungültiger Prefix"}), 400
     data    = request.get_json() or {}
     role_id = data.get("role_id")
     action  = data.get("action", "toggle")
     if not role_id:
         return jsonify({"error": "role_id fehlt"}), 400
     role_id = int(role_id)
+    db_key  = f"{prefix}_mod_roles"
 
-    db = get_db()
-    row   = db.execute("SELECT value FROM bot_settings WHERE key='ticket_mod_roles'").fetchone()
+    db    = get_db()
+    row   = db.execute("SELECT value FROM bot_settings WHERE key=?", (db_key,)).fetchone()
     roles = _json.loads(row[0]) if row else []
 
     if action == "remove" or (action == "toggle" and role_id in roles):
         roles = [r for r in roles if r != role_id]
-        label = "entfernt"
+        lbl = "entfernt"
     else:
         if role_id not in roles:
             roles.append(role_id)
-        label = "hinzugefügt"
+        lbl = "hinzugefügt"
 
     db.execute(
-        "INSERT INTO bot_settings (key,value) VALUES ('ticket_mod_roles',?)"
+        "INSERT INTO bot_settings (key,value) VALUES (?,?)"
         " ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-        (_json.dumps(roles),)
+        (db_key, _json.dumps(roles))
     )
     db.commit()
     db.close()
@@ -943,11 +991,10 @@ def api_verifizierung_modrole():
         role = bot.guilds[0].get_role(role_id)
         if role:
             role_name = role.name
-    _discord_log("🎫 Mod-Rolle geändert",
-                 f"🎭  **Rolle:** {role_name}\n"
-                 f"🔘  **Aktion:** {label}\n"
-                 f"🌐  **Via:** Dashboard")
-    return jsonify({"ok": True, "roles": roles, "label": label})
+    plabel = "Boys" if prefix == "boys" else "Girls"
+    _discord_log(f"🎫 {plabel}-Mod-Rolle geändert",
+                 f"🎭  **Rolle:** {role_name}\n🔘  **Aktion:** {lbl}\n🌐  **Via:** Dashboard")
+    return jsonify({"ok": True, "roles": roles, "label": lbl})
 
 
 # ── Kummerkasten ───────────────────────────────────────────────────────────────

@@ -293,8 +293,11 @@
     <a class="sb-link {% if request.endpoint == 'knast_log' %}active{% endif %}" href="/knast">
       <i class="bi bi-lock"></i> Knast-Log
     </a>
-    <a class="sb-link {% if request.endpoint == 'verifizierung' %}active{% endif %}" href="/verifizierung">
-      <i class="bi bi-ticket-perforated"></i> Verifizierung
+    <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'boys' %}active{% endif %}" href="/verifizierung/boys">
+      <i class="bi bi-gender-male"></i> Boys-Verifizierung
+    </a>
+    <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'girls' %}active{% endif %}" href="/verifizierung/girls">
+      <i class="bi bi-gender-female"></i> Girls-Verifizierung
     </a>
     <a class="sb-link {% if request.endpoint == 'kummerkasten' %}active{% endif %}" href="/kummerkasten">
       <i class="bi bi-envelope-heart"></i> Kummerkasten
