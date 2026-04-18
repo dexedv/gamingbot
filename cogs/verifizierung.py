@@ -1,5 +1,6 @@
 import discord
 import json
+import re
 import sqlite3
 import os
 import sys
@@ -121,7 +122,10 @@ async def _do_open_ticket(interaction: discord.Interaction, prefix: str):
         )
         return
 
-    existing = discord.utils.get(category.channels, name=f"ticket-{user.id}")
+    safe_name = re.sub(r'[^a-z0-9_-]', '-', user.name.lower())[:80].strip('-') or str(user.id)
+    channel_name = f"ticket-{safe_name}"
+
+    existing = discord.utils.get(category.channels, name=channel_name)
     if existing:
         await interaction.response.send_message(
             f"📂 Du hast bereits ein offenes Ticket: {existing.mention}",
@@ -149,10 +153,10 @@ async def _do_open_ticket(interaction: discord.Interaction, prefix: str):
 
     try:
         channel = await guild.create_text_channel(
-            name=f"ticket-{user.id}",
+            name=channel_name,
             category=category,
             overwrites=overwrites,
-            topic=f"{label}-Verifizierungs-Ticket von {user} ({user.id})",
+            topic=f"{label}-Verifizierungs-Ticket von {user.display_name} ({user.id})",
         )
     except discord.Forbidden:
         await interaction.response.send_message(
@@ -209,7 +213,8 @@ async def _do_close_ticket(interaction: discord.Interaction, prefix: str):
     user_role_ids = {r.id for r in interaction.user.roles}
     is_mod  = bool(user_role_ids & set(_get_mod_roles(prefix))) or \
               interaction.user.guild_permissions.administrator
-    is_owner = str(interaction.user.id) == channel.name.replace("ticket-", "")
+    closer_safe = re.sub(r'[^a-z0-9_-]', '-', interaction.user.name.lower())[:80].strip('-')
+    is_owner = channel.name == f"ticket-{closer_safe}"
 
     if not is_mod and not is_owner:
         await interaction.response.send_message(
@@ -246,9 +251,10 @@ async def _do_close_ticket(interaction: discord.Interaction, prefix: str):
                 transcript_text = "\n".join(lines)
                 file_obj = io.BytesIO(transcript_text.encode("utf-8"))
 
-                ticket_owner_id = channel.name.replace("ticket-", "")
-                ticket_owner = interaction.guild.get_member(int(ticket_owner_id)) if ticket_owner_id.isdigit() else None
-                owner_name = ticket_owner.display_name if ticket_owner else f"Unbekannt ({ticket_owner_id})"
+                topic_match = re.search(r'\((\d+)\)', channel.topic or "")
+                ticket_owner_id = topic_match.group(1) if topic_match else None
+                ticket_owner = interaction.guild.get_member(int(ticket_owner_id)) if ticket_owner_id else None
+                owner_name = ticket_owner.display_name if ticket_owner else (ticket_owner_id or channel.name)
                 embed = discord.Embed(
                     title=f"📋 {label}-Ticket Transcript",
                     color=discord.Color.from_rgb(88, 101, 242) if prefix == "boys" else discord.Color.from_rgb(236, 72, 153),
