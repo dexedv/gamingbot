@@ -26,37 +26,57 @@ def login_required(f):
 
 # ── Rollen & Rechte ───────────────────────────────────────────────────────────
 
+# Numerisches Level je Rolle (höher = mehr Rechte)
+ROLE_LEVEL = {
+    "developer": 7,
+    "owner":     6,
+    "co-owner":  5,
+    "admin":     4,
+    "moderator": 3,
+    "supporter": 2,
+    "mediator":  1,
+    "paten":     0,
+}
+
+VALID_ROLES = tuple(ROLE_LEVEL.keys())
+
+# Mindest-Level für eingeschränkte Routen.
 # Routen ohne Eintrag sind für alle eingeloggten Nutzer zugänglich.
-ROUTE_ROLES = {
-    # Nur Admin
-    "settings":                  ["admin"],
-    "templates":                 ["admin"],
-    "api_templates_list":        ["admin"],
-    "api_templates_create":      ["admin"],
-    "api_templates_restore":     ["admin"],
-    "api_template_detail":       ["admin"],
-    "api_template_download":     ["admin"],
-    "api_template_upload":       ["admin"],
-    "toggle_cog":                ["admin"],
-    "web_users":                 ["admin"],
-    "api_web_user_create":       ["admin"],
-    "api_web_user_edit":         ["admin"],
-    "api_web_user_delete":       ["admin"],
-    # Admin + Mod
-    "willkommen":                ["admin", "mod"],
-    "api_willkommen_test":       ["admin", "mod"],
-    "broadcast":                 ["admin", "mod"],
-    "api_send_message":          ["admin", "mod"],
-    "verwaltung":                ["admin", "mod"],
-    "api_user_knast":            ["admin", "mod"],
-    "edit_user":                 ["admin", "mod"],
-    "umfragen":                  ["admin", "mod"],
-    "api_umfragen_erstellen":    ["admin", "mod"],
-    "api_umfragen_schliessen":   ["admin", "mod"],
-    "verifizierung":             ["admin", "mod"],
-    "api_verifizierung_setup":   ["admin", "mod"],
-    "api_verifizierung_modrole": ["admin", "mod"],
-    "trigger_nickname_update":   ["admin", "mod"],
+ROUTE_MIN_LEVEL = {
+    # Owner+ (6): Web-User-Verwaltung
+    "web_users":                 6,
+    "api_web_user_create":       6,
+    "api_web_user_edit":         6,
+    "api_web_user_delete":       6,
+    # CO-Owner+ (5): System-Einstellungen
+    "settings":                  5,
+    "templates":                 5,
+    "api_templates_list":        5,
+    "api_templates_create":      5,
+    "api_templates_restore":     5,
+    "api_template_detail":       5,
+    "api_template_download":     5,
+    "api_template_upload":       5,
+    "toggle_cog":                5,
+    # Admin+ (4): Server-Verwaltung
+    "willkommen":                4,
+    "api_willkommen_test":       4,
+    "broadcast":                 4,
+    "api_send_message":          4,
+    "trigger_nickname_update":   4,
+    # Moderator+ (3): Nutzer-Verwaltung
+    "verwaltung":                3,
+    "api_user_knast":            3,
+    "edit_user":                 3,
+    "umfragen":                  3,
+    "api_umfragen_erstellen":    3,
+    "api_umfragen_schliessen":   3,
+    "verifizierung":             3,
+    "api_verifizierung_setup":   3,
+    "api_verifizierung_modrole": 3,
+    # Supporter+ (2): Einblick für Support-Team
+    "kummerkasten":              2,
+    "knast_log":                 2,
 }
 
 
@@ -66,8 +86,9 @@ def check_role():
         return
     if not session.get("logged_in"):
         return
-    if request.endpoint in ROUTE_ROLES:
-        if session.get("role", "viewer") not in ROUTE_ROLES[request.endpoint]:
+    if request.endpoint in ROUTE_MIN_LEVEL:
+        user_level = ROLE_LEVEL.get(session.get("role", "paten"), 0)
+        if user_level < ROUTE_MIN_LEVEL[request.endpoint]:
             return render_template("403.html", role=session.get("role")), 403
 
 
@@ -90,7 +111,7 @@ def _ensure_admin_user():
             pw    = os.getenv("WEB_PASSWORD", "admin")
             db.execute(
                 "INSERT INTO web_users (username, password_hash, role) VALUES (?,?,?)",
-                (uname, generate_password_hash(pw), "admin")
+                (uname, generate_password_hash(pw), "developer")
             )
             db.commit()
         db.close()
@@ -1299,7 +1320,7 @@ def api_web_user_create():
     role     = data.get("role", "viewer")
     if not username or not password:
         return jsonify({"error": "Benutzername und Passwort erforderlich"}), 400
-    if role not in ("admin", "mod", "viewer"):
+    if role not in VALID_ROLES:
         return jsonify({"error": "Ungültige Rolle"}), 400
     db = get_db()
     try:
@@ -1329,13 +1350,17 @@ def api_web_user_edit(uid):
     if not row:
         db.close()
         return jsonify({"error": "Nutzer nicht gefunden"}), 404
-    # Letzten Admin nicht degradieren
-    if role and role != "admin" and row["role"] == "admin":
-        count = db.execute("SELECT COUNT(*) FROM web_users WHERE role='admin'").fetchone()[0]
-        if count <= 1:
-            db.close()
-            return jsonify({"error": "Der letzte Admin kann nicht degradiert werden"}), 400
-    if role and role in ("admin", "mod", "viewer"):
+    # Letzten Owner/Developer nicht degradieren
+    if role and role in VALID_ROLES:
+        current_lvl = ROLE_LEVEL.get(row["role"], 0)
+        new_lvl     = ROLE_LEVEL.get(role, 0)
+        if current_lvl >= 6 and new_lvl < 6:
+            count = db.execute(
+                "SELECT COUNT(*) FROM web_users WHERE role IN ('developer','owner')"
+            ).fetchone()[0]
+            if count <= 1:
+                db.close()
+                return jsonify({"error": "Der letzte Owner/Developer kann nicht degradiert werden"}), 400
         db.execute("UPDATE web_users SET role=? WHERE id=?", (role, uid))
     if password:
         db.execute("UPDATE web_users SET password_hash=? WHERE id=?",
@@ -1358,11 +1383,13 @@ def api_web_user_delete(uid):
     if row["username"] == session.get("username"):
         db.close()
         return jsonify({"error": "Du kannst deinen eigenen Account nicht löschen"}), 400
-    if row["role"] == "admin":
-        count = db.execute("SELECT COUNT(*) FROM web_users WHERE role='admin'").fetchone()[0]
+    if ROLE_LEVEL.get(row["role"], 0) >= 6:
+        count = db.execute(
+            "SELECT COUNT(*) FROM web_users WHERE role IN ('developer','owner')"
+        ).fetchone()[0]
         if count <= 1:
             db.close()
-            return jsonify({"error": "Der letzte Admin kann nicht gelöscht werden"}), 400
+            return jsonify({"error": "Der letzte Owner/Developer kann nicht gelöscht werden"}), 400
     db.execute("DELETE FROM web_users WHERE id=?", (uid,))
     db.commit()
     db.close()

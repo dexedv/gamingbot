@@ -255,6 +255,10 @@
     <div>Gaming<span>Bot</span></div>
   </div>
 
+  {% set _r   = session.get('role', 'paten') %}
+  {% set _lvl = {'developer':7,'owner':6,'co-owner':5,'admin':4,'moderator':3,'supporter':2,'mediator':1,'paten':0} %}
+  {% set _ul  = _lvl.get(_r, 0) %}
+
   <div class="sb-nav">
     <div class="sb-section">Navigation</div>
     <a class="sb-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="/">
@@ -269,7 +273,7 @@
     <a class="sb-link {% if request.endpoint == 'users' %}active{% endif %}" href="/users">
       <i class="bi bi-people"></i> Nutzer
     </a>
-    {% if session.get('role') in ['admin', 'mod'] %}
+    {% if _ul >= 3 %}
     <a class="sb-link {% if request.endpoint == 'verwaltung' %}active{% endif %}" href="/verwaltung">
       <i class="bi bi-person-gear"></i> Benutzerverwaltung
     </a>
@@ -281,15 +285,17 @@
       <i class="bi bi-terminal"></i> Befehle
     </a>
 
-    {% if session.get('role') in ['admin', 'mod'] %}
+    {% if _ul >= 2 %}
     <div class="sb-section" style="margin-top:1rem">Verwaltung</div>
+    {% if _ul >= 4 %}
     <a class="sb-link {% if request.endpoint == 'willkommen' %}active{% endif %}" href="/willkommen">
       <i class="bi bi-door-open"></i> Willkommen
     </a>
     <a class="sb-link {% if request.endpoint == 'broadcast' %}active{% endif %}" href="/broadcast">
       <i class="bi bi-send"></i> Nachrichten
     </a>
-    {% if session.get('role') == 'admin' %}
+    {% endif %}
+    {% if _ul >= 5 %}
     <a class="sb-link {% if request.endpoint == 'templates' %}active{% endif %}" href="/templates">
       <i class="bi bi-archive"></i> Templates
     </a>
@@ -300,12 +306,14 @@
     <a class="sb-link {% if request.endpoint == 'kummerkasten' %}active{% endif %}" href="/kummerkasten">
       <i class="bi bi-envelope-heart"></i> Kummerkasten
     </a>
-    {% if session.get('role') == 'admin' %}
+    {% if _ul >= 5 %}
     <a class="sb-link {% if request.endpoint == 'settings' %}active{% endif %}" href="/settings">
       <i class="bi bi-sliders"></i> Einstellungen
     </a>
     {% endif %}
+    {% endif %}
 
+    {% if _ul >= 3 %}
     <div class="sb-section" style="margin-top:1rem">Verifizierung</div>
     <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'boys' %}active{% endif %}" href="/verifizierung/boys">
       <i class="bi bi-gender-male"></i> Boys-Verifizierung
@@ -315,7 +323,7 @@
     </a>
     {% endif %}
 
-    {% if session.get('role') == 'admin' %}
+    {% if _ul >= 6 %}
     <div class="sb-section" style="margin-top:1rem">System</div>
     <a class="sb-link {% if request.endpoint == 'web_users' %}active{% endif %}" href="/web-users">
       <i class="bi bi-people-fill"></i> Web-Nutzer
@@ -331,12 +339,16 @@
     <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;font-size:.8rem;color:var(--text)">
       <i class="bi bi-person-circle" style="color:var(--accent)"></i>
       <span>{{ session.get('username', '') }}</span>
-      {% set r = session.get('role', 'viewer') %}
       <span style="font-size:.65rem;padding:.1rem .45rem;border-radius:99px;font-weight:600;
-        {% if r == 'admin' %}background:rgba(88,101,242,.25);color:#818cf8;
-        {% elif r == 'mod' %}background:rgba(245,158,11,.2);color:#fbbf24;
-        {% else %}background:var(--border);color:var(--muted);{% endif %}">
-        {{ r | upper }}
+        {%- if _r == 'developer' %}background:rgba(168,85,247,.25);color:#c084fc;
+        {%- elif _r == 'owner' %}background:rgba(245,158,11,.25);color:#fbbf24;
+        {%- elif _r == 'co-owner' %}background:rgba(249,115,22,.2);color:#fb923c;
+        {%- elif _r == 'admin' %}background:rgba(88,101,242,.25);color:#818cf8;
+        {%- elif _r == 'moderator' %}background:rgba(34,197,94,.2);color:#4ade80;
+        {%- elif _r == 'supporter' %}background:rgba(20,184,166,.2);color:#2dd4bf;
+        {%- elif _r == 'mediator' %}background:rgba(6,182,212,.2);color:#22d3ee;
+        {%- else %}background:var(--border);color:var(--muted);{%- endif %}">
+        {{ _r | upper }}
       </span>
     </div>
     <a href="/logout"><i class="bi bi-box-arrow-right"></i> Abmelden</a>

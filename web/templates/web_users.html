@@ -1,6 +1,42 @@
 {% extends "base.html" %}
 {% block title %}Web-Nutzer{% endblock %}
 
+{% set role_meta = [
+  ('developer', 'bi-code-slash',     '#a855f7', 'Entwickler — Voller Zugriff + System'),
+  ('owner',     'bi-star-fill',      '#f59e0b', 'Owner — Voller Zugriff inkl. User-Mgmt'),
+  ('co-owner',  'bi-shield-fill',    '#f97316', 'CO-Owner — Einstellungen & Templates'),
+  ('admin',     'bi-lightning-fill', '#5865f2', 'Admin — Server-Verwaltung & Broadcast'),
+  ('moderator', 'bi-shield-half',    '#22c55e', 'Moderator — Knast, Verifizierung, Umfragen'),
+  ('supporter', 'bi-headset',        '#14b8a6', 'Supporter — Knast-Log & Kummerkasten lesen'),
+  ('mediator',  'bi-balance-scale',  '#06b6d4', 'Mediator — Grundzugang'),
+  ('paten',     'bi-hand-thumbs-up', '#8892a4', 'Paten — Dashboard & Ranglisten'),
+] %}
+
+{% macro role_badge(r) %}
+  {% if r == 'developer' %}<span class="role-tag" style="background:rgba(168,85,247,.2);color:#c084fc;border-color:rgba(168,85,247,.35)"><i class="bi bi-code-slash"></i> Developer</span>
+  {% elif r == 'owner' %}<span class="role-tag" style="background:rgba(245,158,11,.2);color:#fbbf24;border-color:rgba(245,158,11,.35)"><i class="bi bi-star-fill"></i> Owner</span>
+  {% elif r == 'co-owner' %}<span class="role-tag" style="background:rgba(249,115,22,.15);color:#fb923c;border-color:rgba(249,115,22,.3)"><i class="bi bi-shield-fill"></i> CO-Owner</span>
+  {% elif r == 'admin' %}<span class="role-tag" style="background:rgba(88,101,242,.2);color:#818cf8;border-color:rgba(88,101,242,.35)"><i class="bi bi-lightning-fill"></i> Admin</span>
+  {% elif r == 'moderator' %}<span class="role-tag" style="background:rgba(34,197,94,.15);color:#4ade80;border-color:rgba(34,197,94,.3)"><i class="bi bi-shield-half"></i> Moderator</span>
+  {% elif r == 'supporter' %}<span class="role-tag" style="background:rgba(20,184,166,.15);color:#2dd4bf;border-color:rgba(20,184,166,.3)"><i class="bi bi-headset"></i> Supporter</span>
+  {% elif r == 'mediator' %}<span class="role-tag" style="background:rgba(6,182,212,.15);color:#22d3ee;border-color:rgba(6,182,212,.3)"><i class="bi bi-balance-scale"></i> Mediator</span>
+  {% else %}<span class="role-tag" style="background:var(--border);color:var(--muted);border-color:var(--faint)"><i class="bi bi-hand-thumbs-up"></i> Paten</span>
+  {% endif %}
+{% endmacro %}
+
+{% macro avatar_color(r) %}{% if r=='developer' %}#a855f7{% elif r=='owner' %}#f59e0b{% elif r=='co-owner' %}#f97316{% elif r=='admin' %}#5865f2{% elif r=='moderator' %}#22c55e{% elif r=='supporter' %}#14b8a6{% elif r=='mediator' %}#06b6d4{% else %}#2e3447{% endif %}{% endmacro %}
+
+{% block head %}
+<style>
+  .role-tag {
+    display: inline-flex; align-items: center; gap: .3rem;
+    font-size: .75rem; font-weight: 600; padding: .2rem .6rem;
+    border-radius: 99px; border: 1px solid transparent;
+  }
+  .role-card { border-left: 3px solid var(--rc); }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header d-flex align-items-center justify-content-between">
   <div>
@@ -12,17 +48,13 @@
   </button>
 </div>
 
-<!-- Role info -->
-<div class="row g-3 mb-3">
-  {% for r, icon, color, desc in [
-    ('admin', 'bi-shield-fill',    '#5865f2', 'Voller Zugriff auf alle Funktionen und Einstellungen'),
-    ('mod',   'bi-shield-half',    '#f59e0b', 'Kann Nutzer und Inhalte verwalten, keine System-Einstellungen'),
-    ('viewer','bi-eye',            '#8892a4', 'Nur lesender Zugriff auf Dashboard, Ranglisten und Statistiken'),
-  ] %}
-  <div class="col-md-4">
-    <div class="stat-card" style="--card-accent:{{ color }}">
-      <div class="s-label"><i class="bi {{ icon }}" style="color:{{ color }}"></i> {{ r | upper }}</div>
-      <div class="s-sub">{{ desc }}</div>
+<!-- Role overview -->
+<div class="row g-2 mb-4">
+  {% for r, icon, color, desc in role_meta %}
+  <div class="col-lg-3 col-md-4 col-sm-6">
+    <div class="stat-card py-2 px-3" style="--card-accent:{{ color }}">
+      <div class="s-label" style="color:{{ color }}"><i class="bi {{ icon }}"></i> {{ r | upper }}</div>
+      <div class="s-sub" style="font-size:.72rem">{{ desc }}</div>
     </div>
   </div>
   {% endfor %}
@@ -46,24 +78,16 @@
         <tr>
           <td>
             <div class="d-flex align-items-center gap-2">
-              <div class="avatar" style="background:{% if u.role=='admin' %}#5865f2{% elif u.role=='mod' %}#f59e0b{% else %}#2e3447{% endif %}">
+              <div class="avatar" style="background:{{ avatar_color(u.role) }}">
                 {{ u.username[0] | upper }}
               </div>
               <div>
                 <div style="color:#fff;font-weight:500">{{ u.username }}</div>
-                {% if u.username == session.get('username') %}<div style="font-size:.72rem;color:var(--muted)">Du</div>{% endif %}
+                {% if u.username == session.get('username') %}<div style="font-size:.7rem;color:var(--muted)">Dein Account</div>{% endif %}
               </div>
             </div>
           </td>
-          <td>
-            {% if u.role == 'admin' %}
-              <span class="badge" style="background:rgba(88,101,242,.2);color:#818cf8;border:1px solid rgba(88,101,242,.3)"><i class="bi bi-shield-fill"></i> Admin</span>
-            {% elif u.role == 'mod' %}
-              <span class="badge" style="background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.3)"><i class="bi bi-shield-half"></i> Mod</span>
-            {% else %}
-              <span class="badge" style="background:var(--border);color:var(--muted)"><i class="bi bi-eye"></i> Viewer</span>
-            {% endif %}
-          </td>
+          <td>{{ role_badge(u.role) }}</td>
           <td style="color:var(--muted);font-size:.82rem">{{ u.created_at[:10] if u.created_at else '—' }}</td>
           <td>
             <div class="d-flex gap-2 justify-content-end">
@@ -106,9 +130,14 @@
         <div>
           <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em">Rolle</label>
           <select id="cRole" class="form-select">
-            <option value="viewer">👁️ Viewer — nur lesen</option>
-            <option value="mod">🛡️ Mod — verwalten</option>
-            <option value="admin">⚡ Admin — voller Zugriff</option>
+            <option value="paten">🤝 Paten — Dashboard & Ranglisten</option>
+            <option value="mediator">⚖️ Mediator — Grundzugang</option>
+            <option value="supporter">🎧 Supporter — Knast-Log & Kummerkasten</option>
+            <option value="moderator" selected>🛡️ Moderator — Nutzer verwalten</option>
+            <option value="admin">⚡ Admin — Server-Verwaltung</option>
+            <option value="co-owner">🔱 CO-Owner — Einstellungen & Templates</option>
+            <option value="owner">👑 Owner — Voller Zugriff</option>
+            <option value="developer">💻 Developer — Entwickler</option>
           </select>
         </div>
         <div id="createErr" class="text-danger" style="font-size:.82rem"></div>
@@ -126,21 +155,28 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content" style="background:var(--card);border:1px solid var(--border);border-radius:14px">
       <div class="modal-header" style="border-color:var(--border)">
-        <h5 class="modal-title text-white"><i class="bi bi-pencil-square"></i> Nutzer bearbeiten — <span id="eUsername"></span></h5>
+        <h5 class="modal-title text-white"><i class="bi bi-pencil-square"></i> Bearbeiten — <span id="eUsername"></span></h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body d-flex flex-column gap-3">
         <input type="hidden" id="eId">
         <div>
-          <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em">Rolle ändern</label>
+          <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em">Rolle</label>
           <select id="eRole" class="form-select">
-            <option value="viewer">👁️ Viewer — nur lesen</option>
-            <option value="mod">🛡️ Mod — verwalten</option>
-            <option value="admin">⚡ Admin — voller Zugriff</option>
+            <option value="paten">🤝 Paten — Dashboard & Ranglisten</option>
+            <option value="mediator">⚖️ Mediator — Grundzugang</option>
+            <option value="supporter">🎧 Supporter — Knast-Log & Kummerkasten</option>
+            <option value="moderator">🛡️ Moderator — Nutzer verwalten</option>
+            <option value="admin">⚡ Admin — Server-Verwaltung</option>
+            <option value="co-owner">🔱 CO-Owner — Einstellungen & Templates</option>
+            <option value="owner">👑 Owner — Voller Zugriff</option>
+            <option value="developer">💻 Developer — Entwickler</option>
           </select>
         </div>
         <div>
-          <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em">Neues Passwort <span style="font-size:.7rem;font-weight:400">(leer lassen = nicht ändern)</span></label>
+          <label class="form-label text-muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em">
+            Neues Passwort <span style="font-size:.7rem;font-weight:400">(leer = nicht ändern)</span>
+          </label>
           <input type="password" id="ePassword" class="form-control" placeholder="Neues Passwort…">
         </div>
         <div id="editErr" class="text-danger" style="font-size:.82rem"></div>
@@ -162,7 +198,7 @@ const editModal   = new bootstrap.Modal(document.getElementById('editModal'));
 function openCreate() {
   document.getElementById('cUsername').value = '';
   document.getElementById('cPassword').value = '';
-  document.getElementById('cRole').value     = 'viewer';
+  document.getElementById('cRole').value     = 'moderator';
   document.getElementById('createErr').textContent = '';
   createModal.show();
   setTimeout(() => document.getElementById('cUsername').focus(), 300);
@@ -188,11 +224,11 @@ function submitCreate() {
 }
 
 function openEdit(id, username, role) {
-  document.getElementById('eId').value       = id;
-  document.getElementById('eUsername').textContent = username;
-  document.getElementById('eRole').value     = role;
-  document.getElementById('ePassword').value = '';
-  document.getElementById('editErr').textContent  = '';
+  document.getElementById('eId').value              = id;
+  document.getElementById('eUsername').textContent  = username;
+  document.getElementById('eRole').value            = role;
+  document.getElementById('ePassword').value        = '';
+  document.getElementById('editErr').textContent    = '';
   editModal.show();
 }
 
@@ -204,7 +240,7 @@ function submitEdit() {
   fetch(`/api/web-users/${id}/edit`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({role, password: password || undefined})
+    body: JSON.stringify({role, ...(password ? {password} : {})})
   })
   .then(r => r.json())
   .then(d => {
