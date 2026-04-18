@@ -293,17 +293,19 @@
     <a class="sb-link {% if request.endpoint == 'knast_log' %}active{% endif %}" href="/knast">
       <i class="bi bi-lock"></i> Knast-Log
     </a>
-    <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'boys' %}active{% endif %}" href="/verifizierung/boys">
-      <i class="bi bi-gender-male"></i> Boys-Verifizierung
-    </a>
-    <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'girls' %}active{% endif %}" href="/verifizierung/girls">
-      <i class="bi bi-gender-female"></i> Girls-Verifizierung
-    </a>
     <a class="sb-link {% if request.endpoint == 'kummerkasten' %}active{% endif %}" href="/kummerkasten">
       <i class="bi bi-envelope-heart"></i> Kummerkasten
     </a>
     <a class="sb-link {% if request.endpoint == 'settings' %}active{% endif %}" href="/settings">
       <i class="bi bi-sliders"></i> Einstellungen
+    </a>
+
+    <div class="sb-section" style="margin-top:1rem">Verifizierung</div>
+    <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'boys' %}active{% endif %}" href="/verifizierung/boys">
+      <i class="bi bi-gender-male"></i> Boys-Verifizierung
+    </a>
+    <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'girls' %}active{% endif %}" href="/verifizierung/girls">
+      <i class="bi bi-gender-female"></i> Girls-Verifizierung
     </a>
   </div>
 
