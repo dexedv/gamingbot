@@ -328,6 +328,10 @@ class KnastCog(commands.Cog, name="Knast"):
     @has_knast_permission()
     async def knast_add(self, ctx: commands.Context, member: discord.Member, *, reason: str = "Kein Grund angegeben"):
         """Sperrt einen Nutzer in den Knast. — %knast add @nutzer [Grund]"""
+        if ctx.channel.id != 1494045465656955000:
+            await ctx.message.delete()
+            await ctx.send("❌ Dieser Befehl ist nur in <#1494045465656955000> erlaubt.", delete_after=8)
+            return
         if member.bot:
             await ctx.send("❌ Bots können nicht eingesperrt werden."); return
         if member == ctx.author:
@@ -348,6 +352,10 @@ class KnastCog(commands.Cog, name="Knast"):
     @has_knast_permission()
     async def knast_remove(self, ctx: commands.Context, member: discord.Member, *, reason: str = "Kein Grund angegeben"):
         """Entlässt einen Nutzer aus dem Knast. — %knast remove @nutzer [Grund]"""
+        if ctx.channel.id != 1494045465656955000:
+            await ctx.message.delete()
+            await ctx.send("❌ Dieser Befehl ist nur in <#1494045465656955000> erlaubt.", delete_after=8)
+            return
         if not self._is_jailed(member.id):
             await ctx.send(f"⚠️ {member.mention} ist nicht im Knast."); return
 
