@@ -63,45 +63,100 @@ def _user_level(roles: list) -> int:
     """Gibt das höchste Level der Rollenliste zurück."""
     return max((ROLE_LEVEL.get(r, 0) for r in roles), default=0)
 
-# Mindest-Level für eingeschränkte Routen.
-# Routen ohne Eintrag sind für alle eingeloggten Nutzer zugänglich.
-ROUTE_MIN_LEVEL = {
-    # Owner+ (6): Web-User-Verwaltung
-    "web_users":                 6,
-    "api_web_user_create":       6,
-    "api_web_user_edit":         6,
-    "api_web_user_delete":       6,
-    # CO-Owner+ (5): System-Einstellungen
-    "settings":                  5,
-    "templates":                 5,
-    "api_templates_list":        5,
-    "api_templates_create":      5,
-    "api_templates_restore":     5,
-    "api_template_detail":       5,
-    "api_template_download":     5,
-    "api_template_upload":       5,
-    "toggle_cog":                5,
-    # Admin+ (4): Server-Verwaltung
-    "willkommen":                4,
-    "api_willkommen_test":       4,
-    "broadcast":                 4,
-    "api_send_message":          4,
-    "trigger_nickname_update":   4,
-    # Moderator+ (3): Nutzer-Verwaltung
-    "verwaltung":                3,
-    "api_user_knast":            3,
-    "edit_user":                 3,
-    "umfragen":                  3,
-    "api_umfragen_erstellen":    3,
-    "api_umfragen_schliessen":   3,
-    # Verifizierung: Moderator+ ODER die speziellen Verifizierungs-Rollen
-    "verifizierung":             (3, {"b-verifizierung", "g-verifizierung"}),
-    "api_verifizierung_setup":   (3, {"b-verifizierung", "g-verifizierung"}),
-    "api_verifizierung_modrole": (3, {"b-verifizierung", "g-verifizierung"}),
-    # Supporter+ (2): Einblick für Support-Team
-    "kummerkasten":              2,
-    "knast_log":                 2,
+# ── Feature-basiertes Berechtigungssystem ────────────────────────────────────
+
+FEATURES = {
+    "knast_log":            {"label": "Knast-Log",             "icon": "bi-lock",           "desc": "Knast-Log & aktive Knast-Einträge lesen"},
+    "kummerkasten":         {"label": "Kummerkasten",          "icon": "bi-envelope-heart",  "desc": "Kummerkasten-Statistiken einsehen"},
+    "nutzer_verwalten":     {"label": "Nutzerverwaltung",      "icon": "bi-person-gear",     "desc": "Nutzer sperren, Coins & Level bearbeiten"},
+    "umfragen":             {"label": "Umfragen",              "icon": "bi-ui-checks",       "desc": "Umfragen erstellen & schließen"},
+    "verifizierung":        {"label": "Verifizierung",         "icon": "bi-patch-check",     "desc": "Boys & Girls Verifizierung konfigurieren"},
+    "broadcast":            {"label": "Nachrichten",           "icon": "bi-send",            "desc": "Broadcast & Nachrichten senden"},
+    "willkommen":           {"label": "Willkommen-Editor",     "icon": "bi-door-open",       "desc": "Willkommensnachrichten bearbeiten & testen"},
+    "cogs":                 {"label": "Module",                "icon": "bi-boxes",           "desc": "Bot-Module aktivieren & deaktivieren"},
+    "templates":            {"label": "Templates",             "icon": "bi-archive",         "desc": "Server-Templates erstellen & wiederherstellen"},
+    "einstellungen":        {"label": "Einstellungen",         "icon": "bi-sliders",         "desc": "Bot-Einstellungen & XP-Konfiguration"},
+    "web_nutzer":           {"label": "Web-Nutzer",            "icon": "bi-people-fill",     "desc": "Dashboard-Accounts verwalten"},
+    "rolle_berechtigungen": {"label": "Rollen-Berechtigungen", "icon": "bi-shield-lock",     "desc": "Zugriffsrechte der Rollen konfigurieren"},
 }
+
+# Endpoint-Name → Feature
+FEATURE_ROUTES: dict[str, set] = {
+    "knast_log":            {"knast_log"},
+    "kummerkasten":         {"kummerkasten"},
+    "nutzer_verwalten":     {"verwaltung", "edit_user", "api_user_knast"},
+    "umfragen":             {"umfragen", "api_umfragen_erstellen", "api_umfragen_schliessen", "api_umfragen_aktiv"},
+    "verifizierung":        {"verifizierung", "api_verifizierung_setup", "api_verifizierung_modrole"},
+    "broadcast":            {"broadcast", "api_send_message", "api_channels"},
+    "willkommen":           {"willkommen", "api_willkommen_test", "trigger_nickname_update"},
+    "cogs":                 {"api_cogs", "toggle_cog"},
+    "templates":            {"templates", "api_templates_list", "api_templates_create",
+                             "api_templates_restore", "api_template_detail",
+                             "api_template_download", "api_template_upload"},
+    "einstellungen":        {"settings"},
+    "web_nutzer":           {"web_users", "api_web_user_create", "api_web_user_edit", "api_web_user_delete"},
+    "rolle_berechtigungen": {"role_permissions", "api_role_permissions_save"},
+}
+
+# Reverse-Map: endpoint → feature (wird beim Import gebaut)
+_ROUTE_FEATURE: dict[str, str] = {}
+for _feat, _eps in FEATURE_ROUTES.items():
+    for _ep in _eps:
+        _ROUTE_FEATURE[_ep] = _feat
+
+DEFAULT_PERMISSIONS: dict[str, list] = {
+    "developer":       list(FEATURES.keys()),
+    "owner":           list(FEATURES.keys()),
+    "co-owner":        ["knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
+                        "verifizierung", "broadcast", "willkommen", "cogs", "templates", "einstellungen"],
+    "admin":           ["knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
+                        "verifizierung", "broadcast", "willkommen"],
+    "moderator":       ["knast_log", "kummerkasten", "nutzer_verwalten", "umfragen", "verifizierung"],
+    "b-verifizierung": ["verifizierung"],
+    "g-verifizierung": ["verifizierung"],
+    "supporter":       ["knast_log", "kummerkasten"],
+    "mediator":        [],
+    "paten":           [],
+}
+
+_perm_cache: dict = {}
+_perm_cache_time: float = 0.0
+PERM_CACHE_TTL = 30  # Sekunden
+
+
+def _load_permissions() -> dict:
+    """Lädt Rollen-Berechtigungen aus DB (mit 30s Cache)."""
+    global _perm_cache, _perm_cache_time
+    import json as _j
+    now = time.time()
+    if now - _perm_cache_time < PERM_CACHE_TTL and _perm_cache:
+        return _perm_cache
+    try:
+        db = get_db()
+        rows = db.execute("SELECT role, permissions FROM role_permissions").fetchall()
+        db.close()
+        stored = {}
+        for row in rows:
+            try:
+                p = _j.loads(row["permissions"])
+                if isinstance(p, list):
+                    stored[row["role"]] = set(p)
+            except Exception:
+                pass
+    except Exception:
+        stored = {}
+    result = {}
+    for role in VALID_ROLES:
+        result[role] = stored.get(role, set(DEFAULT_PERMISSIONS.get(role, [])))
+    result["developer"] = set(FEATURES.keys())   # Developer immer alles
+    _perm_cache = result
+    _perm_cache_time = now
+    return result
+
+
+def _invalidate_perm_cache():
+    global _perm_cache_time
+    _perm_cache_time = 0.0
 
 
 @app.before_request
@@ -110,16 +165,54 @@ def check_role():
         return
     if not session.get("logged_in"):
         return
-    entry = ROUTE_MIN_LEVEL.get(request.endpoint)
-    if entry is not None:
-        roles = session.get("roles", ["paten"])
-        ulvl  = _user_level(roles)
-        if isinstance(entry, tuple):
-            min_level, extra_roles = entry
-        else:
-            min_level, extra_roles = entry, set()
-        if ulvl < min_level and not any(r in extra_roles for r in roles):
-            return render_template("403.html", role=", ".join(roles)), 403
+    feature = _ROUTE_FEATURE.get(request.endpoint)
+    if feature is None:
+        return  # für alle eingeloggten Nutzer zugänglich
+    roles = session.get("roles", ["paten"])
+    perms = _load_permissions()
+    for role in roles:
+        if feature in perms.get(role, set()):
+            return  # Zugriff gewährt
+    return render_template("403.html", role=", ".join(roles)), 403
+
+
+@app.context_processor
+def inject_user_features():
+    if not session.get("logged_in"):
+        return {"user_features": set()}
+    roles = session.get("roles", ["paten"])
+    perms = _load_permissions()
+    features: set = set()
+    for role in roles:
+        features |= perms.get(role, set())
+    return {"user_features": features}
+
+
+def _ensure_permissions():
+    """Erstellt role_permissions-Tabelle und befüllt fehlende Rollen mit Defaults."""
+    import json as _j
+    try:
+        db = get_db()
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS role_permissions (
+                role        TEXT PRIMARY KEY,
+                permissions TEXT NOT NULL DEFAULT '[]'
+            )
+        """)
+        db.commit()
+        existing = {r["role"] for r in db.execute("SELECT role FROM role_permissions").fetchall()}
+        for role in VALID_ROLES:
+            if role not in existing:
+                default_p = list(FEATURES.keys()) if role == "developer" else DEFAULT_PERMISSIONS.get(role, [])
+                db.execute(
+                    "INSERT OR IGNORE INTO role_permissions (role, permissions) VALUES (?,?)",
+                    (role, _j.dumps(sorted(default_p)))
+                )
+        db.commit()
+        db.close()
+        _invalidate_perm_cache()
+    except Exception:
+        pass
 
 
 def _ensure_admin_user():
@@ -158,6 +251,7 @@ def _ensure_admin_user():
             )
             db.commit()
         db.close()
+        _ensure_permissions()
     except Exception:
         pass
 
@@ -1466,6 +1560,56 @@ def api_web_user_delete(uid):
     db.close()
     _discord_log("🗑️ Web-Nutzer gelöscht",
                  f"**Nutzer:** {row['username']} | **Von:** {session.get('username')}")
+    return jsonify({"ok": True})
+
+
+# ── Rollen-Berechtigungen ─────────────────────────────────────────────────────
+
+@app.route("/role-permissions")
+@login_required
+def role_permissions():
+    perms = _load_permissions()
+    grid: dict = {}
+    for feat_key in FEATURES:
+        grid[feat_key] = {role: feat_key in perms.get(role, set()) for role in VALID_ROLES}
+    return render_template("role_permissions.html",
+                           features=FEATURES, roles=VALID_ROLES, grid=grid)
+
+
+@app.route("/api/role-permissions/save", methods=["POST"])
+@login_required
+def api_role_permissions_save():
+    import json as _j
+    data    = request.get_json() or {}
+    role    = data.get("role")
+    feature = data.get("feature")
+    enabled = bool(data.get("enabled", False))
+    if role not in VALID_ROLES or feature not in FEATURES:
+        return jsonify({"error": "Ungültige Rolle oder Feature"}), 400
+    if role == "developer":
+        return jsonify({"error": "Developer-Berechtigungen sind fest"}), 400
+    db = get_db()
+    row = db.execute("SELECT permissions FROM role_permissions WHERE role=?", (role,)).fetchone()
+    perms = set(_j.loads(row["permissions"])) if row else set(DEFAULT_PERMISSIONS.get(role, []))
+    if enabled:
+        perms.add(feature)
+    else:
+        perms.discard(feature)
+    db.execute(
+        "INSERT INTO role_permissions (role, permissions) VALUES (?,?)"
+        " ON CONFLICT(role) DO UPDATE SET permissions=excluded.permissions",
+        (role, _j.dumps(sorted(perms)))
+    )
+    db.commit()
+    db.close()
+    _invalidate_perm_cache()
+    action = "aktiviert" if enabled else "deaktiviert"
+    feat_label = FEATURES[feature]["label"]
+    _discord_log("🛡️ Berechtigung geändert",
+                 f"🎭  **Rolle:** {role}\n"
+                 f"🔧  **Feature:** {feat_label}\n"
+                 f"🔘  **Status:** {'✅' if enabled else '⛔'} {action}\n"
+                 f"🌐  **Von:** {session.get('username')}")
     return jsonify({"ok": True})
 
 

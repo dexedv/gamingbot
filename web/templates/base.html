@@ -275,10 +275,12 @@
     <a class="sb-link {% if request.endpoint == 'users' %}active{% endif %}" href="/users">
       <i class="bi bi-people"></i> Nutzer
     </a>
-    {% if _ul >= 3 %}
+    {% if 'nutzer_verwalten' in user_features %}
     <a class="sb-link {% if request.endpoint == 'verwaltung' %}active{% endif %}" href="/verwaltung">
       <i class="bi bi-person-gear"></i> Benutzerverwaltung
     </a>
+    {% endif %}
+    {% if 'umfragen' in user_features %}
     <a class="sb-link {% if request.endpoint == 'umfragen' %}active{% endif %}" href="/umfragen">
       <i class="bi bi-ui-checks"></i> Umfragen
     </a>
@@ -287,35 +289,45 @@
       <i class="bi bi-terminal"></i> Befehle
     </a>
 
-    {% if _ul >= 2 %}
+    {% set _has_verwaltung = 'knast_log' in user_features or 'kummerkasten' in user_features
+        or 'willkommen' in user_features or 'broadcast' in user_features
+        or 'templates' in user_features or 'einstellungen' in user_features
+        or 'cogs' in user_features %}
+    {% if _has_verwaltung %}
     <div class="sb-section" style="margin-top:1rem">Verwaltung</div>
-    {% if _ul >= 4 %}
+    {% if 'willkommen' in user_features %}
     <a class="sb-link {% if request.endpoint == 'willkommen' %}active{% endif %}" href="/willkommen">
       <i class="bi bi-door-open"></i> Willkommen
     </a>
+    {% endif %}
+    {% if 'broadcast' in user_features %}
     <a class="sb-link {% if request.endpoint == 'broadcast' %}active{% endif %}" href="/broadcast">
       <i class="bi bi-send"></i> Nachrichten
     </a>
     {% endif %}
-    {% if _ul >= 5 %}
+    {% if 'templates' in user_features %}
     <a class="sb-link {% if request.endpoint == 'templates' %}active{% endif %}" href="/templates">
       <i class="bi bi-archive"></i> Templates
     </a>
     {% endif %}
+    {% if 'knast_log' in user_features %}
     <a class="sb-link {% if request.endpoint == 'knast_log' %}active{% endif %}" href="/knast">
       <i class="bi bi-lock"></i> Knast-Log
     </a>
+    {% endif %}
+    {% if 'kummerkasten' in user_features %}
     <a class="sb-link {% if request.endpoint == 'kummerkasten' %}active{% endif %}" href="/kummerkasten">
       <i class="bi bi-envelope-heart"></i> Kummerkasten
     </a>
-    {% if _ul >= 5 %}
+    {% endif %}
+    {% if 'einstellungen' in user_features %}
     <a class="sb-link {% if request.endpoint == 'settings' %}active{% endif %}" href="/settings">
       <i class="bi bi-sliders"></i> Einstellungen
     </a>
     {% endif %}
     {% endif %}
 
-    {% if _ul >= 3 or 'b-verifizierung' in _roles or 'g-verifizierung' in _roles %}
+    {% if 'verifizierung' in user_features %}
     <div class="sb-section" style="margin-top:1rem">Verifizierung</div>
     {% if _ul >= 3 or 'b-verifizierung' in _roles %}
     <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'boys' %}active{% endif %}" href="/verifizierung/boys">
@@ -329,11 +341,18 @@
     {% endif %}
     {% endif %}
 
-    {% if _ul >= 6 %}
+    {% if 'web_nutzer' in user_features or 'rolle_berechtigungen' in user_features %}
     <div class="sb-section" style="margin-top:1rem">System</div>
+    {% if 'web_nutzer' in user_features %}
     <a class="sb-link {% if request.endpoint == 'web_users' %}active{% endif %}" href="/web-users">
       <i class="bi bi-people-fill"></i> Web-Nutzer
     </a>
+    {% endif %}
+    {% if 'rolle_berechtigungen' in user_features %}
+    <a class="sb-link {% if request.endpoint == 'role_permissions' %}active{% endif %}" href="/role-permissions">
+      <i class="bi bi-shield-lock"></i> Berechtigungen
+    </a>
+    {% endif %}
     {% endif %}
   </div>
 

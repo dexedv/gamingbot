@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Rollen-Berechtigungen{% endblock %}
+
+{% block head %}
+<style>
+  .perm-table { width: 100%; border-collapse: collapse; min-width: 900px; }
+  .perm-table th, .perm-table td {
+    padding: .55rem .5rem;
+    border: 1px solid var(--border);
+    text-align: center;
+    vertical-align: middle;
+  }
+  .perm-table .feat-col {
+    text-align: left;
+    min-width: 210px;
+    position: sticky;
+    left: 0;
+    background: var(--card);
+    z-index: 2;
+  }
+  .perm-table thead th { background: var(--card); position: sticky; top: 0; z-index: 3; }
+  .perm-table thead th.feat-col { z-index: 4; }
+  .role-th { min-width: 88px; }
+  .feat-desc { font-size: .7rem; color: var(--muted); margin-top: .15rem; }
+
+  /* Locked dev column */
+  .dev-cell { opacity: .55; }
+
+  /* Toast */
+  .toast-pos { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; }
+  #perm-toast { background: var(--card); border-radius: 10px; min-width: 200px; }
+
+  /* Role colors */
+  .rc-developer    { color: #c084fc; }
+  .rc-owner        { color: #fbbf24; }
+  .rc-co-owner     { color: #fb923c; }
+  .rc-admin        { color: #818cf8; }
+  .rc-moderator    { color: #4ade80; }
+  .rc-b-ver        { color: #93c5fd; }
+  .rc-g-ver        { color: #f9a8d4; }
+  .rc-supporter    { color: #2dd4bf; }
+  .rc-mediator     { color: #22d3ee; }
+  .rc-paten        { color: var(--muted); }
+
+  .form-check-input { cursor: pointer; }
+  .form-check-input:disabled { cursor: default; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between">
+  <div>
+    <h1><i class="bi bi-shield-lock" style="color:var(--accent)"></i> Rollen-Berechtigungen</h1>
+    <p>Konfiguriere welche Rollen auf welche Features zugreifen dürfen. Änderungen wirken sofort.</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span>Berechtigungs-Matrix</span>
+    <span style="font-size:.75rem;color:var(--muted)">
+      <i class="bi bi-info-circle"></i> Developer ist immer gesperrt (voller Zugriff)
+    </span>
+  </div>
+  <div class="table-responsive">
+    <table class="perm-table">
+      <thead>
+        <tr>
+          <th class="feat-col" style="text-align:left;padding-left:1rem;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">
+            Feature
+          </th>
+          {% for role in roles %}
+          <th class="role-th" style="font-size:.68rem;font-weight:700;padding:.6rem .3rem;
+            {% if role == 'developer' %}color:#c084fc
+            {% elif role == 'owner' %}color:#fbbf24
+            {% elif role == 'co-owner' %}color:#fb923c
+            {% elif role == 'admin' %}color:#818cf8
+            {% elif role == 'moderator' %}color:#4ade80
+            {% elif role == 'b-verifizierung' %}color:#93c5fd
+            {% elif role == 'g-verifizierung' %}color:#f9a8d4
+            {% elif role == 'supporter' %}color:#2dd4bf
+            {% elif role == 'mediator' %}color:#22d3ee
+            {% else %}color:var(--muted){% endif %}
+          ">
+            {{ role | upper | replace('-', '&#8209;') | safe }}
+          </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for feat_key, feat in features.items() %}
+        <tr>
+          <td class="feat-col" style="padding-left:1rem">
+            <div style="font-weight:500;color:#fff;font-size:.85rem">
+              <i class="bi {{ feat.icon }}" style="color:var(--accent);margin-right:.35rem"></i>{{ feat.label }}
+            </div>
+            <div class="feat-desc">{{ feat.desc }}</div>
+          </td>
+          {% for role in roles %}
+          <td {% if role == 'developer' %}class="dev-cell"{% endif %}>
+            <div class="form-check form-switch d-flex justify-content-center m-0">
+              <input class="form-check-input perm-toggle" type="checkbox"
+                data-role="{{ role }}"
+                data-feature="{{ feat_key }}"
+                {% if grid[feat_key][role] %}checked{% endif %}
+                {% if role == 'developer' %}disabled title="Developer hat immer vollen Zugriff"{% endif %}>
+            </div>
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-pos">
+  <div id="perm-toast" class="toast align-items-center border-0" role="alert" aria-live="assertive">
+    <div class="d-flex">
+      <div class="toast-body d-flex align-items-center gap-2" id="perm-toast-body" style="color:var(--text)"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const _permToast = new bootstrap.Toast(document.getElementById('perm-toast'), {delay: 2200});
+
+function showToast(msg, ok) {
+  const body = document.getElementById('perm-toast-body');
+  body.innerHTML = `<i class="bi ${ok ? 'bi-check-circle text-success' : 'bi-exclamation-circle text-danger'}"></i> ${msg}`;
+  document.getElementById('perm-toast').style.borderColor = ok
+    ? 'rgba(34,197,94,.35)' : 'rgba(239,68,68,.35)';
+  document.getElementById('perm-toast').style.border = '1px solid';
+  _permToast.show();
+}
+
+document.querySelectorAll('.perm-toggle:not([disabled])').forEach(el => {
+  el.addEventListener('change', function () {
+    const role    = this.dataset.role;
+    const feature = this.dataset.feature;
+    const enabled = this.checked;
+    this.disabled = true;
+
+    fetch('/api/role-permissions/save', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({role, feature, enabled})
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.error) {
+        showToast(d.error, false);
+        this.checked = !enabled;
+      } else {
+        showToast(`${role} → ${feature} ${enabled ? 'aktiviert' : 'deaktiviert'}`, true);
+      }
+    })
+    .catch(() => {
+      showToast('Verbindungsfehler', false);
+      this.checked = !enabled;
+    })
+    .finally(() => { this.disabled = false; });
+  });
+});
+</script>
+{% endblock %}
