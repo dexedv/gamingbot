@@ -52,7 +52,7 @@ class EconomyCog(commands.Cog, name="Economy"):
         embed.add_field(name="📊  Siegrate",       value=f"**{winrate}**",            inline=True)
         embed.add_field(name="🎮  Spiele gesamt", value=f"**{total}**",               inline=True)
 
-        embed.set_footer(text="GamingBot  •  %daily für tägliche Münzen")
+        embed.set_footer(text="Pink Horizoon Bot  •  %daily für tägliche Münzen")
         await ctx.send(embed=embed)
 
     # ── %daily ────────────────────────────────────────────────────────────────
@@ -147,7 +147,7 @@ class EconomyCog(commands.Cog, name="Economy"):
     @commands.hybrid_command(name="hilfe", aliases=["help", "h"])
     async def hilfe(self, ctx: commands.Context):
         embed = discord.Embed(
-            title="🎮  GamingBot  —  Befehlsübersicht",
+            title="🎮  Pink Horizoon Bot  —  Befehlsübersicht",
             description=(
                 "**Prefix: `%`**  •  Startguthaben: **500 💰**\n"
                 "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

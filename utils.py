@@ -73,7 +73,7 @@ async def send_log(bot, title: str, description: str = "", color: discord.Color 
     if avatar_url:
         embed.set_thumbnail(url=avatar_url)
     embed.set_footer(
-        text="GamingBot · Log-System",
+        text="Pink Horizoon Bot · Log-System",
         icon_url=avatar_url,
     )
     try:
