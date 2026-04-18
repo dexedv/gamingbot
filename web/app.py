@@ -170,8 +170,8 @@ def users():
 def user_detail(user_id):
     db = get_db()
     row = db.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)).fetchone()
-    db.close()
     if not row:
+        db.close()
         return redirect(url_for("users"))
     u = dict(row)
     u["voice_fmt"] = fmt_seconds(u.get("voice_seconds") or 0)
@@ -180,8 +180,69 @@ def user_detail(user_id):
     xp_curr = xp - level * level * 50
     xp_need = (level + 1) * (level + 1) * 50 - level * level * 50
     xp_pct  = min(100, int(xp_curr / xp_need * 100)) if xp_need > 0 else 100
+    # Knast-Status
+    knast_row = db.execute(
+        "SELECT reason, jailed_at FROM knast WHERE user_id=?", (user_id,)
+    ).fetchone()
+    knast_info = dict(knast_row) if knast_row else None
+    # Letzter Knast-Log-Eintrag
+    knast_log_rows = db.execute(
+        "SELECT action, by_name, reason, created_at FROM knast_log "
+        "WHERE user_id=? ORDER BY created_at DESC LIMIT 5", (user_id,)
+    ).fetchall()
+    db.close()
     return render_template("user_detail.html", u=u,
-                           xp_curr=xp_curr, xp_need=xp_need, xp_pct=xp_pct)
+                           xp_curr=xp_curr, xp_need=xp_need, xp_pct=xp_pct,
+                           knast_info=knast_info,
+                           knast_log=[dict(r) for r in knast_log_rows])
+
+
+@app.route("/api/users/<int:user_id>/knast", methods=["POST"])
+@login_required
+def api_user_knast(user_id):
+    bot  = current_app.config.get("BOT")
+    loop = current_app.config.get("LOOP")
+    if not bot or not loop:
+        return jsonify({"error": "Bot nicht verfügbar"}), 503
+
+    data   = request.get_json() or {}
+    action = data.get("action")       # "jail" | "release"
+    reason = data.get("reason", "Via Dashboard").strip() or "Via Dashboard"
+
+    if action not in ("jail", "release"):
+        return jsonify({"error": "Ungültige Aktion"}), 400
+
+    if not bot.guilds:
+        return jsonify({"error": "Bot ist auf keinem Server"}), 503
+    guild  = bot.guilds[0]
+    member = guild.get_member(user_id)
+    if not member:
+        return jsonify({"error": "Nutzer nicht auf dem Server gefunden (evtl. offline/nicht gecacht)"}), 404
+
+    cog = bot.cogs.get("Knast")
+    if not cog:
+        return jsonify({"error": "Knast-Modul nicht geladen"}), 503
+
+    async def _run():
+        if action == "jail":
+            return await cog.jail_member(member, reason, "Dashboard", 0)
+        else:
+            return await cog.release_member(member, reason, "Dashboard", 0)
+
+    try:
+        result = asyncio.run_coroutine_threadsafe(_run(), loop).result(timeout=60)
+        if result.get("error"):
+            return jsonify({"error": result["error"]}), 400
+        action_label = "eingesperrt" if action == "jail" else "entlassen"
+        _discord_log(
+            "🔒 Knast via Dashboard" if action == "jail" else "🔓 Entlassung via Dashboard",
+            f"👤  **Nutzer:** {member} (`{member.id}`)\n"
+            f"📝  **Grund:** {reason}\n"
+            f"🌐  **Via:** Dashboard"
+        )
+        return jsonify({"ok": True, "label": action_label})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/users/<int:user_id>/edit", methods=["POST"])

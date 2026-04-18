@@ -61,6 +61,11 @@
           <span class="badge" style="background:rgba(139,92,246,.15);color:#8b5cf6;border-radius:8px;padding:.3rem .7rem">
             {{ emoji }} {{ rank_name }}
           </span>
+          {% if knast_info %}
+          <span class="badge" style="background:rgba(239,68,68,.18);color:#ef4444;border:1px solid rgba(239,68,68,.4);border-radius:8px;padding:.3rem .7rem">
+            🔒 Im Knast
+          </span>
+          {% endif %}
           {% if (u.streak or 0) > 0 %}
           <span class="badge" style="background:rgba(239,68,68,.12);color:#ef4444;border-radius:8px;padding:.3rem .7rem">
             🔥 {{ u.streak }} Tage Streak
@@ -68,16 +73,29 @@
           {% endif %}
           {% if (u.name_protected or 0) %}
           <span class="badge" style="background:rgba(245,158,11,.12);color:#f59e0b;border-radius:8px;padding:.3rem .7rem">
-            🔒 Name geschützt
+            🛡️ Name geschützt
           </span>
           {% endif %}
         </div>
       </div>
-      <div class="d-flex gap-2">
+      <div class="d-flex gap-2 flex-wrap">
         <button class="btn btn-sm btn-accent px-3"
                 data-bs-toggle="modal" data-bs-target="#editModal">
           <i class="bi bi-pencil me-1"></i>Bearbeiten
         </button>
+        {% if knast_info %}
+        <button class="btn btn-sm px-3"
+                style="background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:9px"
+                data-bs-toggle="modal" data-bs-target="#releaseModal">
+          <i class="bi bi-unlock me-1"></i>Entlassen
+        </button>
+        {% else %}
+        <button class="btn btn-sm px-3"
+                style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:9px"
+                data-bs-toggle="modal" data-bs-target="#jailModal">
+          <i class="bi bi-lock me-1"></i>Einsperren
+        </button>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -216,6 +234,78 @@
 
   </div>
 
+  <!-- Benutzerverwaltung -->
+  <div class="col-12">
+    <div class="section">
+      <div class="section-h"><i class="bi bi-shield-lock" style="color:#ef4444"></i> Benutzerverwaltung</div>
+      <div class="section-b">
+        <div class="row g-3">
+
+          <!-- Knast-Status -->
+          <div class="col-lg-5">
+            <div style="font-size:.8rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem">Knast-Status</div>
+            {% if knast_info %}
+            <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:11px;padding:.85rem 1rem">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <span style="width:9px;height:9px;border-radius:50%;background:#ef4444;flex-shrink:0"></span>
+                <span style="font-weight:700;color:#ef4444">Im Knast</span>
+              </div>
+              <div style="font-size:.82rem;color:var(--text)">
+                <div><span style="color:var(--muted)">Grund:</span> {{ knast_info.reason or '—' }}</div>
+                <div><span style="color:var(--muted)">Seit:</span> {{ (knast_info.jailed_at or '')[:16].replace('T',' ') }}</div>
+              </div>
+              <button class="btn btn-sm mt-2 w-100"
+                      style="background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3);border-radius:8px"
+                      data-bs-toggle="modal" data-bs-target="#releaseModal">
+                <i class="bi bi-unlock me-1"></i>Jetzt entlassen
+              </button>
+            </div>
+            {% else %}
+            <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:11px;padding:.85rem 1rem">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <span style="width:9px;height:9px;border-radius:50%;background:#22c55e;flex-shrink:0"></span>
+                <span style="font-weight:700;color:#22c55e">Freier Nutzer</span>
+              </div>
+              <div style="font-size:.82rem;color:var(--muted)">Kein aktiver Knast-Eintrag.</div>
+              <button class="btn btn-sm mt-2 w-100"
+                      style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:8px"
+                      data-bs-toggle="modal" data-bs-target="#jailModal">
+                <i class="bi bi-lock me-1"></i>Einsperren
+              </button>
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Knast-Historie -->
+          <div class="col-lg-7">
+            <div style="font-size:.8rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem">Letzte Aktionen</div>
+            {% if knast_log %}
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:11px;overflow:hidden">
+              {% for entry in knast_log %}
+              <div style="display:flex;align-items:center;gap:.75rem;padding:.55rem 1rem;border-bottom:{% if not loop.last %}1px solid rgba(255,255,255,.04){% else %}none{% endif %}">
+                {% if entry.action == 'jail' %}
+                <span style="background:rgba(239,68,68,.15);color:#ef4444;border-radius:6px;padding:.15rem .5rem;font-size:.72rem;font-weight:600;flex-shrink:0">🔒 Eingesperrt</span>
+                {% else %}
+                <span style="background:rgba(34,197,94,.12);color:#22c55e;border-radius:6px;padding:.15rem .5rem;font-size:.72rem;font-weight:600;flex-shrink:0">🔓 Entlassen</span>
+                {% endif %}
+                <span style="font-size:.8rem;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                  {{ entry.reason or '—' }}
+                </span>
+                <span style="font-size:.75rem;color:var(--muted);flex-shrink:0">{{ entry.by_name or '—' }}</span>
+                <span style="font-size:.72rem;color:var(--faint);flex-shrink:0">{{ (entry.created_at or '')[:16].replace('T',' ') }}</span>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div style="color:var(--muted);font-size:.83rem;padding:.5rem 0">Noch keine Knast-Einträge für diesen Nutzer.</div>
+            {% endif %}
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Win/Loss chart -->
   <div class="col-lg-5">
     <div class="section h-100">
@@ -239,6 +329,66 @@
     </div>
   </div>
 
+</div>
+
+<!-- Einsperren Modal -->
+<div class="modal fade" id="jailModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:var(--card);border:1px solid rgba(239,68,68,.3);border-radius:14px">
+      <div class="modal-header" style="border-color:rgba(239,68,68,.2);padding:1.25rem 1.5rem">
+        <h5 class="modal-title" style="font-size:1rem;color:#ef4444">🔒 {{ u.username }} einsperren</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:1.25rem 1.5rem">
+        <div class="mb-3">
+          <label class="form-label" style="font-size:.8rem;color:var(--muted)">Grund</label>
+          <input type="text" id="jailReason" class="form-control" placeholder="Grund eingeben…" maxlength="200">
+        </div>
+        <div style="background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2);border-radius:9px;padding:.75rem 1rem;font-size:.8rem;color:var(--muted)">
+          Der Nutzer verliert alle Rollen, sieht nur noch den Knast-Kanal und wird aus allen anderen Kanälen ausgeschlossen.
+        </div>
+      </div>
+      <div class="modal-footer" style="border-color:rgba(239,68,68,.2);padding:1rem 1.5rem">
+        <button type="button" class="btn btn-sm" style="background:var(--border);color:var(--muted);border-radius:8px" data-bs-dismiss="modal">Abbrechen</button>
+        <button type="button" class="btn btn-sm px-4" id="confirmJailBtn"
+                style="background:#ef4444;color:#fff;border:none;border-radius:8px"
+                onclick="doKnast('jail')">
+          🔒 Einsperren
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Entlassen Modal -->
+<div class="modal fade" id="releaseModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:var(--card);border:1px solid rgba(34,197,94,.3);border-radius:14px">
+      <div class="modal-header" style="border-color:rgba(34,197,94,.2);padding:1.25rem 1.5rem">
+        <h5 class="modal-title" style="font-size:1rem;color:#22c55e">🔓 {{ u.username }} entlassen</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:1.25rem 1.5rem">
+        <div class="mb-3">
+          <label class="form-label" style="font-size:.8rem;color:var(--muted)">Grund</label>
+          <input type="text" id="releaseReason" class="form-control" placeholder="Grund eingeben…" maxlength="200">
+        </div>
+        {% if knast_info %}
+        <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:9px;padding:.75rem 1rem;font-size:.8rem;color:var(--muted)">
+          Alle gesicherten Rollen werden wiederhergestellt und die Kanal-Sperren aufgehoben.
+        </div>
+        {% endif %}
+      </div>
+      <div class="modal-footer" style="border-color:rgba(34,197,94,.2);padding:1rem 1.5rem">
+        <button type="button" class="btn btn-sm" style="background:var(--border);color:var(--muted);border-radius:8px" data-bs-dismiss="modal">Abbrechen</button>
+        <button type="button" class="btn btn-sm px-4" id="confirmReleaseBtn"
+                style="background:#22c55e;color:#fff;border:none;border-radius:8px"
+                onclick="doKnast('release')">
+          🔓 Entlassen
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Edit Modal -->
@@ -283,6 +433,34 @@
 
 {% block scripts %}
 <script>
+async function doKnast(action) {
+  const reasonEl = document.getElementById(action === 'jail' ? 'jailReason' : 'releaseReason');
+  const reason   = reasonEl.value.trim() || 'Via Dashboard';
+  const btnId    = action === 'jail' ? 'confirmJailBtn' : 'confirmReleaseBtn';
+  const btn      = document.getElementById(btnId);
+  btn.disabled   = true;
+  btn.textContent = '…';
+
+  try {
+    const res = await fetch('/api/users/{{ u.user_id }}/knast', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({action, reason}),
+    });
+    const d = await res.json();
+    if (d.ok) {
+      location.reload();
+    } else {
+      alert('Fehler: ' + (d.error || 'Unbekannt'));
+      btn.disabled = false;
+      btn.textContent = action === 'jail' ? '🔒 Einsperren' : '🔓 Entlassen';
+    }
+  } catch(e) {
+    alert('Netzwerkfehler');
+    btn.disabled = false;
+  }
+}
+
 {% set total_g = (u.wins or 0) + (u.losses or 0) + (u.draws or 0) %}
 {% if total_g > 0 %}
 new Chart(document.getElementById('wldChart'), {

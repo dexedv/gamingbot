@@ -87,6 +87,147 @@ class KnastCog(commands.Cog, name="Knast"):
             if overwrite.view_channel is not None:
                 await channel.set_permissions(member, overwrite=None)
 
+    # ── Öffentliche Methoden (aufrufbar vom Web-Dashboard) ───────────────────
+
+    async def jail_member(
+        self,
+        member: discord.Member,
+        reason: str = "Kein Grund angegeben",
+        by_name: str = "Dashboard",
+        by_id: int = 0,
+    ) -> dict:
+        """Sperrt einen Nutzer ein. Gibt {'ok': True} oder {'error': '...'} zurück."""
+        from utils import send_log
+
+        settings = _load_knast_settings()
+        if not settings.get("knast_category"):
+            return {"error": "Knast nicht eingerichtet. Bitte zuerst %knast setup ausführen."}
+
+        jail_cat   = member.guild.get_channel(int(settings["knast_category"]))
+        jail_role  = member.guild.get_role(int(settings["knast_role"]))
+        jail_text  = member.guild.get_channel(int(settings.get("knast_text_channel") or 0))
+        jail_voice = member.guild.get_channel(int(settings.get("knast_voice_channel") or 0))
+
+        if not jail_cat or not jail_role:
+            return {"error": "Knast-Konfiguration unvollständig. Bitte %knast setup erneut ausführen."}
+
+        removable = [r for r in member.roles if r != member.guild.default_role and not r.managed]
+        role_ids  = [r.id for r in removable]
+
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute(
+            "INSERT OR REPLACE INTO knast (user_id, guild_id, roles, reason, jailed_by) VALUES (?, ?, ?, ?, ?)",
+            (member.id, member.guild.id, json.dumps(role_ids), reason, str(by_id))
+        )
+        conn.execute(
+            "INSERT INTO knast_log (action, user_id, username, by_id, by_name, reason) VALUES (?, ?, ?, ?, ?, ?)",
+            ("jail", member.id, str(member), by_id, by_name, reason)
+        )
+        conn.commit()
+        conn.close()
+
+        try:
+            if removable:
+                await member.remove_roles(*removable, reason=f"Knast: {reason}")
+            await member.add_roles(jail_role, reason=f"Knast: {reason}")
+        except discord.Forbidden:
+            return {"error": "Fehlende Berechtigung zum Verwalten von Rollen."}
+
+        await self._apply_jail(member, jail_cat)
+
+        if member.voice and member.voice.channel:
+            if member.voice.channel.category_id != jail_cat.id:
+                try:
+                    await member.move_to(jail_voice or None, reason="Knast")
+                except discord.Forbidden:
+                    pass
+
+        if jail_text:
+            embed = discord.Embed(
+                title="🔒 Du wurdest eingesperrt",
+                description=(
+                    f"Hey {member.mention}, du hast gegen die Regeln verstoßen und wurdest in den Knast gesperrt.\n\n"
+                    f"**Grund:** {reason}\n\n"
+                    f"Du kannst nur noch diesen Kanal sehen. Bitte warte auf einen Moderator."
+                ),
+                color=discord.Color.from_rgb(128, 0, 0),
+            )
+            embed.set_thumbnail(url=member.display_avatar.url)
+            embed.set_footer(text=f"Eingesperrt von {by_name}")
+            await jail_text.send(member.mention, embed=embed)
+
+        await send_log(
+            self.bot,
+            "🔒 Nutzer eingesperrt",
+            f"👤  **Nutzer:** {member} (`{member.id}`)\n"
+            f"👮  **Von:** {by_name}\n"
+            f"📝  **Grund:** {reason}\n"
+            f"🎭  **Gesicherte Rollen:** {len(role_ids)}",
+            discord.Color.from_rgb(128, 0, 0),
+        )
+        return {"ok": True, "saved_roles": len(role_ids)}
+
+    async def release_member(
+        self,
+        member: discord.Member,
+        reason: str = "Kein Grund angegeben",
+        by_name: str = "Dashboard",
+        by_id: int = 0,
+    ) -> dict:
+        """Entlässt einen Nutzer aus dem Knast. Gibt {'ok': True} oder {'error': '...'} zurück."""
+        from utils import send_log
+
+        conn = sqlite3.connect(DB_PATH)
+        row = conn.execute("SELECT roles FROM knast WHERE user_id = ?", (member.id,)).fetchone()
+        conn.close()
+        if not row:
+            return {"error": f"{member} ist nicht im Knast."}
+
+        role_ids = json.loads(row[0])
+        settings = _load_knast_settings()
+
+        jail_role_id = settings.get("knast_role")
+        if jail_role_id:
+            jail_role = member.guild.get_role(int(jail_role_id))
+            if jail_role:
+                try:
+                    await member.remove_roles(jail_role, reason=f"Knast-Entlassung: {reason}")
+                except discord.Forbidden:
+                    pass
+
+        await self._remove_jail_overrides(member)
+
+        roles_to_restore = [
+            member.guild.get_role(rid)
+            for rid in role_ids
+            if member.guild.get_role(rid) and not member.guild.get_role(rid).managed
+        ]
+        if roles_to_restore:
+            try:
+                await member.add_roles(*roles_to_restore, reason="Knast-Entlassung")
+            except discord.Forbidden:
+                pass
+
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("DELETE FROM knast WHERE user_id = ?", (member.id,))
+        conn.execute(
+            "INSERT INTO knast_log (action, user_id, username, by_id, by_name, reason) VALUES (?, ?, ?, ?, ?, ?)",
+            ("release", member.id, str(member), by_id, by_name, reason)
+        )
+        conn.commit()
+        conn.close()
+
+        await send_log(
+            self.bot,
+            "🔓 Nutzer entlassen",
+            f"👤  **Nutzer:** {member} (`{member.id}`)\n"
+            f"👮  **Von:** {by_name}\n"
+            f"📝  **Grund:** {reason}\n"
+            f"🎭  **Rollen wiederhergestellt:** {len(roles_to_restore)}",
+            discord.Color.from_rgb(34, 197, 94),
+        )
+        return {"ok": True, "restored_roles": len(roles_to_restore)}
+
     # ── Befehle ───────────────────────────────────────────────────────────────
 
     @commands.group(name="knast", invoke_without_command=True)
@@ -188,167 +329,34 @@ class KnastCog(commands.Cog, name="Knast"):
     async def knast_add(self, ctx: commands.Context, member: discord.Member, *, reason: str = "Kein Grund angegeben"):
         """Sperrt einen Nutzer in den Knast. — %knast add @nutzer [Grund]"""
         if member.bot:
-            await ctx.send("❌ Bots können nicht eingesperrt werden.")
-            return
+            await ctx.send("❌ Bots können nicht eingesperrt werden."); return
         if member == ctx.author:
-            await ctx.send("❌ Du kannst dich nicht selbst einsperren.")
-            return
+            await ctx.send("❌ Du kannst dich nicht selbst einsperren."); return
         if member.top_role >= ctx.author.top_role and ctx.author != ctx.guild.owner:
-            await ctx.send("❌ Du kannst diesen Nutzer nicht einsperren (gleiche oder höhere Rolle).")
-            return
+            await ctx.send("❌ Du kannst diesen Nutzer nicht einsperren (gleiche oder höhere Rolle)."); return
         if self._is_jailed(member.id):
-            await ctx.send(f"⚠️ {member.mention} ist bereits im Knast.")
-            return
-
-        settings = _load_knast_settings()
-        if not settings.get("knast_category"):
-            await ctx.send("❌ Knast nicht eingerichtet. Nutze zuerst `%knast setup`.")
-            return
-
-        jail_cat    = ctx.guild.get_channel(int(settings["knast_category"]))
-        jail_role   = ctx.guild.get_role(int(settings["knast_role"]))
-        jail_text   = ctx.guild.get_channel(int(settings["knast_text_channel"]))
-        jail_voice  = ctx.guild.get_channel(int(settings["knast_voice_channel"]))
-
-        if not jail_cat or not jail_role:
-            await ctx.send("❌ Knast-Konfiguration ungültig. Bitte `%knast setup` erneut ausführen.")
-            return
+            await ctx.send(f"⚠️ {member.mention} ist bereits im Knast."); return
 
         msg = await ctx.send(f"⏳ Sperre **{member.display_name}** ein…")
-
-        # Rollen sichern (ohne @everyone und nicht entfernbare)
-        removable = [r for r in member.roles if r != ctx.guild.default_role and not r.managed]
-        role_ids  = [r.id for r in removable]
-
-        # DB-Eintrag (aktiver Knast + permanenter Log)
-        conn = sqlite3.connect(DB_PATH)
-        conn.execute(
-            "INSERT OR REPLACE INTO knast (user_id, guild_id, roles, reason, jailed_by) VALUES (?, ?, ?, ?, ?)",
-            (member.id, ctx.guild.id, json.dumps(role_ids), reason, str(ctx.author.id))
-        )
-        conn.execute(
-            "INSERT INTO knast_log (action, user_id, username, by_id, by_name, reason) VALUES (?, ?, ?, ?, ?, ?)",
-            ("jail", member.id, str(member), ctx.author.id, str(ctx.author), reason)
-        )
-        conn.commit()
-        conn.close()
-
-        # Rollen entfernen → Knast-Rolle geben
-        try:
-            if removable:
-                await member.remove_roles(*removable, reason=f"Knast: {reason}")
-            await member.add_roles(jail_role, reason=f"Knast: {reason}")
-        except discord.Forbidden:
-            await msg.edit(content="❌ Fehlende Berechtigung zum Verwalten von Rollen.")
-            return
-
-        # Kanal-Overrides setzen
-        await self._apply_jail(member, jail_cat)
-
-        # Falls im Voice → in Knast-Voice verschieben oder kicken
-        if member.voice and member.voice.channel:
-            if member.voice.channel.category_id != jail_cat.id:
-                try:
-                    if jail_voice:
-                        await member.move_to(jail_voice, reason="Knast")
-                    else:
-                        await member.move_to(None, reason="Knast")
-                except discord.Forbidden:
-                    pass
-
-        # Nachricht in Knast-Kanal
-        if jail_text:
-            embed = discord.Embed(
-                title="🔒 Du wurdest eingesperrt",
-                description=(
-                    f"Hey {member.mention}, du hast gegen die Regeln verstoßen und wurdest in den Knast gesperrt.\n\n"
-                    f"**Grund:** {reason}\n\n"
-                    f"Du kannst nur noch diesen Kanal sehen. Bitte warte auf einen Moderator."
-                ),
-                color=discord.Color.from_rgb(128, 0, 0),
-            )
-            embed.set_thumbnail(url=member.display_avatar.url)
-            embed.set_footer(text=f"Eingesperrt von {ctx.author.display_name}")
-            await jail_text.send(member.mention, embed=embed)
-
-        # Log
-        from utils import send_log
-        await send_log(
-            self.bot,
-            "🔒 Nutzer eingesperrt",
-            f"👤  **Nutzer:** {member} (`{member.id}`)\n"
-            f"👮  **Von:** {ctx.author}\n"
-            f"📝  **Grund:** {reason}\n"
-            f"🎭  **Gesicherte Rollen:** {len(role_ids)}",
-            discord.Color.from_rgb(128, 0, 0),
-        )
-
-        await msg.edit(content=f"🔒 **{member.display_name}** wurde eingesperrt! Grund: *{reason}*")
+        result = await self.jail_member(member, reason, str(ctx.author), ctx.author.id)
+        if result.get("error"):
+            await msg.edit(content=f"❌ {result['error']}")
+        else:
+            await msg.edit(content=f"🔒 **{member.display_name}** wurde eingesperrt! Grund: *{reason}*")
 
     @knast_cmd.command(name="remove", aliases=["free", "raus", "entlassen"])
     @has_knast_permission()
     async def knast_remove(self, ctx: commands.Context, member: discord.Member, *, reason: str = "Kein Grund angegeben"):
         """Entlässt einen Nutzer aus dem Knast. — %knast remove @nutzer [Grund]"""
-        conn = sqlite3.connect(DB_PATH)
-        row = conn.execute("SELECT roles FROM knast WHERE user_id = ?", (member.id,)).fetchone()
-        conn.close()
+        if not self._is_jailed(member.id):
+            await ctx.send(f"⚠️ {member.mention} ist nicht im Knast."); return
 
-        if not row:
-            await ctx.send(f"⚠️ {member.mention} ist nicht im Knast.")
-            return
-
-        role_ids = json.loads(row[0])
-        settings = _load_knast_settings()
         msg = await ctx.send(f"⏳ Entlasse **{member.display_name}**…")
-
-        # Knast-Rolle entfernen
-        jail_role_id = settings.get("knast_role")
-        if jail_role_id:
-            jail_role = ctx.guild.get_role(int(jail_role_id))
-            if jail_role:
-                try:
-                    await member.remove_roles(jail_role, reason=f"Knast-Entlassung: {reason}")
-                except discord.Forbidden:
-                    pass
-
-        # Kanal-Overrides entfernen
-        await self._remove_jail_overrides(member)
-
-        # Alte Rollen wiederherstellen
-        roles_to_restore = []
-        for role_id in role_ids:
-            role = ctx.guild.get_role(role_id)
-            if role and not role.managed:
-                roles_to_restore.append(role)
-        if roles_to_restore:
-            try:
-                await member.add_roles(*roles_to_restore, reason="Knast-Entlassung")
-            except discord.Forbidden:
-                pass
-
-        # DB-Eintrag löschen + permanenter Log
-        conn = sqlite3.connect(DB_PATH)
-        conn.execute("DELETE FROM knast WHERE user_id = ?", (member.id,))
-        conn.execute(
-            "INSERT INTO knast_log (action, user_id, username, by_id, by_name, reason) VALUES (?, ?, ?, ?, ?, ?)",
-            ("release", member.id, str(member), ctx.author.id, str(ctx.author), reason)
-        )
-        conn.commit()
-        conn.close()
-
-        # Log
-        from utils import send_log
-        await send_log(
-            self.bot,
-            "🔓 Nutzer entlassen",
-            f"👤  **Nutzer:** {member} (`{member.id}`)\n"
-            f"👮  **Von:** {ctx.author}\n"
-            f"📝  **Grund:** {reason}\n"
-            f"🎭  **Rollen wiederhergestellt:** {len(roles_to_restore)}",
-            discord.Color.from_rgb(34, 197, 94),
-        )
-
-        await msg.edit(content=f"🔓 **{member.display_name}** wurde entlassen! Grund: *{reason}*")
+        result = await self.release_member(member, reason, str(ctx.author), ctx.author.id)
+        if result.get("error"):
+            await msg.edit(content=f"❌ {result['error']}")
+        else:
+            await msg.edit(content=f"🔓 **{member.display_name}** wurde entlassen! Grund: *{reason}*")
 
     @knast_cmd.command(name="list", aliases=["liste"])
     @has_knast_permission()
