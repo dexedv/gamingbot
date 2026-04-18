@@ -74,7 +74,7 @@ async def update_nickname(member: discord.Member, streak: int, force: bool = Fal
     if is_name_protected(member):
         return False
     try:
-        new_nick = f"{base_name(member.display_name)} | {STREAK_EMOJI}{streak}"
+        new_nick = f"{base_name(member.display_name)} | {streak}{STREAK_EMOJI}"
         if len(new_nick) > 32:
             new_nick = new_nick[:32]
         if member.display_name != new_nick:
