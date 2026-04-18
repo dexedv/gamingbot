@@ -70,6 +70,18 @@ class Database:
                     jailed_at TEXT    DEFAULT (datetime('now'))
                 )
             """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS knast_log (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    action     TEXT    NOT NULL,
+                    user_id    INTEGER NOT NULL,
+                    username   TEXT,
+                    by_id      INTEGER,
+                    by_name    TEXT,
+                    reason     TEXT,
+                    created_at TEXT    DEFAULT (datetime('now'))
+                )
+            """)
             await db.commit()
         print("✅ Datenbank bereit")
 

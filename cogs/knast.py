@@ -220,11 +220,15 @@ class KnastCog(commands.Cog, name="Knast"):
         removable = [r for r in member.roles if r != ctx.guild.default_role and not r.managed]
         role_ids  = [r.id for r in removable]
 
-        # DB-Eintrag
+        # DB-Eintrag (aktiver Knast + permanenter Log)
         conn = sqlite3.connect(DB_PATH)
         conn.execute(
             "INSERT OR REPLACE INTO knast (user_id, guild_id, roles, reason, jailed_by) VALUES (?, ?, ?, ?, ?)",
             (member.id, ctx.guild.id, json.dumps(role_ids), reason, str(ctx.author.id))
+        )
+        conn.execute(
+            "INSERT INTO knast_log (action, user_id, username, by_id, by_name, reason) VALUES (?, ?, ?, ?, ?, ?)",
+            ("jail", member.id, str(member), ctx.author.id, str(ctx.author), reason)
         )
         conn.commit()
         conn.close()
@@ -322,9 +326,13 @@ class KnastCog(commands.Cog, name="Knast"):
             except discord.Forbidden:
                 pass
 
-        # DB-Eintrag löschen
+        # DB-Eintrag löschen + permanenter Log
         conn = sqlite3.connect(DB_PATH)
         conn.execute("DELETE FROM knast WHERE user_id = ?", (member.id,))
+        conn.execute(
+            "INSERT INTO knast_log (action, user_id, username, by_id, by_name, reason) VALUES (?, ?, ?, ?, ?, ?)",
+            ("release", member.id, str(member), ctx.author.id, str(ctx.author), reason)
+        )
         conn.commit()
         conn.close()
 

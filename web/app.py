@@ -659,6 +659,24 @@ def api_willkommen_test():
         return jsonify({"error": str(e)}), 500
 
 
+# ── Knast-Log ────────────────────────────────────────────────────────────────
+
+@app.route("/knast")
+@login_required
+def knast_log():
+    db = get_db()
+    logs = db.execute(
+        "SELECT * FROM knast_log ORDER BY created_at DESC"
+    ).fetchall()
+    active = db.execute(
+        "SELECT * FROM knast ORDER BY jailed_at DESC"
+    ).fetchall()
+    db.close()
+    return render_template("knast.html",
+                           logs=[dict(r) for r in logs],
+                           active=[dict(r) for r in active])
+
+
 # ── Umfragen ──────────────────────────────────────────────────────────────────
 
 @app.route("/umfragen")
