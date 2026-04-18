@@ -43,6 +43,7 @@ COGS = [
     "cogs.stats_tracker",
     "cogs.knast",
     "cogs.kummerkasten",
+    "cogs.verifizierung",
 ]
 
 
