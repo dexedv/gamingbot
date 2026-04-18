@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% block title %}Befehle{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+  <div>
+    <h1 style="font-size:1.65rem;font-weight:800;color:#fff;margin:0">
+      <i class="bi bi-terminal me-2" style="color:var(--accent)"></i>Befehls-Übersicht
+    </h1>
+    <p style="color:var(--muted);margin:.3rem 0 0;font-size:.85rem">
+      Alle Befehle des Pink Horizoon Bots — Prefix: <code style="color:var(--accent2)">%</code>
+    </p>
+  </div>
+  <div class="d-flex gap-2 align-items-center flex-wrap">
+    <input type="text" id="searchInput" class="form-control form-control-sm"
+           placeholder="🔍 Befehl suchen…"
+           style="max-width:220px;border-radius:9px"
+           oninput="filterCommands()">
+    <div class="btn-group btn-group-sm" id="filterBtns">
+      <button class="btn btn-sm active" data-filter="all" onclick="setFilter('all',this)"
+              style="border-radius:9px 0 0 9px;background:rgba(88,101,242,.2);color:var(--accent2);border:1px solid rgba(88,101,242,.3)">Alle</button>
+      <button class="btn btn-sm" data-filter="user" onclick="setFilter('user',this)"
+              style="background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.25)">Nutzer</button>
+      <button class="btn btn-sm" data-filter="admin" onclick="setFilter('admin',this)"
+              style="border-radius:0 9px 9px 0;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25)">Admin</button>
+    </div>
+  </div>
+</div>
+
+<!-- Command count -->
+<div id="cmdCount" style="color:var(--muted);font-size:.82rem;margin-bottom:1.25rem"></div>
+
+<!-- Categories -->
+{% set categories = [
+  {
+    "id": "wirtschaft",
+    "label": "Wirtschaft",
+    "icon": "bi-coin",
+    "color": "#f59e0b",
+    "glow": "rgba(245,158,11,.12)",
+    "type": "user",
+    "commands": [
+      {"cmd": "%guthaben", "args": "[@spieler]", "desc": "Zeigt Guthaben, Level, XP und Spielstatistiken", "aliases": "coins, balance, gut"},
+      {"cmd": "%daily",    "args": "",           "desc": "Tägliche Münzen abholen (steigen mit dem Level)", "aliases": ""},
+      {"cmd": "%bestenliste", "args": "",        "desc": "Top-10 Münzen-Rangliste des Servers", "aliases": "top, ranking, leaderboard"},
+      {"cmd": "%hilfe",    "args": "",           "desc": "Zeigt die Befehlsübersicht im Discord", "aliases": "help, h"}
+    ]
+  },
+  {
+    "id": "level",
+    "label": "Level-System",
+    "icon": "bi-star",
+    "color": "#a855f7",
+    "glow": "rgba(168,85,247,.12)",
+    "type": "user",
+    "commands": [
+      {"cmd": "%level",    "args": "[@spieler]", "desc": "Level, XP-Fortschritt und aktuellen Rang anzeigen", "aliases": "lvl, xp, rang"},
+      {"cmd": "%toplevel", "args": "",           "desc": "Top-10 Level-Rangliste des Servers", "aliases": "lvlboard, ranglist"}
+    ]
+  },
+  {
+    "id": "streak",
+    "label": "Streak-System",
+    "icon": "bi-fire",
+    "color": "#ef4444",
+    "glow": "rgba(239,68,68,.1)",
+    "type": "user",
+    "commands": [
+      {"cmd": "%streak",    "args": "[@spieler]", "desc": "Tages-Streak, Meilensteine und Bonus-Münzen anzeigen", "aliases": "tage, aktivität"},
+      {"cmd": "%topstreak", "args": "",           "desc": "Top-10 Streak-Rangliste des Servers", "aliases": "streakboard"}
+    ]
+  },
+  {
+    "id": "aktivitaet",
+    "label": "Aktivitäts-Ränge",
+    "icon": "bi-bar-chart-line",
+    "color": "#22c55e",
+    "glow": "rgba(34,197,94,.1)",
+    "type": "user",
+    "commands": [
+      {"cmd": "%rankcard",   "args": "[@spieler]", "desc": "Zeigt Chat- & Voice-Rang mit Aktivitätskarte", "aliases": "rank, stats, aktivrang"},
+      {"cmd": "%chatboard",  "args": "",           "desc": "Top-10 Nachrichten-Rangliste", "aliases": "topchat, nachrichten"},
+      {"cmd": "%voiceboard", "args": "",           "desc": "Top-10 Sprachzeit-Rangliste (Live-Tracking)", "aliases": "topvoice, sprachzeit"}
+    ]
+  },
+  {
+    "id": "casino",
+    "label": "Spiele & Casino",
+    "icon": "bi-dice-5",
+    "color": "#5865f2",
+    "glow": "rgba(88,101,242,.12)",
+    "type": "user",
+    "commands": [
+      {"cmd": "%tictactoe", "args": "@spieler",          "desc": "Tic-Tac-Toe PvP — Gewinn +200, Verlust −100 Münzen", "aliases": "ttt"},
+      {"cmd": "%slots",     "args": "<einsatz>",         "desc": "Spielautomat · Einsatz 10–1000 · Jackpot 50×", "aliases": "slot, spin"},
+      {"cmd": "%blackjack", "args": "<einsatz>",         "desc": "Blackjack gegen den Dealer · Einsatz 10–2000 · Bonus 1.5×", "aliases": "bj"},
+      {"cmd": "%roulette",  "args": "<einsatz> <wette>", "desc": "Roulette · Einsatz 10–5000 · Zahl 36× · rot/schwarz 2×", "aliases": "rl"},
+      {"cmd": "%coinflip",  "args": "<einsatz>",         "desc": "Münzwurf gegen den Bot · Gewinn 2×", "aliases": "cf, münze"},
+      {"cmd": "%würfeln",   "args": "<einsatz>",         "desc": "Würfeln gegen den Bot · höhere Zahl gewinnt · 2×", "aliases": "dice, würfel, w"},
+      {"cmd": "%highlow",   "args": "<einsatz>",         "desc": "Higher or Lower · rate ob die nächste Karte höher oder niedriger ist", "aliases": "hl, hilo"}
+    ]
+  },
+  {
+    "id": "umfragen",
+    "label": "Umfragen",
+    "icon": "bi-ui-checks",
+    "color": "#06b6d4",
+    "glow": "rgba(6,182,212,.1)",
+    "type": "user",
+    "commands": [
+      {"cmd": "%umfrage",     "args": "<frage> | <opt1> | <opt2> ...", "desc": "Erstellt eine Abstimmung mit bis zu 5 Optionen", "aliases": "poll"},
+      {"cmd": "%umfrage-ende","args": "",                              "desc": "Beendet die laufende Umfrage im aktuellen Kanal und zeigt das Ergebnis", "aliases": "pollende, poll-end"}
+    ]
+  },
+  {
+    "id": "kummerkasten",
+    "label": "Kummerkasten",
+    "icon": "bi-envelope-heart",
+    "color": "#a855f7",
+    "glow": "rgba(168,85,247,.1)",
+    "type": "user",
+    "commands": [
+      {"cmd": "%kummerkasten", "args": "<nachricht>", "desc": "Sendet eine vollständig anonyme Nachricht an die Moderation · Nur per DM", "aliases": "kk, anonym"}
+    ]
+  },
+  {
+    "id": "knast",
+    "label": "Knast-System",
+    "icon": "bi-lock",
+    "color": "#ef4444",
+    "glow": "rgba(239,68,68,.1)",
+    "type": "admin",
+    "commands": [
+      {"cmd": "%knast",           "args": "",              "desc": "Zeigt die Knast-Befehlsübersicht", "aliases": ""},
+      {"cmd": "%knast setup",     "args": "[kategorie_id]","desc": "Richtet die Knast-Kategorie ein (Admin)", "aliases": ""},
+      {"cmd": "%knast add",       "args": "@nutzer [grund]","desc": "Sperrt einen Nutzer in den Knast — entzieht alle Rollen & Kanäle", "aliases": ""},
+      {"cmd": "%knast remove",    "args": "@nutzer [grund]","desc": "Entlässt einen Nutzer aus dem Knast — stellt Rollen wieder her", "aliases": "free, raus, entlassen"},
+      {"cmd": "%knast list",      "args": "",              "desc": "Zeigt alle aktuell eingesperrten Nutzer", "aliases": "liste"}
+    ]
+  },
+  {
+    "id": "verifizierung",
+    "label": "Verifizierung",
+    "icon": "bi-ticket-perforated",
+    "color": "#5865f2",
+    "glow": "rgba(88,101,242,.12)",
+    "type": "admin",
+    "commands": [
+      {"cmd": "%verifizierung",              "args": "",        "desc": "Zeigt die Verifizierungs-Befehlsübersicht", "aliases": "verify, ticket"},
+      {"cmd": "%verifizierung setup",        "args": "",        "desc": "Sendet die Verifizierungs-Nachricht mit Button in den konfigurierten Kanal", "aliases": ""},
+      {"cmd": "%verifizierung titel",        "args": "<text>",  "desc": "Ändert den Titel des Verifizierungs-Embeds", "aliases": ""},
+      {"cmd": "%verifizierung text",         "args": "<text>",  "desc": "Ändert die Beschreibung des Verifizierungs-Embeds (\\n für Zeilenumbruch)", "aliases": ""},
+      {"cmd": "%verifizierung vorschau",     "args": "",        "desc": "Zeigt eine Vorschau des aktuellen Verifizierungs-Embeds", "aliases": ""},
+      {"cmd": "%verifizierung tickettitel",  "args": "<text>",  "desc": "Ändert den Titel der Ticket-Willkommensnachricht", "aliases": ""},
+      {"cmd": "%verifizierung tickettext",   "args": "<text>",  "desc": "Ändert den Text der Ticket-Willkommensnachricht ({mention} = Nutzer)", "aliases": ""},
+      {"cmd": "%verifizierung ticketvorschau","args": "",       "desc": "Zeigt eine Vorschau der Ticket-Willkommensnachricht", "aliases": ""},
+      {"cmd": "%verifizierung modrole",      "args": "@rolle",  "desc": "Fügt eine Moderatoren-Rolle hinzu oder entfernt sie (Toggle)", "aliases": ""}
+    ]
+  }
+] %}
+
+<div id="categoriesWrapper">
+{% for cat in categories %}
+<div class="cmd-category mb-4" data-type="{{ cat.type }}" id="cat-{{ cat.id }}">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <div style="width:30px;height:30px;border-radius:8px;background:{{ cat.glow }};border:1px solid {{ cat.color }}33;display:flex;align-items:center;justify-content:center">
+      <i class="bi {{ cat.icon }}" style="color:{{ cat.color }};font-size:.9rem"></i>
+    </div>
+    <span style="font-weight:700;color:#fff;font-size:.95rem">{{ cat.label }}</span>
+    {% if cat.type == 'admin' %}
+    <span style="background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:6px;font-size:.7rem;padding:.15rem .5rem;font-weight:600">
+      ADMIN
+    </span>
+    {% endif %}
+    <span style="background:var(--border);color:var(--muted);border-radius:6px;font-size:.7rem;padding:.15rem .5rem">
+      {{ cat.commands|length }} Befehle
+    </span>
+  </div>
+
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+    {% for c in cat.commands %}
+    <div class="cmd-row d-flex align-items-start gap-3 p-3"
+         data-search="{{ c.cmd.lower() }} {{ c.aliases.lower() }} {{ c.desc.lower() }} {{ cat.label.lower() }}"
+         data-type="{{ cat.type }}"
+         style="border-bottom:{% if not loop.last %}1px solid rgba(255,255,255,.04){% else %}none{% endif %};transition:background .12s">
+      <div style="flex-shrink:0;min-width:0">
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+          <code style="background:rgba(88,101,242,.15);color:var(--accent2);border:1px solid rgba(88,101,242,.25);border-radius:7px;padding:.2rem .55rem;font-size:.82rem;white-space:nowrap;cursor:pointer"
+                onclick="copyCmd('{{ c.cmd }}{{ (' ' + c.args) if c.args else '' }}')" title="Klicken zum Kopieren">
+            {{ c.cmd }}{% if c.args %} <span style="color:var(--muted)">{{ c.args }}</span>{% endif %}
+          </code>
+          {% if c.aliases %}
+          <span style="font-size:.72rem;color:var(--muted)">auch: <span style="color:var(--faint)">{{ c.aliases }}</span></span>
+          {% endif %}
+        </div>
+        <div style="color:var(--text);font-size:.83rem;margin-top:.3rem">{{ c.desc }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+</div>
+
+<!-- No results -->
+<div id="noResults" style="display:none;text-align:center;padding:3rem;color:var(--muted)">
+  <i class="bi bi-search" style="font-size:2rem;display:block;margin-bottom:.5rem;opacity:.4"></i>
+  Keine Befehle gefunden.
+</div>
+
+<!-- Copy toast -->
+<div id="copyToast" style="position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:none;pointer-events:none">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.5rem 1rem;color:var(--text);font-size:.82rem;box-shadow:0 4px 20px rgba(0,0,0,.4)">
+    ✅ In Zwischenablage kopiert
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentFilter = 'all';
+let copyTimer;
+
+// Count total commands
+const allRows = document.querySelectorAll('.cmd-row');
+document.getElementById('cmdCount').textContent = `${allRows.length} Befehle in ${document.querySelectorAll('.cmd-category').length} Kategorien`;
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('#filterBtns .btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filterCommands();
+}
+
+function filterCommands() {
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  let visibleTotal = 0;
+
+  document.querySelectorAll('.cmd-category').forEach(cat => {
+    const catType  = cat.dataset.type;
+    const typeOk   = currentFilter === 'all' || catType === currentFilter;
+    let catVisible = 0;
+
+    cat.querySelectorAll('.cmd-row').forEach(row => {
+      const searchOk = !q || row.dataset.search.includes(q);
+      const rowTypeOk = currentFilter === 'all' || row.dataset.type === currentFilter;
+      const show = typeOk && rowTypeOk && searchOk;
+      row.style.display = show ? '' : 'none';
+      if (show) catVisible++;
+    });
+
+    cat.style.display = (typeOk && catVisible > 0) ? '' : 'none';
+    visibleTotal += catVisible;
+  });
+
+  document.getElementById('cmdCount').textContent =
+    q || currentFilter !== 'all'
+      ? `${visibleTotal} Befehle gefunden`
+      : `${allRows.length} Befehle in ${document.querySelectorAll('.cmd-category').length} Kategorien`;
+  document.getElementById('noResults').style.display = visibleTotal === 0 ? '' : 'none';
+}
+
+function copyCmd(text) {
+  navigator.clipboard.writeText(text).catch(() => {});
+  const t = document.getElementById('copyToast');
+  t.style.display = 'block';
+  clearTimeout(copyTimer);
+  copyTimer = setTimeout(() => t.style.display = 'none', 1800);
+}
+
+// Hover effect on rows
+document.querySelectorAll('.cmd-row').forEach(r => {
+  r.addEventListener('mouseenter', () => r.style.background = 'rgba(255,255,255,.025)');
+  r.addEventListener('mouseleave', () => r.style.background = '');
+});
+</script>
+{% endblock %}

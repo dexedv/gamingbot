@@ -409,6 +409,14 @@ def toggle_cog(cog_name):
         return jsonify({"error": str(e)}), 500
 
 
+# ── Befehle ───────────────────────────────────────────────────────────────────
+
+@app.route("/befehle")
+@login_required
+def befehle():
+    return render_template("befehle.html")
+
+
 # ── Broadcast ─────────────────────────────────────────────────────────────────
 
 @app.route("/broadcast")
