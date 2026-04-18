@@ -6,6 +6,25 @@ from discord.ext import commands
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'gamingbot.db')
 
+KNAST_ALLOWED_ROLES = {
+    1019393672825028639,
+    1019392564924788756,
+    1494057242197229598,
+    1494042802659524829,
+}
+
+
+def has_knast_permission():
+    """Check: Nutzer muss eine der erlaubten Knast-Rollen haben."""
+    async def predicate(ctx: commands.Context) -> bool:
+        if ctx.author == ctx.guild.owner:
+            return True
+        user_role_ids = {r.id for r in ctx.author.roles}
+        if user_role_ids & KNAST_ALLOWED_ROLES:
+            return True
+        raise commands.CheckFailure("Du hast keine Berechtigung für den Knast-Befehl.")
+    return commands.check(predicate)
+
 
 def _load_knast_settings() -> dict:
     try:
@@ -71,7 +90,7 @@ class KnastCog(commands.Cog, name="Knast"):
     # ── Befehle ───────────────────────────────────────────────────────────────
 
     @commands.group(name="knast", invoke_without_command=True)
-    @commands.has_permissions(manage_roles=True)
+    @has_knast_permission()
     async def knast_cmd(self, ctx: commands.Context):
         """Knast-System — Sperrt Nutzer in eine isolierte Zelle."""
         embed = discord.Embed(
@@ -87,7 +106,7 @@ class KnastCog(commands.Cog, name="Knast"):
         await ctx.send(embed=embed)
 
     @knast_cmd.command(name="setup")
-    @commands.has_permissions(administrator=True)
+    @has_knast_permission()
     async def knast_setup(self, ctx: commands.Context, category_id: int = None):
         """Richtet das Knast-System ein. Optionale Kategorie-ID für eine bestehende Kategorie.
         Beispiel: %knast setup 1494945960957050941"""
@@ -165,7 +184,7 @@ class KnastCog(commands.Cog, name="Knast"):
         await msg.edit(content="", embed=embed)
 
     @knast_cmd.command(name="add")
-    @commands.has_permissions(manage_roles=True)
+    @has_knast_permission()
     async def knast_add(self, ctx: commands.Context, member: discord.Member, *, reason: str = "Kein Grund angegeben"):
         """Sperrt einen Nutzer in den Knast. — %knast add @nutzer [Grund]"""
         if member.bot:
@@ -263,7 +282,7 @@ class KnastCog(commands.Cog, name="Knast"):
         await msg.edit(content=f"🔒 **{member.display_name}** wurde eingesperrt! Grund: *{reason}*")
 
     @knast_cmd.command(name="remove", aliases=["free", "raus", "entlassen"])
-    @commands.has_permissions(manage_roles=True)
+    @has_knast_permission()
     async def knast_remove(self, ctx: commands.Context, member: discord.Member, *, reason: str = "Kein Grund angegeben"):
         """Entlässt einen Nutzer aus dem Knast. — %knast remove @nutzer [Grund]"""
         conn = sqlite3.connect(DB_PATH)
@@ -324,7 +343,7 @@ class KnastCog(commands.Cog, name="Knast"):
         await msg.edit(content=f"🔓 **{member.display_name}** wurde entlassen! Grund: *{reason}*")
 
     @knast_cmd.command(name="list", aliases=["liste"])
-    @commands.has_permissions(manage_roles=True)
+    @has_knast_permission()
     async def knast_list(self, ctx: commands.Context):
         """Zeigt alle Nutzer im Knast."""
         conn = sqlite3.connect(DB_PATH)
