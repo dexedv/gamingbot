@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+{% block title %}Benutzerverwaltung{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+  <div>
+    <h1 style="font-size:1.65rem;font-weight:800;color:#fff;margin:0">
+      <i class="bi bi-person-gear me-2" style="color:var(--accent)"></i>Benutzerverwaltung
+    </h1>
+    <p style="color:var(--muted);margin:.3rem 0 0;font-size:.85rem">
+      {{ users|length }} Nutzer — Knast, Münzen, Level direkt verwalten
+    </p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap align-items-center">
+    <input type="text" id="searchInput" class="form-control form-control-sm"
+           placeholder="🔍 Name oder ID suchen…"
+           style="max-width:220px;border-radius:9px"
+           oninput="filterRows()">
+    <div class="btn-group btn-group-sm" id="filterBtns">
+      <button class="btn btn-sm active" data-filter="all" onclick="setFilter('all',this)"
+              style="border-radius:9px 0 0 9px;background:rgba(88,101,242,.2);color:var(--accent2);border:1px solid rgba(88,101,242,.3)">Alle</button>
+      <button class="btn btn-sm" data-filter="free" onclick="setFilter('free',this)"
+              style="background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.25)">Frei</button>
+      <button class="btn btn-sm" data-filter="jailed" onclick="setFilter('jailed',this)"
+              style="border-radius:0 9px 9px 0;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25)">Im Knast</button>
+    </div>
+  </div>
+</div>
+
+<!-- Stat-Übersicht -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="stat-card" style="--card-accent:var(--accent)">
+      <div class="s-label">Nutzer gesamt</div>
+      <div class="s-value">{{ users|length }}</div>
+      <i class="bi bi-people s-icon"></i>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="stat-card" style="--card-accent:#ef4444">
+      <div class="s-label">Im Knast</div>
+      <div class="s-value" style="color:#ef4444">{{ users|selectattr('is_jailed')|list|length }}</div>
+      <i class="bi bi-lock s-icon"></i>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="stat-card" style="--card-accent:#22c55e">
+      <div class="s-label">Freie Nutzer</div>
+      <div class="s-value" style="color:#22c55e">{{ users|rejectattr('is_jailed')|list|length }}</div>
+      <i class="bi bi-person-check s-icon"></i>
+    </div>
+  </div>
+</div>
+
+<!-- Tabelle -->
+<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+  <table class="table table-dark mb-0" id="userTable" style="font-size:.84rem">
+    <thead>
+      <tr style="border-bottom:1px solid var(--border)">
+        <th style="padding:.75rem 1rem;color:var(--muted);font-weight:500;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em">Nutzer</th>
+        <th style="color:var(--muted);font-weight:500;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em">Status</th>
+        <th style="color:var(--muted);font-weight:500;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em">Level</th>
+        <th style="color:var(--muted);font-weight:500;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em">Münzen</th>
+        <th style="color:var(--muted);font-weight:500;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em">Streak</th>
+        <th style="color:var(--muted);font-weight:500;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em">Knast-Grund</th>
+        <th style="color:var(--muted);font-weight:500;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;text-align:right;padding-right:1rem">Aktionen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr class="user-row"
+          data-filter="{{ 'jailed' if u.is_jailed else 'free' }}"
+          data-search="{{ u.username|lower }} {{ u.user_id }}"
+          style="border-bottom:1px solid rgba(255,255,255,.04);transition:background .12s"
+          onmouseenter="this.style.background='rgba(255,255,255,.025)'"
+          onmouseleave="this.style.background=''">
+
+        <!-- Nutzer -->
+        <td style="padding:.75rem 1rem">
+          <div class="d-flex align-items-center gap-2">
+            <div style="width:34px;height:34px;border-radius:50%;
+                        background:{{ loop.cycle('rgba(88,101,242,.2)','rgba(245,158,11,.2)','rgba(6,182,212,.2)','rgba(16,185,129,.2)','rgba(139,92,246,.2)') }};
+                        color:{{ loop.cycle('#5865f2','#f59e0b','#06b6d4','#10b981','#8b5cf6') }};
+                        display:flex;align-items:center;justify-content:center;
+                        font-weight:800;font-size:.9rem;flex-shrink:0">
+              {{ (u.username or '?')[0].upper() }}
+            </div>
+            <div>
+              <div style="font-weight:600;color:#fff">{{ u.username }}</div>
+              <div style="font-size:.7rem;color:var(--muted);font-family:monospace">{{ u.user_id }}</div>
+            </div>
+          </div>
+        </td>
+
+        <!-- Status -->
+        <td>
+          {% if u.is_jailed %}
+          <span style="background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:7px;padding:.2rem .6rem;font-size:.75rem;font-weight:600">
+            🔒 Im Knast
+          </span>
+          {% else %}
+          <span style="background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.2);border-radius:7px;padding:.2rem .6rem;font-size:.75rem;font-weight:600">
+            ✅ Frei
+          </span>
+          {% endif %}
+        </td>
+
+        <!-- Level -->
+        <td>
+          <span style="background:rgba(139,92,246,.15);color:#8b5cf6;border-radius:6px;padding:.15rem .5rem;font-size:.78rem">
+            Lv. {{ u.level or 0 }}
+          </span>
+          <div style="font-size:.7rem;color:var(--muted);margin-top:.1rem">{{ "{:,}".format(u.xp or 0) }} XP</div>
+        </td>
+
+        <!-- Münzen -->
+        <td style="color:#f59e0b;font-weight:600">{{ "{:,}".format(u.coins or 0) }} 💰</td>
+
+        <!-- Streak -->
+        <td>
+          {% if (u.streak or 0) > 0 %}
+          <span style="color:#ef4444">🔥 {{ u.streak }}</span>
+          {% else %}
+          <span style="color:var(--faint)">—</span>
+          {% endif %}
+        </td>
+
+        <!-- Knast-Grund -->
+        <td style="max-width:180px">
+          {% if u.is_jailed and u.knast_reason %}
+          <span style="color:var(--muted);font-size:.8rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ u.knast_reason }}">
+            {{ u.knast_reason }}
+          </span>
+          {% else %}
+          <span style="color:var(--faint)">—</span>
+          {% endif %}
+        </td>
+
+        <!-- Aktionen -->
+        <td style="text-align:right;padding-right:1rem">
+          <div class="d-flex gap-1 justify-content-end">
+            <!-- Profil -->
+            <a href="/users/{{ u.user_id }}"
+               style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:rgba(88,101,242,.15);color:var(--accent2);border-radius:7px;border:1px solid rgba(88,101,242,.25)"
+               title="Profil öffnen">
+              <i class="bi bi-person-lines-fill" style="font-size:.78rem"></i>
+            </a>
+            <!-- Bearbeiten -->
+            <button style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:rgba(255,255,255,.06);color:var(--muted);border-radius:7px;border:1px solid var(--border);cursor:pointer"
+                    title="Münzen / Level bearbeiten"
+                    onclick="openEdit({{ u.user_id }}, '{{ u.username|replace("'","\\'")|e }}', {{ u.coins or 0 }}, {{ u.streak or 0 }}, {{ u.level or 0 }}, {{ u.xp or 0 }})">
+              <i class="bi bi-pencil" style="font-size:.78rem"></i>
+            </button>
+            <!-- Knast -->
+            {% if u.is_jailed %}
+            <button style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:rgba(34,197,94,.12);color:#22c55e;border-radius:7px;border:1px solid rgba(34,197,94,.3);cursor:pointer"
+                    title="Entlassen"
+                    onclick="openKnast('release', {{ u.user_id }}, '{{ u.username|replace("'","\\'")|e }}')">
+              <i class="bi bi-unlock" style="font-size:.78rem"></i>
+            </button>
+            {% else %}
+            <button style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:rgba(239,68,68,.1);color:#ef4444;border-radius:7px;border:1px solid rgba(239,68,68,.25);cursor:pointer"
+                    title="Einsperren"
+                    onclick="openKnast('jail', {{ u.user_id }}, '{{ u.username|replace("'","\\'")|e }}')">
+              <i class="bi bi-lock" style="font-size:.78rem"></i>
+            </button>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" class="text-center py-5" style="color:var(--muted)">
+          <i class="bi bi-people" style="font-size:2rem;display:block;margin-bottom:.5rem;opacity:.3"></i>
+          Keine Nutzer gefunden.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Knast Modal -->
+<div class="modal fade" id="knastModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" id="knastModalContent" style="background:var(--card);border-radius:14px">
+      <div class="modal-header" id="knastModalHeader" style="padding:1.25rem 1.5rem">
+        <h5 class="modal-title" id="knastModalTitle" style="font-size:1rem"></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:1.25rem 1.5rem">
+        <div class="mb-3">
+          <label class="form-label" style="font-size:.8rem;color:var(--muted)">Grund</label>
+          <input type="text" id="knastReason" class="form-control" placeholder="Grund eingeben…" maxlength="200">
+        </div>
+        <div id="knastHint" style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:9px;padding:.75rem 1rem;font-size:.8rem;color:var(--muted)"></div>
+      </div>
+      <div class="modal-footer" id="knastModalFooter" style="padding:1rem 1.5rem">
+        <button type="button" class="btn btn-sm" style="background:var(--border);color:var(--muted);border-radius:8px" data-bs-dismiss="modal">Abbrechen</button>
+        <button type="button" class="btn btn-sm px-4" id="knastConfirmBtn" onclick="submitKnast()"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:var(--card);border:1px solid var(--border);border-radius:14px">
+      <div class="modal-header" style="border-color:var(--border);padding:1.25rem 1.5rem">
+        <div>
+          <h5 class="modal-title mb-0" style="font-size:1rem">✏️ Nutzer bearbeiten</h5>
+          <div id="editModalName" style="font-size:.8rem;color:var(--muted);margin-top:.15rem"></div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="editForm" method="post" action="">
+        <div class="modal-body" style="padding:1.25rem 1.5rem">
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label" style="font-size:.78rem;color:var(--muted)">💰 Münzen</label>
+              <input type="number" name="coins" id="editCoins" class="form-control" min="0">
+            </div>
+            <div class="col-6">
+              <label class="form-label" style="font-size:.78rem;color:var(--muted)">🔥 Streak</label>
+              <input type="number" name="streak" id="editStreak" class="form-control" min="0" max="900">
+            </div>
+            <div class="col-6">
+              <label class="form-label" style="font-size:.78rem;color:var(--muted)">⭐ Level</label>
+              <input type="number" name="level" id="editLevel" class="form-control" min="0">
+            </div>
+            <div class="col-6">
+              <label class="form-label" style="font-size:.78rem;color:var(--muted)">✨ XP</label>
+              <input type="number" name="xp" id="editXp" class="form-control" min="0">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-color:var(--border);padding:1rem 1.5rem">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Abbrechen</button>
+          <button type="submit" class="btn btn-accent btn-sm px-4">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" style="position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:none;pointer-events:none">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.6rem 1.1rem;font-size:.83rem;box-shadow:0 4px 20px rgba(0,0,0,.4)">
+    <span id="toastMsg"></span>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _knastAction = null;
+let _knastUserId = null;
+let _toastTimer;
+
+// ── Filter ────────────────────────────────────────────────────────────────────
+let currentFilter = 'all';
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('#filterBtns .btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filterRows();
+}
+function filterRows() {
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  let visible = 0;
+  document.querySelectorAll('.user-row').forEach(row => {
+    const filterOk  = currentFilter === 'all' || row.dataset.filter === currentFilter;
+    const searchOk  = !q || row.dataset.search.includes(q);
+    row.style.display = filterOk && searchOk ? '' : 'none';
+    if (filterOk && searchOk) visible++;
+  });
+}
+
+// ── Knast Modal ───────────────────────────────────────────────────────────────
+function openKnast(action, userId, username) {
+  _knastAction = action;
+  _knastUserId = userId;
+  const isJail = action === 'jail';
+  const mc = document.getElementById('knastModalContent');
+  const mh = document.getElementById('knastModalHeader');
+  const mf = document.getElementById('knastModalFooter');
+  mc.style.border = `1px solid ${isJail ? 'rgba(239,68,68,.35)' : 'rgba(34,197,94,.35)'}`;
+  mh.style.borderBottom = `1px solid ${isJail ? 'rgba(239,68,68,.2)' : 'rgba(34,197,94,.2)'}`;
+  mf.style.borderTop = `1px solid ${isJail ? 'rgba(239,68,68,.2)' : 'rgba(34,197,94,.2)'}`;
+  document.getElementById('knastModalTitle').innerHTML =
+    `${isJail ? '🔒' : '🔓'} <span style="color:${isJail ? '#ef4444' : '#22c55e'}">${username}</span> ${isJail ? 'einsperren' : 'entlassen'}`;
+  document.getElementById('knastHint').textContent = isJail
+    ? 'Der Nutzer verliert alle Rollen und sieht nur noch den Knast-Kanal.'
+    : 'Alle gesicherten Rollen werden wiederhergestellt und die Kanal-Sperren aufgehoben.';
+  const btn = document.getElementById('knastConfirmBtn');
+  btn.textContent = isJail ? '🔒 Einsperren' : '🔓 Entlassen';
+  btn.style.background = isJail ? '#ef4444' : '#22c55e';
+  btn.style.color = '#fff';
+  btn.style.border = 'none';
+  btn.style.borderRadius = '8px';
+  document.getElementById('knastReason').value = '';
+  new bootstrap.Modal(document.getElementById('knastModal')).show();
+}
+
+async function submitKnast() {
+  const reason = document.getElementById('knastReason').value.trim() || 'Via Dashboard';
+  const btn    = document.getElementById('knastConfirmBtn');
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const res = await fetch(`/api/users/${_knastUserId}/knast`, {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({action: _knastAction, reason}),
+    });
+    const d = await res.json();
+    bootstrap.Modal.getInstance(document.getElementById('knastModal')).hide();
+    if (d.ok) {
+      showToast(_knastAction === 'jail' ? '🔒 Nutzer eingesperrt' : '🔓 Nutzer entlassen', true);
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      showToast('❌ ' + (d.error || 'Fehler'), false);
+      btn.disabled = false;
+    }
+  } catch(e) {
+    showToast('❌ Netzwerkfehler', false);
+    btn.disabled = false;
+  }
+}
+
+// ── Edit Modal ────────────────────────────────────────────────────────────────
+function openEdit(uid, name, coins, streak, level, xp) {
+  document.getElementById('editModalName').textContent = name + '  •  ID: ' + uid;
+  document.getElementById('editCoins').value  = coins;
+  document.getElementById('editStreak').value = streak;
+  document.getElementById('editLevel').value  = level;
+  document.getElementById('editXp').value     = xp;
+  document.getElementById('editForm').action  = '/users/' + uid + '/edit';
+  new bootstrap.Modal(document.getElementById('editModal')).show();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, ok = true) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').innerHTML = msg;
+  t.style.display = 'block';
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.style.display = 'none', 3000);
+}
+</script>
+{% endblock %}

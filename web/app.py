@@ -496,6 +496,37 @@ def toggle_cog(cog_name):
         return jsonify({"error": str(e)}), 500
 
 
+# ── Benutzerverwaltung ────────────────────────────────────────────────────────
+
+@app.route("/verwaltung")
+@login_required
+def verwaltung():
+    db = get_db()
+    search = request.args.get("q", "").strip()
+    if search:
+        rows = db.execute(
+            "SELECT * FROM users WHERE username LIKE ? OR user_id LIKE ? ORDER BY username",
+            (f"%{search}%", f"%{search}%")
+        ).fetchall()
+    else:
+        rows = db.execute("SELECT * FROM users ORDER BY username").fetchall()
+    # Knast-Status für alle Nutzer laden
+    jailed = {
+        r["user_id"]: r
+        for r in db.execute("SELECT user_id, reason, jailed_at FROM knast").fetchall()
+    }
+    db.close()
+    users_list = []
+    for r in rows:
+        u = dict(r)
+        u["voice_fmt"]    = fmt_seconds(u.get("voice_seconds", 0))
+        knast             = jailed.get(u["user_id"])
+        u["is_jailed"]    = knast is not None
+        u["knast_reason"] = dict(knast)["reason"] if knast else None
+        users_list.append(u)
+    return render_template("verwaltung.html", users=users_list, search=search)
+
+
 # ── Befehle ───────────────────────────────────────────────────────────────────
 
 @app.route("/befehle")
