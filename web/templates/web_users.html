@@ -111,7 +111,8 @@
           <td>
             <div class="d-flex gap-2 justify-content-end">
               <button class="btn btn-sm" style="border:1px solid var(--border);color:var(--muted);border-radius:7px"
-                      onclick="openEdit({{ u.id }}, '{{ u.username }}', {{ u.roles | tojson }})">
+                      data-uid="{{ u.id }}" data-username="{{ u.username | e }}" data-roles='{{ u.roles | tojson }}'
+                      onclick="openEdit(this)">
                 <i class="bi bi-pencil"></i>
               </button>
               {% if u.username != session.get('username') %}
@@ -250,7 +251,10 @@ function submitCreate() {
   });
 }
 
-function openEdit(id, username, roles) {
+function openEdit(btn) {
+  const id       = btn.dataset.uid;
+  const username = btn.dataset.username;
+  const roles    = JSON.parse(btn.dataset.roles);
   document.getElementById('eId').value             = id;
   document.getElementById('eUsername').textContent = username;
   document.getElementById('ePassword').value       = '';
