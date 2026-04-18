@@ -237,6 +237,27 @@ def _ensure_permissions():
                     (role, _j.dumps(sorted(default_p)))
                 )
         db.commit()
+        # Migration: neue Features aus DEFAULT_PERMISSIONS in bestehende Zeilen nachtragen
+        known_features = set(FEATURES.keys())
+        for row in db.execute("SELECT role, permissions FROM role_permissions").fetchall():
+            try:
+                stored = set(_j.loads(row["permissions"]))
+            except Exception:
+                continue
+            role = row["role"]
+            if role == "developer":
+                should_have = known_features
+            else:
+                should_have = set(DEFAULT_PERMISSIONS.get(role, []))
+            # Nur Features die im DEFAULT stehen und noch nicht gespeichert sind nachtragen
+            to_add = should_have - stored
+            # Unbekannte Features (die nicht mehr in FEATURES sind) entfernen
+            to_remove = stored - known_features
+            if to_add or to_remove:
+                new_perms = (stored | to_add) - to_remove
+                db.execute("UPDATE role_permissions SET permissions=? WHERE role=?",
+                           (_j.dumps(sorted(new_perms)), role))
+        db.commit()
         db.close()
         _invalidate_perm_cache()
     except Exception:
