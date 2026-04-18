@@ -3,6 +3,7 @@ import json
 import sqlite3
 import os
 import sys
+import io
 from discord.ext import commands
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -99,6 +100,9 @@ def _get_ticket_text(prefix: str) -> tuple[str, str]:
 def _get_mod_roles(prefix: str) -> list[int]:
     return _get(f"{prefix}_mod_roles", [])
 
+def _get_transcript_channel(prefix: str) -> int:
+    return _get(f"{prefix}_transcript_channel", 0)
+
 
 # ── Shared ticket logic ───────────────────────────────────────────────────────
 
@@ -167,6 +171,19 @@ async def _do_open_ticket(interaction: discord.Interaction, prefix: str):
 
     close_view = BoysCloseView() if prefix == "boys" else GirlsCloseView()
     await channel.send(user.mention, embed=embed, view=close_view)
+
+    # Mod-Rollen pingen
+    mod_mentions = " ".join(
+        guild.get_role(rid).mention
+        for rid in _get_mod_roles(prefix)
+        if guild.get_role(rid)
+    )
+    if mod_mentions:
+        await channel.send(
+            mod_mentions,
+            allowed_mentions=discord.AllowedMentions(roles=True),
+        )
+
     await interaction.response.send_message(
         f"✅ Dein Ticket wurde erstellt: {channel.mention}", ephemeral=True,
     )
@@ -209,6 +226,42 @@ async def _do_close_ticket(interaction: discord.Interaction, prefix: str):
         f"🔑  **Rolle:** {'Moderator' if is_mod else 'Ticket-Ersteller'}",
     )
     await interaction.response.send_message("🔒 Ticket wird geschlossen…")
+
+    # Transcript in konfigurierten Kanal senden
+    transcript_ch_id = _get_transcript_channel(prefix)
+    if transcript_ch_id:
+        transcript_channel = interaction.guild.get_channel(transcript_ch_id)
+        if transcript_channel:
+            try:
+                messages = [m async for m in channel.history(limit=500, oldest_first=True)]
+                lines = []
+                for m in messages:
+                    ts = m.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                    content = m.content or ""
+                    if m.embeds:
+                        content += " [Embed]" * len(m.embeds)
+                    if m.attachments:
+                        content += " " + " ".join(f"[Anhang: {a.filename}]" for a in m.attachments)
+                    lines.append(f"[{ts}] {m.author.display_name} ({m.author.id}): {content}")
+                transcript_text = "\n".join(lines)
+                file_obj = io.BytesIO(transcript_text.encode("utf-8"))
+
+                ticket_owner_id = channel.name.replace("ticket-", "")
+                embed = discord.Embed(
+                    title=f"📋 {label}-Ticket Transcript",
+                    color=discord.Color.from_rgb(88, 101, 242) if prefix == "boys" else discord.Color.from_rgb(236, 72, 153),
+                )
+                embed.add_field(name="Ticket", value=f"`#{channel.name}`", inline=True)
+                embed.add_field(name="Erstellt von", value=f"<@{ticket_owner_id}> (`{ticket_owner_id}`)", inline=True)
+                embed.add_field(name="Geschlossen von", value=f"{interaction.user.mention} (`{interaction.user.id}`)", inline=True)
+                embed.add_field(name="Nachrichten", value=str(len(messages)), inline=True)
+                await transcript_channel.send(
+                    embed=embed,
+                    file=discord.File(file_obj, filename=f"transcript-{channel.name}.txt"),
+                )
+            except Exception:
+                pass
+
     await channel.delete(reason=f"Ticket geschlossen von {interaction.user}")
 
 
@@ -274,7 +327,8 @@ class VerifizierungCog(commands.Cog, name="Verifizierung"):
                 "`%verifizierung boys tickettitel <Text>` — Ticket-Titel setzen\n"
                 "`%verifizierung boys tickettext <Text>` — Ticket-Text setzen (`{mention}` → Nutzer)\n"
                 "`%verifizierung boys ticketvorschau` — Ticket-Vorschau anzeigen\n"
-                "`%verifizierung boys modrole @Rolle` — Moderatoren-Rolle hinzufügen/entfernen\n\n"
+                "`%verifizierung boys modrole @Rolle` — Moderatoren-Rolle hinzufügen/entfernen\n"
+                "`%verifizierung boys transcriptkanal #Kanal` — Transcript-Kanal setzen\n\n"
                 "Genauso für `girls`."
             ),
             color=discord.Color.from_rgb(88, 101, 242),
@@ -332,12 +386,18 @@ class VerifizierungCog(commands.Cog, name="Verifizierung"):
     async def boys_modrole(self, ctx, role: discord.Role):
         await self._toggle_modrole(ctx, "boys", role)
 
+    @boys.command(name="transcriptkanal")
+    @commands.has_permissions(administrator=True)
+    async def boys_transcriptkanal(self, ctx, channel: discord.TextChannel):
+        _set("boys_transcript_channel", channel.id)
+        await ctx.send(f"✅ Boys-Transcript-Kanal gesetzt: {channel.mention}")
+
     # ── Girls ─────────────────────────────────────────────────────────────────
 
     @verifizierung_cmd.group(name="girls", invoke_without_command=True)
     @commands.has_permissions(administrator=True)
     async def girls(self, ctx):
-        await ctx.send("Befehle: `setup`, `titel`, `text`, `vorschau`, `tickettitel`, `tickettext`, `ticketvorschau`, `modrole`")
+        await ctx.send("Befehle: `setup`, `titel`, `text`, `vorschau`, `tickettitel`, `tickettext`, `ticketvorschau`, `modrole`, `transcriptkanal`")
 
     @girls.command(name="setup")
     @commands.has_permissions(administrator=True)
@@ -382,6 +442,12 @@ class VerifizierungCog(commands.Cog, name="Verifizierung"):
     @commands.has_permissions(administrator=True)
     async def girls_modrole(self, ctx, role: discord.Role):
         await self._toggle_modrole(ctx, "girls", role)
+
+    @girls.command(name="transcriptkanal")
+    @commands.has_permissions(administrator=True)
+    async def girls_transcriptkanal(self, ctx, channel: discord.TextChannel):
+        _set("girls_transcript_channel", channel.id)
+        await ctx.send(f"✅ Girls-Transcript-Kanal gesetzt: {channel.mention}")
 
     # ── Shared helpers ────────────────────────────────────────────────────────
 

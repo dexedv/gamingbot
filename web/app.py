@@ -1056,20 +1056,22 @@ def api_willkommen_test():
 
 VERIFY_DEFAULTS = {
     "boys": {
-        "verify_title":       "✅ Boys-Verifizierung",
-        "verify_description": "Klicke auf den Button unten, um ein Ticket zu öffnen.\nEin Moderator wird dich dann verifizieren.\n\n🎫 **Ticket erstellen** → Button drücken",
-        "ticket_title":       "🎫 Boys-Verifizierungs-Ticket",
-        "ticket_description": "Willkommen {mention}!\n\nEin Moderator wird sich in Kürze um dein Ticket kümmern.\nSchreibe hier dein Anliegen oder warte auf weitere Anweisungen.\n\nZum Schließen des Tickets den Button unten nutzen.",
-        "verify_channel":     1494483085687914657,
-        "ticket_category":    1494482692039774331,
+        "verify_title":        "✅ Boys-Verifizierung",
+        "verify_description":  "Klicke auf den Button unten, um ein Ticket zu öffnen.\nEin Moderator wird dich dann verifizieren.\n\n🎫 **Ticket erstellen** → Button drücken",
+        "ticket_title":        "🎫 Boys-Verifizierungs-Ticket",
+        "ticket_description":  "Willkommen {mention}!\n\nEin Moderator wird sich in Kürze um dein Ticket kümmern.\nSchreibe hier dein Anliegen oder warte auf weitere Anweisungen.\n\nZum Schließen des Tickets den Button unten nutzen.",
+        "verify_channel":      1494483085687914657,
+        "ticket_category":     1494482692039774331,
+        "transcript_channel":  0,
     },
     "girls": {
-        "verify_title":       "✅ Girls-Verifizierung",
-        "verify_description": "Klicke auf den Button unten, um ein Ticket zu öffnen.\nEin Moderator wird dich dann verifizieren.\n\n🎫 **Ticket erstellen** → Button drücken",
-        "ticket_title":       "🎫 Girls-Verifizierungs-Ticket",
-        "ticket_description": "Willkommen {mention}!\n\nEin Moderator wird sich in Kürze um dein Ticket kümmern.\nSchreibe hier dein Anliegen oder warte auf weitere Anweisungen.\n\nZum Schließen des Tickets den Button unten nutzen.",
-        "verify_channel":     0,
-        "ticket_category":    0,
+        "verify_title":        "✅ Girls-Verifizierung",
+        "verify_description":  "Klicke auf den Button unten, um ein Ticket zu öffnen.\nEin Moderator wird dich dann verifizieren.\n\n🎫 **Ticket erstellen** → Button drücken",
+        "ticket_title":        "🎫 Girls-Verifizierungs-Ticket",
+        "ticket_description":  "Willkommen {mention}!\n\nEin Moderator wird sich in Kürze um dein Ticket kümmern.\nSchreibe hier dein Anliegen oder warte auf weitere Anweisungen.\n\nZum Schließen des Tickets den Button unten nutzen.",
+        "verify_channel":      0,
+        "ticket_category":     0,
+        "transcript_channel":  0,
     },
 }
 
@@ -1120,6 +1122,9 @@ def verifizierung(prefix):
         cat = request.form.get("ticket_category", "").strip()
         if cat.isdigit():
             _set_db("ticket_category", int(cat))
+        trc = request.form.get("transcript_channel", "").strip()
+        if trc.isdigit():
+            _set_db("transcript_channel", int(trc))
         db.commit()
         db.close()
         if changed:
@@ -1128,13 +1133,14 @@ def verifizierung(prefix):
                          f"✏️  **Geändert:** {', '.join(changed)}\n🌐  **Via:** Dashboard")
         return redirect(url_for("verifizierung", prefix=prefix))
 
-    verify_title       = _get_db("verify_title",       defs["verify_title"])
-    verify_description = _get_db("verify_description", defs["verify_description"])
-    ticket_title       = _get_db("ticket_title",       defs["ticket_title"])
-    ticket_description = _get_db("ticket_description", defs["ticket_description"])
-    verify_channel_id  = _get_db("verify_channel",     defs["verify_channel"])
-    ticket_category_id = _get_db("ticket_category",    defs["ticket_category"])
-    mod_role_ids       = _get_db("mod_roles",          [])
+    verify_title         = _get_db("verify_title",       defs["verify_title"])
+    verify_description   = _get_db("verify_description", defs["verify_description"])
+    ticket_title         = _get_db("ticket_title",       defs["ticket_title"])
+    ticket_description   = _get_db("ticket_description", defs["ticket_description"])
+    verify_channel_id    = _get_db("verify_channel",     defs["verify_channel"])
+    ticket_category_id   = _get_db("ticket_category",    defs["ticket_category"])
+    transcript_channel_id = _get_db("transcript_channel", defs["transcript_channel"])
+    mod_role_ids         = _get_db("mod_roles",          [])
     db.close()
 
     bot = current_app.config.get("BOT")
@@ -1163,6 +1169,7 @@ def verifizierung(prefix):
         ticket_description=ticket_description,
         verify_channel_id=str(verify_channel_id),
         ticket_category_id=str(ticket_category_id),
+        transcript_channel_id=str(transcript_channel_id),
         mod_roles=mod_roles,
         channels=channels,
         categories=categories,
