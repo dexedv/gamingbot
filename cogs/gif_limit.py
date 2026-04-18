@@ -136,12 +136,6 @@ class GifLimitCog(commands.Cog, name="GifLimit"):
             # GIF zählen
             self._gif_times[uid].append(now)
 
-    @commands.Cog.listener()
-    async def on_message_edit(self, before: discord.Message, after: discord.Message):
-        """Auch bearbeitete Nachrichten prüfen (z.B. nachträglich eingebettete GIFs)."""
-        if before.embeds == after.embeds:
-            return
-        await self.on_message(after)
 
 
 async def setup(bot: commands.Bot):
