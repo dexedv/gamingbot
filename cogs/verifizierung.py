@@ -2,7 +2,11 @@ import discord
 import json
 import sqlite3
 import os
+import sys
 from discord.ext import commands
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from utils import send_log
 
 VERIFY_CHANNEL_ID  = 1494483085687914657
 TICKET_CATEGORY_ID = 1494482692039774331
@@ -186,6 +190,12 @@ class VerifyView(discord.ui.View):
             f"✅ Dein Ticket wurde erstellt: {channel.mention}",
             ephemeral=True,
         )
+        await send_log(
+            interaction.client,
+            "🎫 Ticket erstellt",
+            f"👤  **Nutzer:** {user.mention} (`{user.id}`)\n"
+            f"📂  **Kanal:** {channel.mention}",
+        )
 
 
 class CloseView(discord.ui.View):
@@ -225,6 +235,13 @@ class CloseView(discord.ui.View):
             )
             return
 
+        await send_log(
+            interaction.client,
+            "🔒 Ticket geschlossen",
+            f"👤  **Von:** {interaction.user.mention} (`{interaction.user.id}`)\n"
+            f"📂  **Kanal:** `#{channel.name}`\n"
+            f"🔑  **Rolle:** {'Moderator' if is_mod else 'Ticket-Ersteller'}",
+        )
         await interaction.response.send_message("🔒 Ticket wird geschlossen…")
         await channel.delete(reason=f"Ticket geschlossen von {interaction.user}")
 

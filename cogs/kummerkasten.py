@@ -1,7 +1,14 @@
 import discord
+import sqlite3
+import os
+import sys
 from discord.ext import commands
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from utils import send_log
+
 KUMMERKASTEN_CHANNEL_ID = 1494953569097613382
+DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'gamingbot.db')
 
 
 class KummerkastenCog(commands.Cog, name="Kummerkasten"):
@@ -60,6 +67,22 @@ class KummerkastenCog(commands.Cog, name="Kummerkasten"):
         except discord.Forbidden:
             await ctx.send("❌ Der Bot hat keine Berechtigung, in den Kummerkasten-Kanal zu schreiben.")
             return
+
+        # Zähler in DB eintragen + Discord-Log
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute("INSERT INTO kummerkasten_log DEFAULT VALUES")
+            conn.commit()
+            total = conn.execute("SELECT COUNT(*) FROM kummerkasten_log").fetchone()[0]
+            conn.close()
+            await send_log(
+                self.bot,
+                "📬 Kummerkasten",
+                f"📩  **Neue anonyme Nachricht eingegangen**\n"
+                f"📊  **Gesamt bisher:** {total}",
+            )
+        except Exception:
+            pass
 
         # Bestätigung an den Absender (ohne Details)
         confirm = discord.Embed(

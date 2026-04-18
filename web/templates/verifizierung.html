@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}Verifizierung{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+  <div>
+    <h1 style="font-size:1.65rem;font-weight:800;color:#fff;margin:0">
+      <i class="bi bi-ticket-perforated me-2" style="color:var(--accent)"></i>Verifizierungs-System
+    </h1>
+    <p style="color:var(--muted);margin:.3rem 0 0;font-size:.85rem">
+      Ticket-Texte, Mod-Rollen und Verifizierungs-Embed konfigurieren
+    </p>
+  </div>
+  <button class="btn btn-accent px-3 py-2" id="btnSetup">
+    <i class="bi bi-send me-1"></i>Nachricht absenden
+  </button>
+</div>
+
+<div class="row g-4">
+  <!-- Left column -->
+  <div class="col-lg-7">
+
+    <form method="POST">
+      <!-- Verifizierungs-Embed -->
+      <div class="card mb-4">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-megaphone" style="color:var(--accent)"></i>
+          Verifizierungs-Embed
+          <span style="font-size:.75rem;color:var(--muted);margin-left:.5rem">Nachricht mit dem Button im Verify-Kanal</span>
+        </div>
+        <div class="card-body p-3">
+          <div class="mb-3">
+            <label class="form-label" style="font-size:.8rem;color:var(--muted)">Titel</label>
+            <input type="text" class="form-control" name="verify_title"
+                   value="{{ verify_title }}" oninput="updatePreview()">
+          </div>
+          <div class="mb-0">
+            <label class="form-label" style="font-size:.8rem;color:var(--muted)">Beschreibung</label>
+            <textarea class="form-control" name="verify_description" rows="4"
+                      oninput="updatePreview()">{{ verify_description }}</textarea>
+            <div style="font-size:.75rem;color:var(--muted);margin-top:.3rem">Zeilenumbruch: \n</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ticket-Willkommensnachricht -->
+      <div class="card mb-4">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-chat-text" style="color:#22c55e"></i>
+          Ticket-Willkommensnachricht
+          <span style="font-size:.75rem;color:var(--muted);margin-left:.5rem">Erscheint beim Öffnen eines Tickets</span>
+        </div>
+        <div class="card-body p-3">
+          <div class="mb-3">
+            <label class="form-label" style="font-size:.8rem;color:var(--muted)">Titel</label>
+            <input type="text" class="form-control" name="ticket_title"
+                   value="{{ ticket_title }}" oninput="updateTicketPreview()">
+          </div>
+          <div class="mb-0">
+            <label class="form-label" style="font-size:.8rem;color:var(--muted)">Text</label>
+            <textarea class="form-control" name="ticket_description" rows="5"
+                      oninput="updateTicketPreview()">{{ ticket_description }}</textarea>
+            <div style="font-size:.75rem;color:var(--muted);margin-top:.3rem">
+              <code style="color:var(--accent2)">{mention}</code> → wird durch den Nutzernamen ersetzt &nbsp;|&nbsp; Zeilenumbruch: \n
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-accent w-100">
+        <i class="bi bi-floppy me-1"></i>Änderungen speichern
+      </button>
+    </form>
+
+  </div>
+
+  <!-- Right column: previews + mod roles -->
+  <div class="col-lg-5">
+
+    <!-- Verify-Embed Vorschau -->
+    <div class="card mb-4">
+      <div class="card-header" style="font-size:.82rem;color:var(--muted)">
+        <i class="bi bi-eye me-1"></i>Vorschau — Verifizierungs-Embed
+      </div>
+      <div class="card-body p-3">
+        <div id="previewBox" style="border-left:4px solid #5865f2;padding:.75rem 1rem;background:rgba(88,101,242,.07);border-radius:0 10px 10px 0">
+          <div id="previewTitle" style="font-weight:700;color:#fff;margin-bottom:.4rem">{{ verify_title }}</div>
+          <div id="previewDesc" style="color:var(--text);font-size:.85rem;white-space:pre-wrap">{{ verify_description }}</div>
+          <div style="margin-top:.75rem">
+            <span style="background:#5865f2;color:#fff;border-radius:6px;padding:.3rem .8rem;font-size:.8rem;cursor:default">
+              🎫 Ticket erstellen
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ticket Vorschau -->
+    <div class="card mb-4">
+      <div class="card-header" style="font-size:.82rem;color:var(--muted)">
+        <i class="bi bi-eye me-1"></i>Vorschau — Ticket-Willkommensnachricht
+      </div>
+      <div class="card-body p-3">
+        <div id="ticketPreviewBox" style="border-left:4px solid #22c55e;padding:.75rem 1rem;background:rgba(34,197,94,.06);border-radius:0 10px 10px 0">
+          <div id="ticketPreviewTitle" style="font-weight:700;color:#fff;margin-bottom:.4rem">{{ ticket_title }}</div>
+          <div id="ticketPreviewDesc" style="color:var(--text);font-size:.85rem;white-space:pre-wrap">{{ ticket_description.replace('{mention}', '@Nutzer') }}</div>
+          <div style="margin-top:.75rem">
+            <span style="background:#ef4444;color:#fff;border-radius:6px;padding:.3rem .8rem;font-size:.8rem;cursor:default">
+              🔒 Ticket schließen
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mod-Rollen -->
+    <div class="card">
+      <div class="card-header d-flex align-items-center gap-2">
+        <i class="bi bi-shield-check" style="color:#f59e0b"></i>
+        Moderatoren-Rollen
+      </div>
+      <div class="card-body p-3">
+        <div id="modRoleList" class="mb-3">
+          {% if mod_roles %}
+            {% for r in mod_roles %}
+            <div class="d-flex align-items-center justify-content-between mb-2" id="role-{{ r.id }}">
+              <span style="background:rgba(88,101,242,.15);color:var(--accent2);border:1px solid rgba(88,101,242,.3);border-radius:8px;padding:.25rem .75rem;font-size:.82rem">
+                @{{ r.name }}
+              </span>
+              <button class="btn btn-sm" onclick="removeRole({{ r.id }})"
+                      style="color:#ef4444;border:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.08);border-radius:7px;padding:.2rem .6rem;font-size:.78rem">
+                <i class="bi bi-x"></i>
+              </button>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div style="color:var(--muted);font-size:.83rem" id="noRoles">Noch keine Rollen konfiguriert.</div>
+          {% endif %}
+        </div>
+        <div class="d-flex gap-2">
+          <input type="text" id="roleInput" class="form-control form-control-sm"
+                 placeholder="Rollen-ID eingeben…" style="border-radius:8px">
+          <button class="btn btn-sm btn-accent" onclick="addRole()" style="white-space:nowrap">
+            <i class="bi bi-plus"></i> Hinzufügen
+          </button>
+        </div>
+        <div id="roleMsg" style="font-size:.78rem;margin-top:.4rem"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" style="position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:none">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:.75rem 1.25rem;color:var(--text);font-size:.85rem;box-shadow:0 4px 20px rgba(0,0,0,.4)">
+    <span id="toastMsg"></span>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updatePreview() {
+  const title = document.querySelector('[name="verify_title"]').value;
+  const desc  = document.querySelector('[name="verify_description"]').value;
+  document.getElementById('previewTitle').textContent = title;
+  document.getElementById('previewDesc').textContent  = desc;
+}
+
+function updateTicketPreview() {
+  const title = document.querySelector('[name="ticket_title"]').value;
+  const desc  = document.querySelector('[name="ticket_description"]').value;
+  document.getElementById('ticketPreviewTitle').textContent = title;
+  document.getElementById('ticketPreviewDesc').textContent  = desc.replace('{mention}', '@Nutzer');
+}
+
+function showToast(msg, ok=true) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = (ok ? '✅ ' : '❌ ') + msg;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+// Nachricht absenden
+document.getElementById('btnSetup').addEventListener('click', async () => {
+  const btn = document.getElementById('btnSetup');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Senden…';
+  try {
+    const r = await fetch('/api/verifizierung/setup', {method:'POST'});
+    const d = await r.json();
+    if (d.ok) showToast('Verifizierungs-Nachricht gesendet!');
+    else      showToast(d.error || 'Fehler', false);
+  } catch(e) { showToast('Netzwerkfehler', false); }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-send me-1"></i>Nachricht absenden';
+});
+
+// Mod-Rolle hinzufügen
+async function addRole() {
+  const id = document.getElementById('roleInput').value.trim();
+  if (!id || isNaN(id)) { setRoleMsg('Ungültige Rollen-ID', false); return; }
+  const r = await fetch('/api/verifizierung/modrole', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({role_id: id, action: 'add'})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    document.getElementById('noRoles') && (document.getElementById('noRoles').style.display = 'none');
+    document.getElementById('roleInput').value = '';
+    setRoleMsg('Rolle hinzugefügt — Seite neu laden um Namen zu sehen', true);
+  } else { setRoleMsg(d.error || 'Fehler', false); }
+}
+
+// Mod-Rolle entfernen
+async function removeRole(id) {
+  const r = await fetch('/api/verifizierung/modrole', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({role_id: id, action: 'remove'})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    const el = document.getElementById('role-' + id);
+    if (el) el.remove();
+    setRoleMsg('Rolle entfernt', true);
+  }
+}
+
+function setRoleMsg(msg, ok) {
+  const el = document.getElementById('roleMsg');
+  el.textContent = (ok ? '✅ ' : '❌ ') + msg;
+  el.style.color = ok ? 'var(--success)' : 'var(--danger)';
+  setTimeout(() => el.textContent = '', 3000);
+}
+</script>
+{% endblock %}
