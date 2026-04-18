@@ -66,27 +66,28 @@ def _user_level(roles: list) -> int:
 # ── Feature-basiertes Berechtigungssystem ────────────────────────────────────
 
 FEATURES = {
-    "knast_log":            {"label": "Knast-Log",             "icon": "bi-lock",           "desc": "Knast-Log & aktive Knast-Einträge lesen"},
-    "kummerkasten":         {"label": "Kummerkasten",          "icon": "bi-envelope-heart",  "desc": "Kummerkasten-Statistiken einsehen"},
-    "nutzer_verwalten":     {"label": "Nutzerverwaltung",      "icon": "bi-person-gear",     "desc": "Nutzer sperren, Coins & Level bearbeiten"},
-    "umfragen":             {"label": "Umfragen",              "icon": "bi-ui-checks",       "desc": "Umfragen erstellen & schließen"},
-    "verifizierung":        {"label": "Verifizierung",         "icon": "bi-patch-check",     "desc": "Boys & Girls Verifizierung konfigurieren"},
-    "broadcast":            {"label": "Nachrichten",           "icon": "bi-send",            "desc": "Broadcast & Nachrichten senden"},
-    "willkommen":           {"label": "Willkommen-Editor",     "icon": "bi-door-open",       "desc": "Willkommensnachrichten bearbeiten & testen"},
-    "cogs":                 {"label": "Module",                "icon": "bi-boxes",           "desc": "Bot-Module aktivieren & deaktivieren"},
-    "templates":            {"label": "Templates",             "icon": "bi-archive",         "desc": "Server-Templates erstellen & wiederherstellen"},
-    "einstellungen":        {"label": "Einstellungen",         "icon": "bi-sliders",         "desc": "Bot-Einstellungen & XP-Konfiguration"},
-    "web_nutzer":           {"label": "Web-Nutzer",            "icon": "bi-people-fill",     "desc": "Dashboard-Accounts verwalten"},
-    "rolle_berechtigungen": {"label": "Rollen-Berechtigungen", "icon": "bi-shield-lock",     "desc": "Zugriffsrechte der Rollen konfigurieren"},
+    "knast_log":            {"label": "Knast-Log",               "icon": "bi-lock",           "desc": "Knast-Log & aktive Knast-Einträge lesen"},
+    "kummerkasten":         {"label": "Kummerkasten",            "icon": "bi-envelope-heart",  "desc": "Kummerkasten-Statistiken einsehen"},
+    "nutzer_verwalten":     {"label": "Nutzerverwaltung",        "icon": "bi-person-gear",     "desc": "Nutzer sperren, Coins & Level bearbeiten"},
+    "umfragen":             {"label": "Umfragen",                "icon": "bi-ui-checks",       "desc": "Umfragen erstellen & schließen"},
+    "verifizierung_boys":   {"label": "Boys-Verifizierung",      "icon": "bi-gender-male",     "desc": "Boys-Verifizierung konfigurieren"},
+    "verifizierung_girls":  {"label": "Girls-Verifizierung",     "icon": "bi-gender-female",   "desc": "Girls-Verifizierung konfigurieren"},
+    "broadcast":            {"label": "Nachrichten",             "icon": "bi-send",            "desc": "Broadcast & Nachrichten senden"},
+    "willkommen":           {"label": "Willkommen-Editor",       "icon": "bi-door-open",       "desc": "Willkommensnachrichten bearbeiten & testen"},
+    "cogs":                 {"label": "Module",                  "icon": "bi-boxes",           "desc": "Bot-Module aktivieren & deaktivieren"},
+    "templates":            {"label": "Templates",               "icon": "bi-archive",         "desc": "Server-Templates erstellen & wiederherstellen"},
+    "einstellungen":        {"label": "Einstellungen",           "icon": "bi-sliders",         "desc": "Bot-Einstellungen & XP-Konfiguration"},
+    "web_nutzer":           {"label": "Web-Nutzer",              "icon": "bi-people-fill",     "desc": "Dashboard-Accounts verwalten"},
+    "rolle_berechtigungen": {"label": "Rollen-Berechtigungen",   "icon": "bi-shield-lock",     "desc": "Zugriffsrechte der Rollen konfigurieren"},
 }
 
 # Endpoint-Name → Feature
+# Verifizierung-Routen sind NICHT hier — die prüfen ihr Feature selbst im Handler
 FEATURE_ROUTES: dict[str, set] = {
     "knast_log":            {"knast_log"},
     "kummerkasten":         {"kummerkasten"},
     "nutzer_verwalten":     {"verwaltung", "edit_user", "api_user_knast"},
     "umfragen":             {"umfragen", "api_umfragen_erstellen", "api_umfragen_schliessen", "api_umfragen_aktiv"},
-    "verifizierung":        {"verifizierung", "api_verifizierung_setup", "api_verifizierung_modrole"},
     "broadcast":            {"broadcast", "api_send_message", "api_channels"},
     "willkommen":           {"willkommen", "api_willkommen_test", "trigger_nickname_update"},
     "cogs":                 {"api_cogs", "toggle_cog"},
@@ -108,12 +109,14 @@ DEFAULT_PERMISSIONS: dict[str, list] = {
     "developer":       list(FEATURES.keys()),
     "owner":           list(FEATURES.keys()),
     "co-owner":        ["knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
-                        "verifizierung", "broadcast", "willkommen", "cogs", "templates", "einstellungen"],
+                        "verifizierung_boys", "verifizierung_girls",
+                        "broadcast", "willkommen", "cogs", "templates", "einstellungen"],
     "admin":           ["knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
-                        "verifizierung", "broadcast", "willkommen"],
-    "moderator":       ["knast_log", "kummerkasten", "nutzer_verwalten", "umfragen", "verifizierung"],
-    "b-verifizierung": ["verifizierung"],
-    "g-verifizierung": ["verifizierung"],
+                        "verifizierung_boys", "verifizierung_girls", "broadcast", "willkommen"],
+    "moderator":       ["knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
+                        "verifizierung_boys", "verifizierung_girls"],
+    "b-verifizierung": ["verifizierung_boys"],
+    "g-verifizierung": ["verifizierung_girls"],
     "supporter":       ["knast_log", "kummerkasten"],
     "mediator":        [],
     "paten":           [],
@@ -189,7 +192,7 @@ def inject_user_features():
 
 
 def _ensure_permissions():
-    """Erstellt role_permissions-Tabelle und befüllt fehlende Rollen mit Defaults."""
+    """Erstellt role_permissions-Tabelle, migriert alte Features und befüllt fehlende Rollen."""
     import json as _j
     try:
         db = get_db()
@@ -200,6 +203,27 @@ def _ensure_permissions():
             )
         """)
         db.commit()
+        # Migration: altes 'verifizierung'-Feature → aufgeteilt in boys/girls
+        for row in db.execute("SELECT role, permissions FROM role_permissions").fetchall():
+            try:
+                perms = set(_j.loads(row["permissions"]))
+            except Exception:
+                continue
+            if "verifizierung" not in perms:
+                continue
+            perms.discard("verifizierung")
+            # b-verifizierung bekommt nur boys, g-verifizierung nur girls, alle anderen beide
+            if row["role"] == "b-verifizierung":
+                perms.add("verifizierung_boys")
+            elif row["role"] == "g-verifizierung":
+                perms.add("verifizierung_girls")
+            else:
+                perms.add("verifizierung_boys")
+                perms.add("verifizierung_girls")
+            db.execute("UPDATE role_permissions SET permissions=? WHERE role=?",
+                       (_j.dumps(sorted(perms)), row["role"]))
+        db.commit()
+        # Fehlende Rollen mit Defaults befüllen
         existing = {r["role"] for r in db.execute("SELECT role FROM role_permissions").fetchall()}
         for role in VALID_ROLES:
             if role not in existing:
@@ -1054,12 +1078,11 @@ def verifizierung(prefix):
     import json as _json
     if prefix not in ("boys", "girls"):
         return redirect(url_for("verifizierung", prefix="boys"))
+    required = f"verifizierung_{prefix}"
     _vroles = session.get("roles", ["paten"])
-    if _user_level(_vroles) < 3:
-        if prefix == "boys"  and "b-verifizierung" not in _vroles:
-            return render_template("403.html", role=", ".join(_vroles)), 403
-        if prefix == "girls" and "g-verifizierung" not in _vroles:
-            return render_template("403.html", role=", ".join(_vroles)), 403
+    _perms  = _load_permissions()
+    if not any(required in _perms.get(r, set()) for r in _vroles):
+        return render_template("403.html", role=", ".join(_vroles)), 403
 
     db = get_db()
     defs = VERIFY_DEFAULTS[prefix]
@@ -1150,12 +1173,11 @@ def api_verifizierung_setup(prefix):
     import json as _json
     if prefix not in ("boys", "girls"):
         return jsonify({"error": "Ungültiger Prefix"}), 400
-    _vroles = session.get("roles", ["paten"])
-    if _user_level(_vroles) < 3:
-        if prefix == "boys"  and "b-verifizierung" not in _vroles:
-            return jsonify({"error": "Kein Zugriff auf Boys-Verifizierung"}), 403
-        if prefix == "girls" and "g-verifizierung" not in _vroles:
-            return jsonify({"error": "Kein Zugriff auf Girls-Verifizierung"}), 403
+    required = f"verifizierung_{prefix}"
+    _vroles  = session.get("roles", ["paten"])
+    _perms   = _load_permissions()
+    if not any(required in _perms.get(r, set()) for r in _vroles):
+        return jsonify({"error": f"Kein Zugriff auf {prefix.capitalize()}-Verifizierung"}), 403
     bot  = current_app.config.get("BOT")
     loop = current_app.config.get("LOOP")
     if not bot or not loop:
@@ -1210,12 +1232,11 @@ def api_verifizierung_modrole(prefix):
     import json as _json
     if prefix not in ("boys", "girls"):
         return jsonify({"error": "Ungültiger Prefix"}), 400
-    _vroles = session.get("roles", ["paten"])
-    if _user_level(_vroles) < 3:
-        if prefix == "boys"  and "b-verifizierung" not in _vroles:
-            return jsonify({"error": "Kein Zugriff auf Boys-Verifizierung"}), 403
-        if prefix == "girls" and "g-verifizierung" not in _vroles:
-            return jsonify({"error": "Kein Zugriff auf Girls-Verifizierung"}), 403
+    required = f"verifizierung_{prefix}"
+    _vroles  = session.get("roles", ["paten"])
+    _perms   = _load_permissions()
+    if not any(required in _perms.get(r, set()) for r in _vroles):
+        return jsonify({"error": f"Kein Zugriff auf {prefix.capitalize()}-Verifizierung"}), 403
     data    = request.get_json() or {}
     role_id = data.get("role_id")
     action  = data.get("action", "toggle")

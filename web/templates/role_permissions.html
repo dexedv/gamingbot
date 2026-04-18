@@ -82,7 +82,7 @@
             {% elif role == 'mediator' %}color:#22d3ee
             {% else %}color:var(--muted){% endif %}
           ">
-            {{ role | upper | replace('-', '&#8209;') | safe }}
+            {{ role | upper | replace('-', '\u2011') }}
           </th>
           {% endfor %}
         </tr>

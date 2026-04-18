@@ -327,14 +327,14 @@
     {% endif %}
     {% endif %}
 
-    {% if 'verifizierung' in user_features %}
+    {% if 'verifizierung_boys' in user_features or 'verifizierung_girls' in user_features %}
     <div class="sb-section" style="margin-top:1rem">Verifizierung</div>
-    {% if _ul >= 3 or 'b-verifizierung' in _roles %}
+    {% if 'verifizierung_boys' in user_features %}
     <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'boys' %}active{% endif %}" href="/verifizierung/boys">
       <i class="bi bi-gender-male"></i> Boys-Verifizierung
     </a>
     {% endif %}
-    {% if _ul >= 3 or 'g-verifizierung' in _roles %}
+    {% if 'verifizierung_girls' in user_features %}
     <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'girls' %}active{% endif %}" href="/verifizierung/girls">
       <i class="bi bi-gender-female"></i> Girls-Verifizierung
     </a>
