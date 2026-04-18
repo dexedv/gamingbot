@@ -49,13 +49,33 @@ async def send_log(bot, title: str, description: str = "", color: discord.Color 
     channel = bot.get_channel(LOG_CHANNEL_ID)
     if not channel:
         return
+
+    # Auto-Farbe anhand des Titel-Emojis falls keine angegeben
+    if color is None:
+        if title.startswith(("✅", "🟢", "📸", "📋", "📨", "📤", "📊")):
+            color = discord.Color.from_rgb(34, 197, 94)
+        elif title.startswith("❌"):
+            color = discord.Color.from_rgb(239, 68, 68)
+        elif title.startswith(("🔄", "🔧", "⚠️", "🔒")):
+            color = discord.Color.from_rgb(251, 146, 60)
+        else:
+            color = discord.Color.from_rgb(88, 101, 242)
+
+    avatar_url = bot.user.avatar.url if bot.user and bot.user.avatar else None
+
     embed = discord.Embed(
         title=title,
-        color=color or discord.Color.blurple(),
+        color=color,
         timestamp=datetime.now(timezone.utc),
     )
     if description:
         embed.description = description
+    if avatar_url:
+        embed.set_thumbnail(url=avatar_url)
+    embed.set_footer(
+        text="GamingBot · Log-System",
+        icon_url=avatar_url,
+    )
     try:
         await channel.send(embed=embed)
     except Exception:

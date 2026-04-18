@@ -64,9 +64,11 @@ async def hourly_status():
     member_count = sum(g.member_count for g in bot.guilds)
     await send_log(
         bot,
-        "✅ Bot Online",
-        f"**Server:** {len(bot.guilds)}\n**Nutzer:** {member_count}",
-        discord.Color.green(),
+        "🟢 Bot Online",
+        f"🖥️  **Server:** {len(bot.guilds)}\n"
+        f"👥  **Mitglieder:** {member_count}\n"
+        f"⚡  **Status:** Alle Systeme normal",
+        discord.Color.from_rgb(34, 197, 94),
     )
 
 
@@ -109,11 +111,12 @@ async def on_command_error(ctx, error):
     await send_log(
         bot,
         "❌ Befehlsfehler",
-        f"**Befehl:** `{ctx.message.content[:100]}`\n"
-        f"**Nutzer:** {ctx.author} (`{ctx.author.id}`)\n"
-        f"**Fehler:** {type(error).__name__}: {error}\n"
-        f"```{tb[-500:]}```",
-        discord.Color.red(),
+        f"💬  **Befehl:** `{ctx.message.content[:100]}`\n"
+        f"👤  **Nutzer:** {ctx.author} (`{ctx.author.id}`)\n"
+        f"📍  **Kanal:** #{ctx.channel.name}\n"
+        f"⚠️  **Fehler:** `{type(error).__name__}: {str(error)[:150]}`\n"
+        f"```py\n{tb[-400:]}\n```",
+        discord.Color.from_rgb(239, 68, 68),
     )
 
 @bot.event

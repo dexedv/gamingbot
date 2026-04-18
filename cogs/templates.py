@@ -160,16 +160,18 @@ class TemplatesCog(commands.Cog, name="Templates"):
                 await send_log(
                     self.bot,
                     "📸 Auto-Snapshot erstellt",
-                    f"**Name:** `{name}`\n**Server:** {guild.name}\n"
-                    f"Rollen: **{meta['role_count']}** | Kategorien: **{meta['category_count']}** | Channels: **{meta['channel_count']}**",
-                    discord.Color.blurple(),
+                    f"📄  **Name:** `{name}`\n"
+                    f"🖥️  **Server:** {guild.name}\n"
+                    f"🎭  **Rollen:** {meta['role_count']}  |  📂  **Kategorien:** {meta['category_count']}  |  #  **Channels:** {meta['channel_count']}",
+                    discord.Color.from_rgb(88, 101, 242),
                 )
             except Exception as e:
                 await send_log(
                     self.bot,
                     "❌ Auto-Snapshot fehlgeschlagen",
-                    f"**Server:** {guild.name}\n**Fehler:** {e}",
-                    discord.Color.red(),
+                    f"🖥️  **Server:** {guild.name}\n"
+                    f"⚠️  **Fehler:** {e}",
+                    discord.Color.from_rgb(239, 68, 68),
                 )
         self._cleanup_auto_snapshots()
 
@@ -313,9 +315,10 @@ class TemplatesCog(commands.Cog, name="Templates"):
             from utils import send_log
             await send_log(
                 self.bot, "📋 Template erstellt",
-                f"**Name:** {name} | **Von:** {ctx.author}\n"
-                f"Rollen: {meta['role_count']} | Kategorien: {meta['category_count']} | Channels: {meta['channel_count']}",
-                discord.Color.blurple(),
+                f"📄  **Name:** `{name}`\n"
+                f"👤  **Von:** {ctx.author}\n"
+                f"🎭  **Rollen:** {meta['role_count']}  |  📂  **Kategorien:** {meta['category_count']}  |  #  **Channels:** {meta['channel_count']}",
+                discord.Color.from_rgb(88, 101, 242),
             )
             await msg.edit(content=(
                 f"✅ Template **{name}** erstellt!\n"
@@ -358,10 +361,11 @@ class TemplatesCog(commands.Cog, name="Templates"):
             from utils import send_log
             await send_log(
                 self.bot, "🔄 Template wiederhergestellt",
-                f"**Name:** {name} | **Von:** {ctx.author}\n"
-                f"Neue Rollen: {stats['created_roles']} | Neue Kategorien: {stats['created_cats']} | "
-                f"Neue Channels: {stats['created_channels']} | Aktualisierte Channels: {stats['updated_channels']}",
-                discord.Color.green(),
+                f"📄  **Name:** `{name}`\n"
+                f"👤  **Von:** {ctx.author}\n"
+                f"🎭  **Neue Rollen:** {stats['created_roles']}  |  📂  **Neue Kategorien:** {stats['created_cats']}\n"
+                f"#  **Neue Channels:** {stats['created_channels']}  |  🔁  **Aktualisiert:** {stats['updated_channels']}",
+                discord.Color.from_rgb(34, 197, 94),
             )
             await msg.edit(content=(
                 f"✅ Template **{name}** wiederhergestellt!\n"
@@ -376,7 +380,9 @@ class TemplatesCog(commands.Cog, name="Templates"):
     async def template_delete(self, ctx, *, name: str):
         if delete_template(name):
             from utils import send_log
-            await send_log(self.bot, "🗑️ Template gelöscht", f"**Name:** {name} | **Von:** {ctx.author}")
+            await send_log(self.bot, "🗑️ Template gelöscht",
+                           f"📄  **Name:** `{name}`\n"
+                           f"👤  **Von:** {ctx.author}")
             await ctx.send(f"🗑️ Template **{name}** gelöscht.")
         else:
             await ctx.send(f"❌ Template **{name}** nicht gefunden.")

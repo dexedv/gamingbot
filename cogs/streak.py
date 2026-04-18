@@ -100,7 +100,8 @@ class StreakCog(commands.Cog, name="Streak"):
         import aiosqlite
         if scheduled:
             await send_log(self.bot, "🔄 Nickname-Update gestartet",
-                           "Täglicher Lauf um 01:00 Uhr", discord.Color.orange())
+                           "⏰  Automatischer **5h-Lauf** wurde gestartet…",
+                           discord.Color.from_rgb(251, 146, 60))
 
         async with aiosqlite.connect(self.bot.db.db_path) as db:
             cur = await db.execute("SELECT user_id, streak FROM users")
@@ -124,8 +125,10 @@ class StreakCog(commands.Cog, name="Streak"):
             await send_log(
                 self.bot,
                 "✅ Nickname-Update abgeschlossen",
-                f"**{label}**\nAktualisiert: **{updated}** | Übersprungen: **{skipped}**",
-                discord.Color.green(),
+                f"🏷️  **Aktualisiert:** {updated} Nicknames\n"
+                f"⏩  **Übersprungen:** {skipped} Mitglieder\n"
+                f"📋  **Modus:** {label}",
+                discord.Color.from_rgb(34, 197, 94),
             )
 
     @tasks.loop(hours=5)

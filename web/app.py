@@ -211,7 +211,8 @@ def edit_user(user_id):
     db.close()
     if changes:
         _discord_log("📝 Nutzer bearbeitet",
-                     f"**Nutzer:** {username}\n" + "\n".join(changes))
+                     f"👤  **Nutzer:** {username}\n"
+                     + "\n".join(f"✏️  {c}" for c in changes))
     return redirect(url_for("users"))
 
 
@@ -299,10 +300,10 @@ def settings():
             s["notify_channel"] = int(notify_ch)
         save_settings(s)
         _discord_log("⚙️ Einstellungen gespeichert",
-                     f"Nachrichten-XP: {s.get('msg_xp')} | Max/Min: {s.get('msg_xp_per_min')} | "
-                     f"Voice-XP/30s: {s.get('voice_xp_per_30s')} | "
-                     f"Tages-XP: {s.get('daily_xp')} | "
-                     f"Nickname-Updates: {s.get('nickname_updates')}")
+                     f"💬  **Nachrichten-XP:** {s.get('msg_xp')} | Max: {s.get('msg_xp_per_min')}/min\n"
+                     f"🎙️  **Voice-XP/30s:** {s.get('voice_xp_per_30s')}\n"
+                     f"🎁  **Tages-XP:** {s.get('daily_xp')}\n"
+                     f"🏷️  **Nickname-Updates:** {'✅ An' if s.get('nickname_updates') else '⛔ Aus'}")
         return redirect(url_for("settings"))
     return render_template("settings.html", settings=s)
 
@@ -397,11 +398,14 @@ def toggle_cog(cog_name):
             loaded = True
         status = "aktiviert" if loaded else "deaktiviert"
         _discord_log("🔧 Modul geändert",
-                     f"**{COGS_INFO[cog_name]['label']}** (`{cog_name}`) wurde **{status}**")
+                     f"📦  **Modul:** {COGS_INFO[cog_name]['label']}\n"
+                     f"📁  **Datei:** `{cog_name}`\n"
+                     f"🔘  **Status:** {'✅ Aktiviert' if loaded else '⛔ Deaktiviert'}")
         return jsonify({"name": cog_name, "loaded": loaded})
     except Exception as e:
         _discord_log("❌ Modul-Fehler",
-                     f"**{cog_name}**\nFehler: {e}", 0xef4444)
+                     f"📦  **Modul:** `{cog_name}`\n"
+                     f"⚠️  **Fehler:** {e}", 0xef4444)
         return jsonify({"error": str(e)}), 500
 
 
@@ -453,7 +457,8 @@ def api_send_message():
         future.result(timeout=10)
         preview = message[:150] + ("…" if len(message) > 150 else "")
         _discord_log("📨 Nachricht gesendet",
-                     f"**Channel:** #{channel.name}\n**Nachricht:** {preview}")
+                     f"📢  **Kanal:** #{channel.name}\n"
+                     f"💬  **Inhalt:** {preview}")
         return jsonify({"ok": True, "channel": channel.name})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -497,8 +502,9 @@ def api_templates_create():
     try:
         meta = _tpl_module().save_template(name, bot.guilds[0], "Dashboard")
         _discord_log("📋 Template erstellt",
-                     f"**Name:** {name} | **Via:** Dashboard\n"
-                     f"Rollen: {meta['role_count']} | Kategorien: {meta['category_count']} | Channels: {meta['channel_count']}")
+                     f"📄  **Name:** `{name}`\n"
+                     f"🎭  **Rollen:** {meta['role_count']}  |  📂  **Kategorien:** {meta['category_count']}  |  #  **Channels:** {meta['channel_count']}\n"
+                     f"🌐  **Via:** Dashboard")
         return jsonify({"ok": True, "meta": meta})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -524,9 +530,10 @@ def api_templates_restore(name):
         future = asyncio.run_coroutine_threadsafe(cog.restore(guild, data), loop)
         stats  = future.result(timeout=120)
         _discord_log("🔄 Template wiederhergestellt",
-                     f"**Name:** {name} | **Via:** Dashboard\n"
-                     f"Neue Rollen: {stats['created_roles']} | Neue Kategorien: {stats['created_cats']} | "
-                     f"Neue Channels: {stats['created_channels']} | Aktualisierte: {stats['updated_channels']}",
+                     f"📄  **Name:** `{name}`\n"
+                     f"🎭  **Neue Rollen:** {stats['created_roles']}  |  📂  **Neue Kategorien:** {stats['created_cats']}\n"
+                     f"#  **Neue Channels:** {stats['created_channels']}  |  🔁  **Aktualisiert:** {stats['updated_channels']}\n"
+                     f"🌐  **Via:** Dashboard",
                      0x22c55e)
         return jsonify({"ok": True, "stats": stats})
     except Exception as e:
@@ -543,7 +550,9 @@ def api_template_detail(name):
         return jsonify({"error": "Template nicht gefunden"}), 404
     if request.method == "DELETE":
         m.delete_template(name)
-        _discord_log("🗑️ Template gelöscht", f"**Name:** {name} | **Via:** Dashboard")
+        _discord_log("🗑️ Template gelöscht",
+                     f"📄  **Name:** `{name}`\n"
+                     f"🌐  **Via:** Dashboard")
         return jsonify({"ok": True})
     return jsonify(m.load_template(name))
 
@@ -581,7 +590,10 @@ def willkommen():
                 s[key] = int(val)
         save_settings(s)
         _discord_log("👋 Willkommens-Nachricht bearbeitet",
-                     f"Titel: {s['welcome_title'][:60]}\nKanal: <#{s['welcome_channel']}>")
+                     f"📝  **Titel:** {s['welcome_title'][:60]}\n"
+                     f"📢  **Kanal:** <#{s['welcome_channel']}>\n"
+                     f"🎨  **Farbe:** `{s.get('welcome_color', '#5865f2')}`  |  "
+                     f"🖼️  **Banner:** {'✅' if s.get('welcome_show_banner') else '⛔'}")
         return redirect(url_for("willkommen"))
     return render_template("willkommen.html", s=s)
 
@@ -694,7 +706,9 @@ def api_umfragen_erstellen():
         )
         result = future.result(timeout=15)
         _discord_log("📊 Umfrage erstellt",
-                     f"**Frage:** {question}\n**Optionen:** {', '.join(options)}\n**Kanal:** #{result['channel']}")
+                     f"❓  **Frage:** {question}\n"
+                     f"🗳️  **Optionen:** {', '.join(options)}\n"
+                     f"📢  **Kanal:** #{result['channel']}")
         return jsonify({"ok": True, **result})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -716,7 +730,8 @@ def api_umfragen_schliessen(message_id):
         )
         result = future.result(timeout=15)
         _discord_log("🔒 Umfrage geschlossen",
-                     f"**Frage:** {result['question']} | **Stimmen:** {result['total_votes']}")
+                     f"❓  **Frage:** {result['question']}\n"
+                     f"🗳️  **Stimmen gesamt:** {result['total_votes']}")
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
