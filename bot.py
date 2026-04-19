@@ -46,6 +46,7 @@ COGS = [
     "cogs.verifizierung",
     "cogs.gif_limit",
     "cogs.logger",
+    "cogs.stats_channel",
 ]
 
 
