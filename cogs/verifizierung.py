@@ -223,14 +223,22 @@ async def _do_close_ticket(interaction: discord.Interaction, prefix: str):
         )
         return
 
-    await send_log(
-        interaction.client,
-        f"🔒 {label}-Ticket geschlossen",
-        f"👤  **Von:** {interaction.user.mention} (`{interaction.user.id}`)\n"
-        f"📂  **Kanal:** `#{channel.name}`\n"
-        f"🔑  **Rolle:** {'Moderator' if is_mod else 'Ticket-Ersteller'}",
-    )
     await interaction.response.send_message("🔒 Ticket wird geschlossen…")
+
+    # Kanal sperren — niemand darf mehr schreiben
+    try:
+        await channel.set_permissions(interaction.guild.default_role,
+                                      view_channel=False, send_messages=False)
+        # Ticket-Ersteller darf noch lesen, aber nicht schreiben
+        topic_match_perm = re.search(r'\((\d+)\)', channel.topic or "")
+        if topic_match_perm:
+            owner_member = interaction.guild.get_member(int(topic_match_perm.group(1)))
+            if owner_member:
+                await channel.set_permissions(owner_member,
+                                              view_channel=True, send_messages=False,
+                                              read_message_history=True)
+    except discord.Forbidden:
+        pass
 
     # Transcript in konfigurierten Kanal senden
     transcript_ch_id = _get_transcript_channel(prefix)
@@ -270,7 +278,27 @@ async def _do_close_ticket(interaction: discord.Interaction, prefix: str):
             except Exception:
                 pass
 
-    await channel.delete(reason=f"Ticket geschlossen von {interaction.user}")
+    await send_log(
+        interaction.client,
+        f"🔒 {label}-Ticket geschlossen",
+        f"👤  **Von:** {interaction.user.mention} (`{interaction.user.id}`)\n"
+        f"📂  **Kanal:** {channel.mention}\n"
+        f"🔑  **Rolle:** {'Moderator' if is_mod else 'Ticket-Ersteller'}",
+    )
+
+    # Abschluss-Embed mit Delete-Button senden
+    close_embed = discord.Embed(
+        title="🔒 Ticket geschlossen",
+        description=(
+            f"Dieses Ticket wurde von {interaction.user.mention} geschlossen.\n"
+            f"Der Transcript wurde gespeichert.\n\n"
+            f"**Nur Moderatoren** können den Kanal jetzt löschen."
+        ),
+        color=discord.Color.from_rgb(100, 100, 110),
+    )
+    close_embed.set_footer(text="Kanal wird erst nach dem Klicken auf 'Löschen' entfernt.")
+    delete_view = BoysDeleteView() if prefix == "boys" else GirlsDeleteView()
+    await channel.send(embed=close_embed, view=delete_view)
 
 
 # ── Views ─────────────────────────────────────────────────────────────────────
@@ -313,6 +341,50 @@ class GirlsCloseView(discord.ui.View):
                        custom_id="verify:close:girls", emoji="🔒")
     async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
         await _do_close_ticket(interaction, "girls")
+
+
+async def _do_delete_ticket(interaction: discord.Interaction, prefix: str):
+    channel = interaction.channel
+    label   = "Boys" if prefix == "boys" else "Girls"
+
+    user_role_ids = {r.id for r in interaction.user.roles}
+    is_mod = bool(user_role_ids & set(_get_mod_roles(prefix))) or \
+             interaction.user.guild_permissions.administrator
+
+    if not is_mod:
+        await interaction.response.send_message(
+            "❌ Nur Moderatoren können den Kanal löschen.", ephemeral=True,
+        )
+        return
+
+    await interaction.response.send_message("🗑️ Kanal wird gelöscht…")
+    await send_log(
+        interaction.client,
+        f"🗑️ {label}-Ticket gelöscht",
+        f"👤  **Von:** {interaction.user.mention} (`{interaction.user.id}`)\n"
+        f"📂  **Kanal:** `#{channel.name}`",
+    )
+    await channel.delete(reason=f"Ticket gelöscht von {interaction.user}")
+
+
+class BoysDeleteView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Kanal löschen", style=discord.ButtonStyle.danger,
+                       custom_id="verify:delete:boys", emoji="🗑️")
+    async def delete_channel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await _do_delete_ticket(interaction, "boys")
+
+
+class GirlsDeleteView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Kanal löschen", style=discord.ButtonStyle.danger,
+                       custom_id="verify:delete:girls", emoji="🗑️")
+    async def delete_channel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await _do_delete_ticket(interaction, "girls")
 
 
 # ── Cog ───────────────────────────────────────────────────────────────────────
@@ -513,4 +585,6 @@ async def setup(bot: commands.Bot):
     bot.add_view(GirlsVerifyView())
     bot.add_view(BoysCloseView())
     bot.add_view(GirlsCloseView())
+    bot.add_view(BoysDeleteView())
+    bot.add_view(GirlsDeleteView())
     await bot.add_cog(VerifizierungCog(bot))
