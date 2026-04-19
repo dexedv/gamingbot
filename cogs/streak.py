@@ -88,7 +88,7 @@ async def update_nickname(member: discord.Member, streak: int, force: bool = Fal
 class StreakCog(commands.Cog, name="Streak"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self._cooldown: set[int] = set()
+        self._cooldown: dict[int, str] = {}  # user_id → datum (YYYY-MM-DD)
         self.nickname_loop.start()
 
     def cog_unload(self):
@@ -149,7 +149,10 @@ class StreakCog(commands.Cog, name="Streak"):
     async def on_message(self, message: discord.Message):
         if message.author.bot:
             return
-        if message.author.id in self._cooldown:
+
+        from datetime import date
+        today = str(date.today())
+        if self._cooldown.get(message.author.id) == today:
             return
 
         db = self.bot.db
@@ -160,11 +163,10 @@ class StreakCog(commands.Cog, name="Streak"):
 
         old_streak, new_streak = await db.update_streak(user.id)
 
-        if new_streak == old_streak:
-            self._cooldown.add(user.id)
-            return
+        self._cooldown[user.id] = today
 
-        self._cooldown.add(user.id)
+        if new_streak == old_streak:
+            return
 
         # Nickname aktualisieren
         await update_nickname(user, new_streak)
