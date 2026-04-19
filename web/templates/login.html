@@ -3,122 +3,181 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Login — Pink Horizoon Bot</title>
+  <title>Anmelden — Pink Horizoon Dashboard</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <style>
     :root {
-      --bg: #08090f; --card: #0f1119; --border: #1b1f2e;
+      --bg: #07080e; --card: #0c0e1c; --border: #191d32; --border-2: #222640;
       --accent: #5865f2; --glow: rgba(88,101,242,.18);
-      --text: #dde2ea; --muted: #8892a4; --danger: #ef4444;
+      --text: #e2e8f4; --muted: #8892a4; --danger: #ef4444;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      background: var(--bg); color: var(--text);
+      background:
+        radial-gradient(ellipse 90% 70% at 15% 0%, rgba(88,101,242,.1), transparent),
+        radial-gradient(ellipse 60% 60% at 85% 100%, rgba(124,58,237,.08), transparent),
+        var(--bg);
+      color: var(--text);
       font-family: 'Segoe UI', system-ui, sans-serif;
       min-height: 100vh;
       display: flex; align-items: center; justify-content: center;
+      padding: 1rem;
     }
 
-    .login-wrap {
-      width: 100%; max-width: 380px; padding: 1rem;
+    /* Decorative blobs */
+    body::before, body::after {
+      content: '';
+      position: fixed; border-radius: 50%;
+      filter: blur(80px); opacity: .25; pointer-events: none;
+      animation: drift 12s ease-in-out infinite alternate;
+    }
+    body::before {
+      width: 400px; height: 400px;
+      background: rgba(88,101,242,.3);
+      top: -100px; left: -100px;
+    }
+    body::after {
+      width: 300px; height: 300px;
+      background: rgba(124,58,237,.25);
+      bottom: -80px; right: -80px;
+      animation-delay: -6s;
+    }
+    @keyframes drift {
+      from { transform: translate(0,0) scale(1); }
+      to   { transform: translate(30px, 20px) scale(1.08); }
     }
 
-    .login-card {
+    .wrap {
+      width: 100%; max-width: 400px; position: relative; z-index: 1;
+    }
+
+    .card {
       background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 2.5rem 2rem;
+      border: 1px solid var(--border-2);
+      border-radius: 20px;
+      padding: 2.5rem 2.25rem;
+      box-shadow:
+        0 0 0 1px rgba(88,101,242,.08),
+        0 24px 60px rgba(0,0,0,.55),
+        0 4px 16px rgba(0,0,0,.35);
     }
 
+    /* Logo */
     .logo {
       display: flex; align-items: center; justify-content: center;
-      gap: .65rem; margin-bottom: .4rem;
+      gap: .7rem; margin-bottom: .5rem;
     }
     .logo-icon {
-      width: 40px; height: 40px; border-radius: 10px;
-      background: linear-gradient(135deg,#5865f2,#7289da);
+      width: 44px; height: 44px; border-radius: 12px;
+      background: linear-gradient(135deg, #5865f2, #7c3aed);
       display: flex; align-items: center; justify-content: center;
-      font-size: 1.3rem;
+      font-size: 1.4rem;
+      box-shadow: 0 4px 20px rgba(88,101,242,.5);
     }
-    .logo-text {
-      font-size: 1.3rem; font-weight: 700; color: #fff;
-    }
-    .logo-text span { color: var(--accent); }
+    .logo-name { font-size: 1.25rem; font-weight: 800; color: #fff; letter-spacing: -.02em; }
+    .logo-name span { color: #818cf8; }
+
     .subtitle {
-      text-align: center; color: var(--muted);
-      font-size: .82rem; margin-bottom: 2rem;
+      text-align: center; color: var(--muted); font-size: .82rem;
+      margin-bottom: 2rem; margin-top: .25rem;
     }
+    .subtitle strong { color: var(--text); font-weight: 600; }
 
+    /* Fields */
+    .field { margin-bottom: 1.1rem; }
     .field-label {
-      display: block; font-size: .78rem; color: var(--muted);
-      margin-bottom: .4rem; font-weight: 500;
+      display: block; font-size: .77rem; color: var(--muted);
+      font-weight: 600; margin-bottom: .4rem; letter-spacing: .01em;
     }
-
-    .field-wrap { position: relative; margin-bottom: 1.25rem; }
-    .field-wrap i {
-      position: absolute; left: .85rem; top: 50%; transform: translateY(-50%);
-      color: var(--muted); font-size: .95rem; pointer-events: none;
+    .field-input {
+      position: relative;
     }
-    .field-wrap input {
+    .field-input i {
+      position: absolute; left: .9rem; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-size: .9rem; pointer-events: none;
+      transition: color .15s;
+    }
+    .field-input input {
       width: 100%;
-      background: var(--bg); border: 1px solid var(--border);
-      color: var(--text); border-radius: 9px;
-      padding: .65rem 1rem .65rem 2.5rem;
+      background: rgba(255,255,255,.04); border: 1px solid var(--border-2);
+      color: var(--text); border-radius: 10px;
+      padding: .7rem 1rem .7rem 2.5rem;
       font-size: .9rem; outline: none;
-      transition: border-color .15s, box-shadow .15s;
+      transition: border-color .15s, box-shadow .15s, background .15s;
     }
-    .field-wrap input:focus {
+    .field-input input:focus {
       border-color: var(--accent);
+      background: rgba(88,101,242,.06);
       box-shadow: 0 0 0 3px var(--glow);
     }
-    input::placeholder { color: #3a4254; }
+    .field-input input:focus + i,
+    .field-input:focus-within i { color: #818cf8; }
+    input::placeholder { color: #2e3454; }
 
-    .error-box {
-      background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.25);
-      border-radius: 9px; padding: .65rem 1rem;
-      color: #f87171; font-size: .85rem;
+    /* Error */
+    .error {
+      background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.22);
+      border-radius: 10px; padding: .65rem 1rem;
+      color: #fca5a5; font-size: .84rem;
       display: flex; align-items: center; gap: .5rem;
       margin-bottom: 1.25rem;
     }
 
+    /* Button */
     .btn-login {
       width: 100%; background: var(--accent); color: #fff; border: none;
-      border-radius: 9px; padding: .75rem 1rem;
-      font-size: .9rem; font-weight: 600; cursor: pointer;
-      transition: background .15s, transform .1s;
+      border-radius: 10px; padding: .78rem 1rem;
+      font-size: .92rem; font-weight: 700; cursor: pointer;
+      transition: background .15s, transform .1s, box-shadow .15s;
+      letter-spacing: .01em;
+      margin-top: .35rem;
     }
-    .btn-login:hover { background: #4752c4; }
+    .btn-login:hover {
+      background: #4752c4;
+      box-shadow: 0 6px 20px rgba(88,101,242,.45);
+    }
     .btn-login:active { transform: scale(.98); }
+
+    .footer-note {
+      text-align: center; color: var(--muted);
+      font-size: .75rem; margin-top: 1.5rem;
+      opacity: .6;
+    }
   </style>
 </head>
 <body>
-  <div class="login-wrap">
-    <div class="login-card">
+  <div class="wrap">
+    <div class="card">
       <div class="logo">
         <div class="logo-icon">🎮</div>
-        <div class="logo-text">Gaming<span>Bot</span></div>
+        <div class="logo-name">Pink <span>Horizoon</span></div>
       </div>
-      <p class="subtitle">Anmeldung erforderlich</p>
+      <p class="subtitle">Melde dich an um fortzufahren</p>
 
       {% if error %}
-      <div class="error-box">
-        <i class="bi bi-exclamation-circle"></i> {{ error }}
+      <div class="error">
+        <i class="bi bi-exclamation-circle-fill"></i> {{ error }}
       </div>
       {% endif %}
 
       <form method="POST">
-        <label class="field-label" for="un">Benutzername</label>
-        <div class="field-wrap">
-          <i class="bi bi-person"></i>
-          <input type="text" id="un" name="username"
-            placeholder="admin" autofocus autocomplete="username">
+        <div class="field">
+          <label class="field-label" for="un">Benutzername</label>
+          <div class="field-input">
+            <input type="text" id="un" name="username"
+              placeholder="Benutzername eingeben…" autofocus autocomplete="username">
+            <i class="bi bi-person"></i>
+          </div>
         </div>
 
-        <label class="field-label" for="pw">Passwort</label>
-        <div class="field-wrap">
-          <i class="bi bi-lock"></i>
-          <input type="password" id="pw" name="password"
-            placeholder="••••••••" autocomplete="current-password">
+        <div class="field">
+          <label class="field-label" for="pw">Passwort</label>
+          <div class="field-input">
+            <input type="password" id="pw" name="password"
+              placeholder="••••••••" autocomplete="current-password">
+            <i class="bi bi-lock"></i>
+          </div>
         </div>
 
         <button type="submit" class="btn-login">
@@ -126,6 +185,7 @@
         </button>
       </form>
     </div>
+    <p class="footer-note">Pink Horizoon Bot Dashboard</p>
   </div>
 </body>
 </html>

@@ -3,39 +3,44 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Pink Horizoon Bot{% endblock %} — Dashboard</title>
+  <title>{% block title %}Dashboard{% endblock %} — Pink Horizoon</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   {% block head %}{% endblock %}
   <style>
+    /* ── Design Tokens ─────────────────────────────────────────────────── */
     :root {
-      --bg:        #08090f;
-      --sidebar:   #0c0d16;
-      --card:      #0f1119;
-      --border:    #1b1f2e;
+      --bg:        #07080e;
+      --sidebar:   #08091a;
+      --card:      #0c0e1c;
+      --card-alt:  #0f1123;
+      --border:    #191d32;
+      --border-2:  #222640;
       --accent:    #5865f2;
-      --accent2:   #7289da;
-      --glow:      rgba(88,101,242,.18);
-      --text:      #dde2ea;
+      --accent2:   #818cf8;
+      --accent-glow: rgba(88,101,242,.18);
+      --text:      #e2e8f4;
       --muted:     #8892a4;
-      --faint:     #2e3447;
+      --faint:     #2a2f4a;
       --success:   #22c55e;
       --warning:   #f59e0b;
       --danger:    #ef4444;
-      --sidebar-w: 230px;
+      --sidebar-w: 225px;
     }
 
     *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
 
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       font-size: .9rem;
       margin: 0;
+      min-height: 100vh;
     }
 
-    /* ── Sidebar ─────────────────────────────────────────────────────── */
+    /* ── Sidebar ────────────────────────────────────────────────────────── */
     #sidebar {
       position: fixed; inset: 0 auto 0 0;
       width: var(--sidebar-w);
@@ -43,142 +48,210 @@
       border-right: 1px solid var(--border);
       display: flex; flex-direction: column;
       z-index: 200;
+      box-shadow: 4px 0 32px rgba(0,0,0,.45);
     }
 
+    /* Brand */
     .sb-brand {
-      padding: 1.5rem 1.25rem 1.2rem;
-      font-size: 1.1rem; font-weight: 700; color: #fff;
-      letter-spacing: -.01em;
+      padding: 1.35rem 1.2rem 1.2rem;
       border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; gap: .55rem;
+      display: flex; align-items: center; gap: .6rem;
+      background: linear-gradient(180deg, rgba(88,101,242,.06) 0%, transparent 100%);
+      flex-shrink: 0;
     }
-    .sb-brand .logo-icon {
-      width: 32px; height: 32px; border-radius: 8px;
-      background: linear-gradient(135deg,#5865f2,#7289da);
+    .sb-logo {
+      width: 34px; height: 34px; border-radius: 9px;
+      background: linear-gradient(135deg, #5865f2, #7c3aed);
       display: flex; align-items: center; justify-content: center;
-      font-size: 1rem; flex-shrink: 0;
+      font-size: 1.05rem; flex-shrink: 0;
+      box-shadow: 0 2px 12px rgba(88,101,242,.4);
     }
-    .sb-brand span { color: var(--accent2); }
+    .sb-title { font-size: 1rem; font-weight: 700; color: #fff; letter-spacing: -.01em; line-height: 1.1; }
+    .sb-title small { display: block; font-size: .68rem; font-weight: 400; color: var(--muted); letter-spacing: .01em; }
+
+    /* Nav */
+    .sb-nav { padding: .6rem .7rem; flex: 1; overflow-y: auto; overflow-x: hidden; }
+    .sb-nav::-webkit-scrollbar { width: 3px; }
+    .sb-nav::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 99px; }
 
     .sb-section {
-      padding: .5rem .75rem .25rem;
-      font-size: .68rem; font-weight: 600; letter-spacing: .08em;
+      font-size: .64rem; font-weight: 700; letter-spacing: .1em;
       color: var(--faint); text-transform: uppercase;
-      margin-top: .5rem;
+      padding: .9rem .5rem .3rem;
+      display: flex; align-items: center; gap: .5rem;
     }
-
-    .sb-nav { padding: .5rem .75rem; flex: 1; }
+    .sb-section::after {
+      content: ''; flex: 1; height: 1px;
+      background: var(--border);
+    }
 
     .sb-link {
-      display: flex; align-items: center; gap: .65rem;
-      padding: .6rem .85rem; border-radius: 9px;
+      display: flex; align-items: center; gap: .6rem;
+      padding: .55rem .85rem; border-radius: 9px;
       color: var(--muted); text-decoration: none;
-      font-size: .875rem; font-weight: 500;
-      transition: background .14s, color .14s, box-shadow .14s;
-      margin-bottom: 2px;
-      position: relative;
+      font-size: .84rem; font-weight: 500;
+      transition: background .13s, color .13s;
+      margin-bottom: 1px;
     }
-    .sb-link i { font-size: 1rem; width: 18px; text-align: center; flex-shrink: 0; }
-    .sb-link:hover { background: var(--border); color: var(--text); }
+    .sb-link i {
+      font-size: .95rem; width: 17px; text-align: center;
+      flex-shrink: 0; transition: color .13s;
+    }
+    .sb-link:hover {
+      background: rgba(255,255,255,.05);
+      color: var(--text);
+    }
     .sb-link.active {
-      background: var(--glow);
-      color: #fff;
+      background: rgba(88,101,242,.14);
+      color: #c7d2fe;
       box-shadow: inset 3px 0 0 var(--accent);
+      font-weight: 600;
     }
-    .sb-link.active i { color: var(--accent); }
+    .sb-link.active i { color: var(--accent2); }
 
+    /* Footer */
     .sb-footer {
-      padding: 1rem 1.25rem;
       border-top: 1px solid var(--border);
-      font-size: .78rem; color: var(--muted);
+      padding: .9rem 1rem;
+      flex-shrink: 0;
     }
-    .sb-footer .status {
-      display: flex; align-items: center; gap: .5rem;
-      margin-bottom: .5rem;
+    .sb-user {
+      display: flex; align-items: center; gap: .6rem; margin-bottom: .65rem;
     }
-    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); flex-shrink:0; }
-    .sb-footer a {
-      color: var(--faint); text-decoration: none; font-size: .78rem;
+    .sb-avatar {
+      width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, #5865f2, #7c3aed);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .75rem; font-weight: 700; color: #fff;
+    }
+    .sb-user-name { font-size: .82rem; font-weight: 600; color: var(--text); line-height: 1.2; }
+    .sb-roles { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: .6rem; }
+    .sb-role-pill {
+      font-size: .62rem; font-weight: 700; letter-spacing: .03em;
+      padding: .1rem .4rem; border-radius: 99px;
+    }
+    .sb-logout {
+      display: flex; align-items: center; gap: .45rem;
+      padding: .45rem .7rem; border-radius: 8px;
+      color: var(--muted); text-decoration: none; font-size: .8rem;
+      transition: background .13s, color .13s; width: 100%;
+    }
+    .sb-logout:hover { background: rgba(239,68,68,.1); color: #f87171; }
+    .sb-status {
       display: flex; align-items: center; gap: .4rem;
-      transition: color .14s;
+      font-size: .73rem; color: var(--success); margin-bottom: .55rem;
     }
-    .sb-footer a:hover { color: var(--muted); }
+    .sb-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--success);
+      box-shadow: 0 0 6px var(--success);
+      animation: sb-pulse 2.4s ease infinite;
+    }
+    @keyframes sb-pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: .6; transform: scale(.8); }
+    }
 
-    /* ── Main ──────────────────────────────────────────────────────────── */
+    /* ── Main ───────────────────────────────────────────────────────────── */
     #main {
       margin-left: var(--sidebar-w);
-      padding: 2rem 2.25rem;
+      padding: 2rem 2.25rem 3rem;
       min-height: 100vh;
+      animation: pg-in .22s ease;
+    }
+    @keyframes pg-in {
+      from { opacity: 0; transform: translateY(5px); }
+      to   { opacity: 1; transform: none; }
     }
 
-    .page-header {
-      margin-bottom: 1.75rem;
-    }
+    /* ── Page Header ────────────────────────────────────────────────────── */
+    .page-header { margin-bottom: 1.75rem; }
     .page-header h1 {
-      font-size: 1.45rem; font-weight: 700; color: #fff; margin: 0;
+      font-size: 1.45rem; font-weight: 800; color: #fff;
+      margin: 0; letter-spacing: -.02em;
     }
     .page-header p {
-      color: var(--muted); margin: .2rem 0 0; font-size: .85rem;
+      color: var(--muted); margin: .25rem 0 0; font-size: .84rem;
     }
 
-    /* ── Cards ─────────────────────────────────────────────────────────── */
+    /* ── Cards ──────────────────────────────────────────────────────────── */
     .card {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 14px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.4);
     }
     .card-header {
       background: transparent;
       border-bottom: 1px solid var(--border);
-      padding: .9rem 1.25rem;
+      padding: .85rem 1.25rem;
       font-weight: 600; color: #c8d0dc;
-      font-size: .9rem;
+      font-size: .88rem;
+      display: flex; align-items: center; gap: .45rem;
     }
 
     /* Stat Cards */
     .stat-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 1.25rem 1.4rem;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.2rem 1.35rem;
       position: relative; overflow: hidden;
-      transition: border-color .2s, transform .15s;
+      transition: border-color .2s, transform .15s, box-shadow .2s;
+      box-shadow: 0 1px 4px rgba(0,0,0,.4);
     }
-    .stat-card:hover { transform: translateY(-2px); }
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(0,0,0,.45);
+      border-color: var(--border-2);
+    }
     .stat-card::before {
       content: '';
       position: absolute; top: 0; left: 0; right: 0; height: 2px;
       background: var(--card-accent, var(--accent));
-      border-radius: 14px 14px 0 0;
     }
     .stat-card .s-icon {
-      position: absolute; right: 1.2rem; top: 50%;
-      transform: translateY(-50%);
-      font-size: 2.2rem; opacity: .07;
+      position: absolute; right: 1.1rem; top: 50%; transform: translateY(-50%);
+      font-size: 2.1rem; opacity: .065; color: var(--card-accent, var(--accent));
     }
     .stat-card .s-label {
-      font-size: .72rem; font-weight: 600; letter-spacing: .06em;
+      font-size: .69rem; font-weight: 700; letter-spacing: .08em;
       text-transform: uppercase; color: var(--muted); margin-bottom: .3rem;
     }
     .stat-card .s-value {
-      font-size: 1.85rem; font-weight: 700; color: #fff;
-      line-height: 1.1;
+      font-size: 1.8rem; font-weight: 800; color: #fff; line-height: 1.1;
+      letter-spacing: -.02em;
     }
-    .stat-card .s-sub { font-size: .78rem; color: var(--muted); margin-top: .2rem; }
+    .stat-card .s-sub { font-size: .76rem; color: var(--muted); margin-top: .2rem; }
 
     /* ── Tables ─────────────────────────────────────────────────────────── */
     .table { color: var(--text); }
     .table thead th {
       border-bottom: 1px solid var(--border);
-      color: var(--muted);
-      font-size: .72rem; text-transform: uppercase;
-      letter-spacing: .06em; font-weight: 600;
-      padding: .75rem 1rem;
+      color: var(--muted); font-size: .7rem;
+      text-transform: uppercase; letter-spacing: .07em;
+      font-weight: 700; padding: .75rem 1rem; white-space: nowrap;
     }
-    .table tbody td { padding: .8rem 1rem; border-color: var(--border); vertical-align: middle; }
-    .table tbody tr { border-color: var(--border); }
-    .table tbody tr:hover { background: rgba(255,255,255,.025); }
+    .table tbody td {
+      padding: .75rem 1rem; border-color: rgba(255,255,255,.04);
+      vertical-align: middle;
+    }
+    .table tbody tr { border-color: rgba(255,255,255,.04); }
+    .table tbody tr:hover td { background: rgba(255,255,255,.025); }
     .table-striped > tbody > tr:nth-of-type(odd) > * { background: rgba(255,255,255,.012); }
+
+    /* ── Progress ───────────────────────────────────────────────────────── */
+    .progress { background: var(--border); border-radius: 99px; height: 5px; }
+    .progress-bar { border-radius: 99px; background: var(--accent); }
+
+    /* ── Badges ─────────────────────────────────────────────────────────── */
+    .badge-accent {
+      background: rgba(88,101,242,.18);
+      color: var(--accent2);
+      border: 1px solid rgba(88,101,242,.28);
+    }
+    .badge-muted {
+      background: rgba(255,255,255,.06);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
 
     /* Rank badges */
     .rank-badge {
@@ -191,140 +264,147 @@
     .rank-3 { background: linear-gradient(135deg,#cd7f32,#a0522d); color:#fff; }
     .rank-n { background: var(--border); color: var(--muted); }
 
-    /* ── Progress ────────────────────────────────────────────────────────── */
-    .progress { background: var(--border); border-radius: 99px; height: 5px; }
-    .progress-bar { border-radius: 99px; background: var(--accent); }
-
-    /* ── Badges ──────────────────────────────────────────────────────────── */
-    .badge-accent { background: rgba(88,101,242,.2); color: var(--accent2); border: 1px solid rgba(88,101,242,.3); }
-
-    /* ── Forms ───────────────────────────────────────────────────────────── */
+    /* ── Forms ──────────────────────────────────────────────────────────── */
     .form-control, .form-select {
       background: var(--bg); border: 1px solid var(--border);
       color: var(--text); border-radius: 9px;
+      transition: border-color .15s, box-shadow .15s;
     }
     .form-control:focus, .form-select:focus {
       background: var(--bg); border-color: var(--accent);
-      color: #fff; box-shadow: 0 0 0 3px var(--glow);
+      color: #fff; box-shadow: 0 0 0 3px var(--accent-glow);
     }
     .form-control::placeholder { color: var(--faint); }
+    .form-select option { background: var(--card); }
+    .form-label { font-size: .78rem; color: var(--muted); font-weight: 500; margin-bottom: .35rem; }
+
     .btn-accent {
       background: var(--accent); color: #fff; border: none;
-      border-radius: 9px; font-weight: 500;
-      transition: background .15s;
+      border-radius: 9px; font-weight: 600;
+      transition: background .15s, transform .1s, box-shadow .15s;
     }
-    .btn-accent:hover { background: #4752c4; color: #fff; }
+    .btn-accent:hover {
+      background: #4752c4; color: #fff;
+      box-shadow: 0 4px 16px rgba(88,101,242,.35);
+    }
+    .btn-accent:active { transform: scale(.97); }
 
-    /* ── Nav Pills ────────────────────────────────────────────────────────── */
+    /* ── Nav Pills ──────────────────────────────────────────────────────── */
     .nav-pills .nav-link {
       color: var(--muted); border-radius: 9px;
-      font-size: .85rem; padding: .5rem 1rem;
+      font-size: .84rem; padding: .45rem 1rem;
       transition: all .15s;
     }
-    .nav-pills .nav-link:hover { color: var(--text); background: var(--border); }
+    .nav-pills .nav-link:hover { color: var(--text); background: rgba(255,255,255,.05); }
     .nav-pills .nav-link.active { background: var(--accent); color: #fff; }
 
-    /* ── Scrollbar ───────────────────────────────────────────────────────── */
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+    /* ── Modals ─────────────────────────────────────────────────────────── */
+    .modal-content {
+      background: var(--card);
+      border: 1px solid var(--border-2);
+      border-radius: 16px;
+      box-shadow: 0 24px 64px rgba(0,0,0,.6);
+    }
+    .modal-header { border-color: var(--border); }
+    .modal-footer { border-color: var(--border); }
 
-    /* ── Avatar initials ─────────────────────────────────────────────────── */
+    /* ── Scrollbar ──────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--faint); }
+
+    /* ── Avatar initials ────────────────────────────────────────────────── */
     .avatar {
       width: 32px; height: 32px; border-radius: 50%;
       display: inline-flex; align-items: center; justify-content: center;
       font-size: .75rem; font-weight: 700; flex-shrink: 0;
     }
 
-    /* ── Misc ────────────────────────────────────────────────────────────── */
-    .text-accent { color: var(--accent2); }
-    .search-box { max-width: 300px; }
-
-    /* Toggle switch */
+    /* ── Toggle switch ──────────────────────────────────────────────────── */
     .form-switch .form-check-input { width: 2.5em; height: 1.3em; cursor: pointer; }
     .form-check-input:checked { background-color: var(--accent); border-color: var(--accent); }
-    .form-check-input:focus { box-shadow: 0 0 0 3px var(--glow); border-color: var(--accent); }
+    .form-check-input:focus { box-shadow: 0 0 0 3px var(--accent-glow); border-color: var(--accent); }
+
+    /* ── Misc ───────────────────────────────────────────────────────────── */
+    .text-accent { color: var(--accent2); }
+    .search-box { max-width: 300px; }
+    .text-muted  { color: var(--muted) !important; }
+
+    /* Input group overrides */
+    .input-group-text {
+      background: var(--card); border-color: var(--border); color: var(--muted);
+    }
+    .btn-outline-secondary {
+      border-color: var(--border); color: var(--muted);
+    }
+    .btn-outline-secondary:hover { background: var(--border); color: var(--text); border-color: var(--border); }
   </style>
 </head>
 <body>
 
-<!-- ── Sidebar ── -->
+{% set _roles = session.get('roles', ['paten']) %}
+{% set _lvl_map = {'developer':7,'owner':6,'co-owner':5,'admin':4,'moderator':3,'b-verifizierung':2,'g-verifizierung':2,'supporter':2,'mediator':1,'paten':0} %}
+{% set ns = namespace(ul=0) %}
+{% for _rr in _roles %}{% if _lvl_map.get(_rr,0) > ns.ul %}{% set ns.ul = _lvl_map.get(_rr,0) %}{% endif %}{% endfor %}
+
+<!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
 <nav id="sidebar">
+
+  <!-- Brand -->
   <div class="sb-brand">
-    <div class="logo-icon">🎮</div>
-    <div>Gaming<span>Bot</span></div>
+    <div class="sb-logo">🎮</div>
+    <div>
+      <div class="sb-title">
+        Pink Horizoon
+        <small>Bot Dashboard</small>
+      </div>
+    </div>
   </div>
 
-  {% set _roles = session.get('roles', ['paten']) %}
-  {% set _lvl = {'developer':7,'owner':6,'co-owner':5,'admin':4,'moderator':3,'b-verifizierung':2,'g-verifizierung':2,'supporter':2,'mediator':1,'paten':0} %}
-  {% set ns = namespace(ul=0) %}
-  {% for _rr in _roles %}{% if _lvl.get(_rr, 0) > ns.ul %}{% set ns.ul = _lvl.get(_rr, 0) %}{% endif %}{% endfor %}
-  {% set _ul = ns.ul %}
-
+  <!-- Navigation -->
   <div class="sb-nav">
-    <div class="sb-section">Navigation</div>
+
+    <!-- Übersicht -->
     <a class="sb-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="/">
-      <i class="bi bi-grid-1x2"></i> Dashboard
-    </a>
-    <a class="sb-link {% if request.endpoint == 'leaderboards' %}active{% endif %}" href="/leaderboards">
-      <i class="bi bi-trophy"></i> Ranglisten
+      <i class="bi bi-grid-1x2-fill"></i> Übersicht
     </a>
     <a class="sb-link {% if request.endpoint == 'statistiken' %}active{% endif %}" href="/statistiken">
-      <i class="bi bi-bar-chart-line"></i> Statistiken
+      <i class="bi bi-bar-chart-line-fill"></i> Statistiken
     </a>
+    <a class="sb-link {% if request.endpoint == 'leaderboards' %}active{% endif %}" href="/leaderboards">
+      <i class="bi bi-trophy-fill"></i> Ranglisten
+    </a>
+    <a class="sb-link {% if request.endpoint == 'befehle' %}active{% endif %}" href="/befehle">
+      <i class="bi bi-terminal-fill"></i> Befehle
+    </a>
+
+    <!-- Community -->
+    {% if 'nutzer' in user_features or 'nutzer_verwalten' in user_features or 'umfragen' in user_features %}
+    <div class="sb-section">Community</div>
     {% if 'nutzer' in user_features %}
-    <a class="sb-link {% if request.endpoint in ('users', 'user_detail') %}active{% endif %}" href="/users">
-      <i class="bi bi-people"></i> Nutzer
+    <a class="sb-link {% if request.endpoint in ('users','user_detail') %}active{% endif %}" href="/users">
+      <i class="bi bi-people-fill"></i> Nutzer
     </a>
     {% endif %}
     {% if 'nutzer_verwalten' in user_features %}
     <a class="sb-link {% if request.endpoint == 'verwaltung' %}active{% endif %}" href="/verwaltung">
-      <i class="bi bi-person-gear"></i> Benutzerverwaltung
+      <i class="bi bi-person-gear"></i> Verwaltung
     </a>
     {% endif %}
     {% if 'umfragen' in user_features %}
     <a class="sb-link {% if request.endpoint == 'umfragen' %}active{% endif %}" href="/umfragen">
-      <i class="bi bi-ui-checks"></i> Umfragen
+      <i class="bi bi-ui-checks-grid"></i> Umfragen
     </a>
     {% endif %}
-    <a class="sb-link {% if request.endpoint == 'befehle' %}active{% endif %}" href="/befehle">
-      <i class="bi bi-terminal"></i> Befehle
-    </a>
+    {% endif %}
 
-    {% set _has_verwaltung = 'knast_log' in user_features or 'kummerkasten' in user_features
-        or 'willkommen' in user_features or 'broadcast' in user_features
-        or 'templates' in user_features or 'einstellungen' in user_features
-        or 'cogs' in user_features or 'server_log' in user_features %}
-    {% if _has_verwaltung %}
-    <div class="sb-section" style="margin-top:1rem">Verwaltung</div>
-    {% if 'willkommen' in user_features %}
-    <a class="sb-link {% if request.endpoint == 'willkommen' %}active{% endif %}" href="/willkommen">
-      <i class="bi bi-door-open"></i> Willkommen
-    </a>
-    {% endif %}
-    {% if 'broadcast' in user_features %}
-    <a class="sb-link {% if request.endpoint == 'broadcast' %}active{% endif %}" href="/broadcast">
-      <i class="bi bi-send"></i> Nachrichten
-    </a>
-    {% endif %}
-    {% if 'templates' in user_features %}
-    <a class="sb-link {% if request.endpoint == 'templates' %}active{% endif %}" href="/templates">
-      <i class="bi bi-archive"></i> Templates
-    </a>
-    {% endif %}
+    <!-- Moderation -->
+    {% if 'knast_log' in user_features or 'server_log' in user_features %}
+    <div class="sb-section">Moderation</div>
     {% if 'knast_log' in user_features %}
     <a class="sb-link {% if request.endpoint == 'knast_log' %}active{% endif %}" href="/knast">
-      <i class="bi bi-lock"></i> Knast-Log
-    </a>
-    {% endif %}
-    {% if 'kummerkasten' in user_features %}
-    <a class="sb-link {% if request.endpoint == 'kummerkasten' %}active{% endif %}" href="/kummerkasten">
-      <i class="bi bi-envelope-heart"></i> Kummerkasten
-    </a>
-    {% endif %}
-    {% if 'einstellungen' in user_features %}
-    <a class="sb-link {% if request.endpoint == 'settings' %}active{% endif %}" href="/settings">
-      <i class="bi bi-sliders"></i> Einstellungen
+      <i class="bi bi-lock-fill"></i> Knast-Log
     </a>
     {% endif %}
     {% if 'server_log' in user_features %}
@@ -334,22 +414,57 @@
     {% endif %}
     {% endif %}
 
-    {% if 'verifizierung_boys' in user_features or 'verifizierung_girls' in user_features %}
-    <div class="sb-section" style="margin-top:1rem">Verifizierung</div>
-    {% if 'verifizierung_boys' in user_features %}
-    <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'boys' %}active{% endif %}" href="/verifizierung/boys">
-      <i class="bi bi-gender-male"></i> Boys-Verifizierung
+    <!-- Tools -->
+    {% set _has_tools = 'willkommen' in user_features or 'broadcast' in user_features
+        or 'templates' in user_features or 'kummerkasten' in user_features
+        or 'einstellungen' in user_features or 'cogs' in user_features %}
+    {% if _has_tools %}
+    <div class="sb-section">Tools</div>
+    {% if 'willkommen' in user_features %}
+    <a class="sb-link {% if request.endpoint == 'willkommen' %}active{% endif %}" href="/willkommen">
+      <i class="bi bi-door-open-fill"></i> Willkommen
     </a>
     {% endif %}
-    {% if 'verifizierung_girls' in user_features %}
-    <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'girls' %}active{% endif %}" href="/verifizierung/girls">
-      <i class="bi bi-gender-female"></i> Girls-Verifizierung
+    {% if 'broadcast' in user_features %}
+    <a class="sb-link {% if request.endpoint == 'broadcast' %}active{% endif %}" href="/broadcast">
+      <i class="bi bi-send-fill"></i> Nachrichten
+    </a>
+    {% endif %}
+    {% if 'templates' in user_features %}
+    <a class="sb-link {% if request.endpoint == 'templates' %}active{% endif %}" href="/templates">
+      <i class="bi bi-archive-fill"></i> Templates
+    </a>
+    {% endif %}
+    {% if 'kummerkasten' in user_features %}
+    <a class="sb-link {% if request.endpoint == 'kummerkasten' %}active{% endif %}" href="/kummerkasten">
+      <i class="bi bi-envelope-heart-fill"></i> Kummerkasten
+    </a>
+    {% endif %}
+    {% if 'einstellungen' in user_features %}
+    <a class="sb-link {% if request.endpoint == 'settings' %}active{% endif %}" href="/settings">
+      <i class="bi bi-sliders"></i> Einstellungen
     </a>
     {% endif %}
     {% endif %}
 
+    <!-- Verifizierung -->
+    {% if 'verifizierung_boys' in user_features or 'verifizierung_girls' in user_features %}
+    <div class="sb-section">Verifizierung</div>
+    {% if 'verifizierung_boys' in user_features %}
+    <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'boys' %}active{% endif %}" href="/verifizierung/boys">
+      <i class="bi bi-gender-male" style="color:#818cf8"></i> Boys
+    </a>
+    {% endif %}
+    {% if 'verifizierung_girls' in user_features %}
+    <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'girls' %}active{% endif %}" href="/verifizierung/girls">
+      <i class="bi bi-gender-female" style="color:#f9a8d4"></i> Girls
+    </a>
+    {% endif %}
+    {% endif %}
+
+    <!-- System -->
     {% if 'web_nutzer' in user_features or 'rolle_berechtigungen' in user_features %}
-    <div class="sb-section" style="margin-top:1rem">System</div>
+    <div class="sb-section">System</div>
     {% if 'web_nutzer' in user_features %}
     <a class="sb-link {% if request.endpoint == 'web_users' %}active{% endif %}" href="/web-users">
       <i class="bi bi-people-fill"></i> Web-Nutzer
@@ -357,41 +472,48 @@
     {% endif %}
     {% if 'rolle_berechtigungen' in user_features %}
     <a class="sb-link {% if request.endpoint == 'role_permissions' %}active{% endif %}" href="/role-permissions">
-      <i class="bi bi-shield-lock"></i> Berechtigungen
+      <i class="bi bi-shield-lock-fill"></i> Berechtigungen
     </a>
     {% endif %}
     {% endif %}
-  </div>
 
+  </div><!-- /sb-nav -->
+
+  <!-- Footer -->
   <div class="sb-footer">
-    <div class="status">
-      <span class="dot"></span>
-      <span>Bot online</span>
+    <div class="sb-status">
+      <span class="sb-dot"></span>
+      Bot online
     </div>
-    <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.4rem;font-size:.8rem;color:var(--text);flex-wrap:wrap">
-      <i class="bi bi-person-circle" style="color:var(--accent)"></i>
-      <span>{{ session.get('username', '') }}</span>
+    <div class="sb-user">
+      <div class="sb-avatar">{{ (session.get('username','?')[0]).upper() }}</div>
+      <div class="sb-user-name">{{ session.get('username','') }}</div>
+    </div>
+    <div class="sb-roles">
       {% for _rr in _roles %}
-      <span style="font-size:.65rem;padding:.1rem .45rem;border-radius:99px;font-weight:600;
-        {%- if _rr == 'developer' %}background:rgba(168,85,247,.25);color:#c084fc;
-        {%- elif _rr == 'owner' %}background:rgba(245,158,11,.25);color:#fbbf24;
-        {%- elif _rr == 'co-owner' %}background:rgba(249,115,22,.2);color:#fb923c;
-        {%- elif _rr == 'admin' %}background:rgba(88,101,242,.25);color:#818cf8;
-        {%- elif _rr == 'moderator' %}background:rgba(34,197,94,.2);color:#4ade80;
-        {%- elif _rr == 'b-verifizierung' %}background:rgba(88,101,242,.2);color:#93c5fd;
-        {%- elif _rr == 'g-verifizierung' %}background:rgba(236,72,153,.2);color:#f9a8d4;
-        {%- elif _rr == 'supporter' %}background:rgba(20,184,166,.2);color:#2dd4bf;
-        {%- elif _rr == 'mediator' %}background:rgba(6,182,212,.2);color:#22d3ee;
-        {%- else %}background:var(--border);color:var(--muted);{%- endif %}">
+      <span class="sb-role-pill"
+        style="{% if _rr == 'developer' %}background:rgba(168,85,247,.2);color:#c084fc;border:1px solid rgba(168,85,247,.3)
+        {%- elif _rr == 'owner' %}background:rgba(245,158,11,.2);color:#fbbf24;border:1px solid rgba(245,158,11,.3)
+        {%- elif _rr == 'co-owner' %}background:rgba(249,115,22,.15);color:#fb923c;border:1px solid rgba(249,115,22,.3)
+        {%- elif _rr == 'admin' %}background:rgba(88,101,242,.2);color:#818cf8;border:1px solid rgba(88,101,242,.3)
+        {%- elif _rr == 'moderator' %}background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3)
+        {%- elif _rr == 'b-verifizierung' %}background:rgba(88,101,242,.15);color:#93c5fd;border:1px solid rgba(93,197,250,.25)
+        {%- elif _rr == 'g-verifizierung' %}background:rgba(236,72,153,.15);color:#f9a8d4;border:1px solid rgba(236,72,153,.25)
+        {%- elif _rr == 'supporter' %}background:rgba(20,184,166,.15);color:#2dd4bf;border:1px solid rgba(20,184,166,.25)
+        {%- elif _rr == 'mediator' %}background:rgba(6,182,212,.15);color:#22d3ee;border:1px solid rgba(6,182,212,.25)
+        {%- else %}background:rgba(255,255,255,.06);color:var(--muted);border:1px solid var(--border){%- endif %}">
         {{ _rr | upper }}
       </span>
       {% endfor %}
     </div>
-    <a href="/logout"><i class="bi bi-box-arrow-right"></i> Abmelden</a>
+    <a href="/logout" class="sb-logout">
+      <i class="bi bi-box-arrow-right"></i> Abmelden
+    </a>
   </div>
+
 </nav>
 
-<!-- ── Content ── -->
+<!-- ── Content ─────────────────────────────────────────────────────────── -->
 <main id="main">
   {% block content %}{% endblock %}
 </main>

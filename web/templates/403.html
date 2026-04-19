@@ -1,15 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Kein Zugriff{% endblock %}
 {% block content %}
-<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;gap:1rem">
-  <div style="font-size:3.5rem">🚫</div>
-  <h1 style="font-size:1.6rem;font-weight:700;color:#fff">Kein Zugriff</h1>
-  <p style="color:var(--muted);max-width:380px">
-    Deine Rolle <strong style="color:var(--text)">{{ role or 'viewer' }}</strong>
-    hat keine Berechtigung für diese Seite.
-    Wende dich an einen Administrator.
+<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:65vh;text-align:center;gap:1.1rem">
+  <div style="width:72px;height:72px;border-radius:20px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);display:flex;align-items:center;justify-content:center;font-size:2rem;margin-bottom:.5rem">
+    🔒
+  </div>
+  <h1 style="font-size:1.55rem;font-weight:800;color:#fff;margin:0">Kein Zugriff</h1>
+  <p style="color:var(--muted);max-width:360px;line-height:1.6;margin:0">
+    Die Rolle <span style="background:rgba(255,255,255,.07);border:1px solid var(--border-2);border-radius:6px;padding:.1rem .45rem;color:var(--text);font-weight:600;font-size:.88rem">{{ role or 'unbekannt' }}</span>
+    hat keinen Zugriff auf diese Seite.
   </p>
-  <a href="/" style="margin-top:.5rem;padding:.55rem 1.4rem;background:var(--accent);color:#fff;border-radius:9px;text-decoration:none;font-weight:500">
+  <a href="/" style="display:inline-flex;align-items:center;gap:.45rem;margin-top:.5rem;padding:.6rem 1.4rem;background:var(--accent);color:#fff;border-radius:10px;text-decoration:none;font-weight:600;font-size:.88rem;transition:background .15s"
+     onmouseover="this.style.background='#4752c4'" onmouseout="this.style.background='var(--accent)'">
     <i class="bi bi-arrow-left"></i> Zurück zum Dashboard
   </a>
 </div>
