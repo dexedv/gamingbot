@@ -7,9 +7,9 @@ import sqlite3
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from utils import send_log
 
-DB_PATH          = os.path.join(os.path.dirname(__file__), '..', 'data', 'gamingbot.db')
-RULES_CHANNEL_ID = 1019184912110211103
-UNVERIFIED_ROLE_NAME = "Unverifiziert"
+DB_PATH           = os.path.join(os.path.dirname(__file__), '..', 'data', 'gamingbot.db')
+RULES_CHANNEL_ID  = 1019184912110211103
+VERIFIED_ROLE_NAME = "Verifiziert"
 
 DEFAULT_RULE_FIELDS = [
     (
@@ -105,22 +105,22 @@ class RulesAcceptView(discord.ui.View):
         guild  = interaction.guild
         member = interaction.user
 
-        role = discord.utils.get(guild.roles, name=UNVERIFIED_ROLE_NAME)
+        role = discord.utils.get(guild.roles, name=VERIFIED_ROLE_NAME)
         if not role:
             await interaction.response.send_message(
-                "❌ Die Unverifiziert-Rolle wurde nicht gefunden. Bitte kontaktiere einen Admin.",
+                "❌ Die Verifiziert-Rolle wurde nicht gefunden. Bitte kontaktiere einen Admin.",
                 ephemeral=True,
             )
             return
 
-        if role not in member.roles:
+        if role in member.roles:
             await interaction.response.send_message(
                 "✅ Du hast die Regeln bereits akzeptiert!", ephemeral=True
             )
             return
 
         try:
-            await member.remove_roles(role, reason="Regeln akzeptiert")
+            await member.add_roles(role, reason="Regeln akzeptiert")
             # In DB speichern
             try:
                 conn = sqlite3.connect(DB_PATH)
@@ -141,11 +141,11 @@ class RulesAcceptView(discord.ui.View):
                 interaction.client,
                 "✅ Regeln akzeptiert",
                 f"👤  **Nutzer:** {member.mention} (`{member.id}`)\n"
-                f"🎭  **Rolle entfernt:** {role.name}",
+                f"🎭  **Rolle vergeben:** {role.name}",
             )
         except discord.Forbidden:
             await interaction.response.send_message(
-                "❌ Keine Berechtigung, die Rolle zu entfernen. Bitte kontaktiere einen Admin.",
+                "❌ Keine Berechtigung, die Rolle zu vergeben. Bitte kontaktiere einen Admin.",
                 ephemeral=True,
             )
 
@@ -162,9 +162,10 @@ class RegelwerkCog(commands.Cog, name="Regelwerk"):
         embed = discord.Embed(
             title="📜 Regelwerk-System",
             description=(
-                "`%regelwerk setup` — Rolle erstellen & Regeln in den Kanal posten\n"
-                "`%regelwerk sperren` — Unverifiziert-Rolle aus allen anderen Kanälen sperren\n"
-                "`%regelwerk rolle @Nutzer` — Unverifiziert-Rolle manuell zuweisen\n"
+                "`%regelwerk setup` — Verifiziert-Rolle erstellen & Regeln posten\n"
+                "`%regelwerk sperren` — @everyone sperren, Verifiziert freischalten\n"
+                "`%regelwerk alle` — Alle aktuellen Mitglieder als verifiziert markieren\n"
+                "`%regelwerk rolle @Nutzer` — Verifiziert-Rolle manuell zuweisen\n"
             ),
             color=discord.Color.from_rgb(88, 101, 242),
         )
@@ -175,19 +176,19 @@ class RegelwerkCog(commands.Cog, name="Regelwerk"):
     async def cmd_setup(self, ctx: commands.Context):
         guild = ctx.guild
 
-        # Rolle erstellen oder finden
-        role = discord.utils.get(guild.roles, name=UNVERIFIED_ROLE_NAME)
+        # Verifiziert-Rolle erstellen oder finden
+        role = discord.utils.get(guild.roles, name=VERIFIED_ROLE_NAME)
         if not role:
             role = await guild.create_role(
-                name=UNVERIFIED_ROLE_NAME,
-                color=discord.Color.from_rgb(128, 128, 128),
+                name=VERIFIED_ROLE_NAME,
+                color=discord.Color.from_rgb(88, 101, 242),
                 hoist=False,
                 mentionable=False,
-                reason="Regelwerk-System: Unverifiziert-Rolle",
+                reason="Regelwerk-System: Verifiziert-Rolle",
             )
-            await ctx.send(f"✅ Rolle **{UNVERIFIED_ROLE_NAME}** erstellt: {role.mention}")
+            await ctx.send(f"✅ Rolle **{VERIFIED_ROLE_NAME}** erstellt: {role.mention}")
         else:
-            await ctx.send(f"ℹ️ Rolle **{UNVERIFIED_ROLE_NAME}** existiert bereits: {role.mention}")
+            await ctx.send(f"ℹ️ Rolle **{VERIFIED_ROLE_NAME}** existiert bereits: {role.mention}")
 
         # Regelwerk-Kanal holen
         channel = guild.get_channel(RULES_CHANNEL_ID)
@@ -195,15 +196,15 @@ class RegelwerkCog(commands.Cog, name="Regelwerk"):
             await ctx.send(f"❌ Kanal `{RULES_CHANNEL_ID}` nicht gefunden!")
             return
 
-        # Kanalrechte: Unverifiziert darf diesen Kanal sehen (nur lesen)
+        # Regelkanal: @everyone darf lesen (aber nicht schreiben)
         try:
             await channel.set_permissions(
-                role,
+                guild.default_role,
                 view_channel=True,
                 send_messages=False,
                 read_message_history=True,
             )
-            await ctx.send(f"✅ Kanalrechte gesetzt: {role.mention} → {channel.mention} (nur lesen).")
+            await ctx.send(f"✅ Kanalrechte gesetzt: @everyone → {channel.mention} (nur lesen).")
         except discord.Forbidden:
             await ctx.send("❌ Keine Berechtigung, Kanalrechte zu setzen.")
             return
@@ -218,7 +219,7 @@ class RegelwerkCog(commands.Cog, name="Regelwerk"):
             color=discord.Color.from_rgb(88, 101, 242),
         )
         for name, value in _load_rules():
-            embed.add_field(name=name, value=value, inline=False)
+            embed.add_field(name=name[:256], value=value[:1024], inline=False)
 
         embed.set_footer(text="Durch den Klick auf ✅ bekommst du Zugang zum Server.")
 
@@ -229,60 +230,58 @@ class RegelwerkCog(commands.Cog, name="Regelwerk"):
     @regelwerk_cmd.command(name="sperren")
     @commands.has_permissions(administrator=True)
     async def cmd_sperren(self, ctx: commands.Context):
-        """Fügt für alle Kanäle (außer dem Regelwerk-Kanal) einen Deny-Overwrite für Unverifiziert hinzu."""
+        """Setzt @everyone auf view_channel=False überall, Verifiziert auf True."""
         guild = ctx.guild
-        role  = discord.utils.get(guild.roles, name=UNVERIFIED_ROLE_NAME)
+        role  = discord.utils.get(guild.roles, name=VERIFIED_ROLE_NAME)
         if not role:
             await ctx.send(
-                f"❌ Rolle **{UNVERIFIED_ROLE_NAME}** nicht gefunden. Führe erst `%regelwerk setup` aus."
+                f"❌ Rolle **{VERIFIED_ROLE_NAME}** nicht gefunden. Führe erst `%regelwerk setup` aus."
             )
             return
 
         msg    = await ctx.send("⏳ Setze Kanalrechte für alle Kanäle…")
         count  = 0
         errors = 0
+
         for ch in guild.channels:
             if ch.id == RULES_CHANNEL_ID:
+                # Regelkanal: @everyone darf sehen (aber nicht schreiben)
+                try:
+                    await ch.set_permissions(guild.default_role, view_channel=True, send_messages=False)
+                    count += 1
+                except discord.Forbidden:
+                    errors += 1
                 continue
+
             if isinstance(ch, (discord.TextChannel, discord.VoiceChannel,
                                 discord.CategoryChannel, discord.ForumChannel,
                                 discord.StageChannel)):
                 try:
-                    await ch.set_permissions(role, view_channel=False)
+                    await ch.set_permissions(guild.default_role, view_channel=False)
+                    await ch.set_permissions(role, view_channel=True)
                     count += 1
                 except discord.Forbidden:
                     errors += 1
 
-        result = f"✅ **{count}** Kanäle für {role.mention} gesperrt."
+        result = f"✅ **{count}** Kanäle konfiguriert — @everyone gesperrt, {role.mention} freigeschaltet."
         if errors:
-            result += f" ❌ **{errors}** Kanäle konnten nicht gesperrt werden (fehlende Rechte)."
+            result += f"\n❌ **{errors}** Kanäle konnten nicht geändert werden (fehlende Rechte)."
         await msg.edit(content=result)
-
-    @regelwerk_cmd.command(name="rolle")
-    @commands.has_permissions(administrator=True)
-    async def cmd_rolle(self, ctx: commands.Context, member: discord.Member):
-        """Weist einem Nutzer die Unverifiziert-Rolle manuell zu."""
-        role = discord.utils.get(ctx.guild.roles, name=UNVERIFIED_ROLE_NAME)
-        if not role:
-            await ctx.send(f"❌ Rolle **{UNVERIFIED_ROLE_NAME}** nicht gefunden.")
-            return
-        await member.add_roles(role, reason=f"Manuell zugewiesen von {ctx.author}")
-        await ctx.send(f"✅ {member.mention} hat die Rolle {role.mention} erhalten.")
 
     @regelwerk_cmd.command(name="alle")
     @commands.has_permissions(administrator=True)
     async def cmd_alle(self, ctx: commands.Context):
-        """Gibt allen aktuellen Mitgliedern (ohne Bots) die Unverifiziert-Rolle."""
+        """Gibt allen aktuellen Mitgliedern (ohne Bots) die Verifiziert-Rolle."""
         guild = ctx.guild
-        role  = discord.utils.get(guild.roles, name=UNVERIFIED_ROLE_NAME)
+        role  = discord.utils.get(guild.roles, name=VERIFIED_ROLE_NAME)
         if not role:
-            await ctx.send(f"❌ Rolle **{UNVERIFIED_ROLE_NAME}** nicht gefunden. Führe erst `%regelwerk setup` aus.")
+            await ctx.send(f"❌ Rolle **{VERIFIED_ROLE_NAME}** nicht gefunden. Führe erst `%regelwerk setup` aus.")
             return
 
-        msg    = await ctx.send("⏳ Weise allen Mitgliedern die Unverifiziert-Rolle zu…")
-        added  = 0
+        msg     = await ctx.send("⏳ Weise allen Mitgliedern die Verifiziert-Rolle zu…")
+        added   = 0
         skipped = 0
-        errors = 0
+        errors  = 0
 
         async for member in guild.fetch_members(limit=None):
             if member.bot:
@@ -291,30 +290,35 @@ class RegelwerkCog(commands.Cog, name="Regelwerk"):
                 skipped += 1
                 continue
             try:
-                await member.add_roles(role, reason=f"Massen-Zuweisung von {ctx.author}")
+                await member.add_roles(role, reason=f"Massen-Verifizierung von {ctx.author}")
                 added += 1
             except discord.Forbidden:
                 errors += 1
 
         result = (
             f"✅ Fertig!\n"
-            f"➕ **{added}** Mitglieder bekamen die Rolle\n"
-            f"⏩ **{skipped}** hatten sie bereits\n"
+            f"➕ **{added}** Mitglieder verifiziert\n"
+            f"⏩ **{skipped}** waren bereits verifiziert\n"
         )
         if errors:
             result += f"❌ **{errors}** konnten nicht zugewiesen werden (fehlende Rechte)"
         await msg.edit(content=result)
 
+    @regelwerk_cmd.command(name="rolle")
+    @commands.has_permissions(administrator=True)
+    async def cmd_rolle(self, ctx: commands.Context, member: discord.Member):
+        """Weist einem Nutzer die Verifiziert-Rolle manuell zu."""
+        role = discord.utils.get(ctx.guild.roles, name=VERIFIED_ROLE_NAME)
+        if not role:
+            await ctx.send(f"❌ Rolle **{VERIFIED_ROLE_NAME}** nicht gefunden.")
+            return
+        await member.add_roles(role, reason=f"Manuell zugewiesen von {ctx.author}")
+        await ctx.send(f"✅ {member.mention} hat die Rolle {role.mention} erhalten.")
+
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
-        if member.bot:
-            return
-        role = discord.utils.get(member.guild.roles, name=UNVERIFIED_ROLE_NAME)
-        if role:
-            try:
-                await member.add_roles(role, reason="Neu beigetreten – Regeln müssen akzeptiert werden")
-            except discord.Forbidden:
-                pass
+        """Neue Mitglieder bekommen automatisch KEINE Verifiziert-Rolle → sehen nur den Regelkanal."""
+        pass
 
 
 async def setup(bot: commands.Bot):
