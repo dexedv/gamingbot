@@ -11,7 +11,7 @@ DB_PATH          = os.path.join(os.path.dirname(__file__), '..', 'data', 'gaming
 RULES_CHANNEL_ID = 1019184912110211103
 UNVERIFIED_ROLE_NAME = "Unverifiziert"
 
-RULE_FIELDS = [
+DEFAULT_RULE_FIELDS = [
     (
         "I. Respekt & Verhalten",
         "➜ Behandle alle Mitglieder mit Respekt und Höflichkeit.\n"
@@ -71,6 +71,22 @@ RULE_FIELDS = [
         "➜ Mit dem Beitritt zum Server akzeptierst du diese Regeln.",
     ),
 ]
+
+
+def _load_rules() -> list[tuple[str, str]]:
+    """Lädt Regelfelder aus DB; fällt auf Default zurück wenn nicht gesetzt."""
+    import json
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        row  = conn.execute("SELECT value FROM bot_settings WHERE key='regelwerk_rules'").fetchone()
+        conn.close()
+        if row:
+            data = json.loads(row[0])
+            if isinstance(data, list) and data:
+                return [(r["title"], r["content"]) for r in data]
+    except Exception:
+        pass
+    return DEFAULT_RULE_FIELDS
 
 
 # ── View ──────────────────────────────────────────────────────────────────────
@@ -201,7 +217,7 @@ class RegelwerkCog(commands.Cog, name="Regelwerk"):
             ),
             color=discord.Color.from_rgb(88, 101, 242),
         )
-        for name, value in RULE_FIELDS:
+        for name, value in _load_rules():
             embed.add_field(name=name, value=value, inline=False)
 
         embed.set_footer(text="Durch den Klick auf ✅ bekommst du Zugang zum Server.")

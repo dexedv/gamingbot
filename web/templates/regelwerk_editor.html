@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Regelwerk-Editor{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+  <div>
+    <h1 style="font-size:1.65rem;font-weight:800;color:#fff;margin:0">
+      <i class="bi bi-pencil-square me-2" style="color:#f59e0b"></i>Regelwerk-Editor
+    </h1>
+    <p style="color:var(--muted);margin:.3rem 0 0;font-size:.85rem">
+      Bearbeite die Server-Regeln und poste sie direkt in Discord
+    </p>
+  </div>
+  <button class="btn btn-sm" id="postBtn"
+          style="background:rgba(88,101,242,.15);color:var(--accent2);border:1px solid rgba(88,101,242,.3);border-radius:9px;padding:.45rem 1rem;font-size:.84rem;font-weight:600"
+          onclick="postToDiscord()">
+    <i class="bi bi-discord me-1"></i> Jetzt in Discord posten
+  </button>
+</div>
+
+<form method="post">
+  <div id="sectionList">
+    {% for rule in rules %}
+    <div class="rule-section card mb-3" style="border-radius:13px">
+      <div class="card-body p-3">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span style="background:rgba(88,101,242,.15);color:var(--accent2);border:1px solid rgba(88,101,242,.25);border-radius:7px;padding:.15rem .55rem;font-size:.75rem;font-weight:700">
+            {{ loop.index }}
+          </span>
+          <input type="text" name="title" value="{{ rule.title }}" required
+                 class="form-control form-control-sm"
+                 style="font-weight:600;font-size:.88rem"
+                 placeholder="Abschnittstitel">
+          <button type="button" class="btn btn-sm ms-auto"
+                  style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2);border-radius:7px;padding:.2rem .5rem;flex-shrink:0"
+                  onclick="removeSection(this)" title="Abschnitt löschen">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+        <textarea name="content" rows="4" required
+                  class="form-control form-control-sm"
+                  style="font-size:.84rem;font-family:monospace;resize:vertical"
+                  placeholder="Regeltext (eine Regel pro Zeile)">{{ rule.content }}</textarea>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Neuer Abschnitt -->
+  <button type="button" class="btn btn-sm mb-4"
+          style="background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.25);border-radius:9px;padding:.45rem 1rem;font-size:.84rem"
+          onclick="addSection()">
+    <i class="bi bi-plus-circle me-1"></i> Abschnitt hinzufügen
+  </button>
+
+  <!-- Speichern -->
+  <div style="border-top:1px solid var(--border);padding-top:1rem;display:flex;gap:.75rem;align-items:center">
+    <button type="submit" class="btn btn-accent px-4">
+      <i class="bi bi-floppy me-1"></i> Speichern
+    </button>
+    <span id="saveStatus" style="font-size:.82rem;color:var(--muted)"></span>
+  </div>
+</form>
+
+<!-- Vorschau -->
+<div class="mt-4">
+  <div style="font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.75rem">
+    Vorschau (Discord-Embed)
+  </div>
+  <div style="background:#313338;border-radius:12px;padding:1rem 1.25rem;border-left:4px solid #5865f2;max-width:620px">
+    <div style="font-weight:700;color:#fff;font-size:1rem;margin-bottom:.5rem">📜 Discord Server Regeln</div>
+    <div style="color:#dbdee1;font-size:.82rem;margin-bottom:.85rem;line-height:1.5">
+      Bitte lies die folgenden Regeln sorgfältig durch.<br>
+      Mit dem Klick auf den Button unten bestätigst du, dass du sie gelesen und akzeptiert hast.
+    </div>
+    <div id="preview">
+      {% for rule in rules %}
+      <div style="margin-bottom:.7rem">
+        <div style="font-weight:700;color:#fff;font-size:.82rem">{{ rule.title }}</div>
+        <div style="color:#dbdee1;font-size:.8rem;white-space:pre-line;line-height:1.5">{{ rule.content }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <div style="margin-top:.85rem">
+      <span style="background:#248046;color:#fff;border-radius:4px;padding:.35rem .9rem;font-size:.82rem;font-weight:600">✅ Ich akzeptiere die Regeln</span>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Abschnitt löschen
+function removeSection(btn) {
+  const section = btn.closest('.rule-section');
+  if (document.querySelectorAll('.rule-section').length <= 1) {
+    alert('Mindestens ein Abschnitt muss vorhanden sein.');
+    return;
+  }
+  section.remove();
+  updateNumbers();
+}
+
+// Abschnitt hinzufügen
+function addSection() {
+  const list = document.getElementById('sectionList');
+  const n    = list.querySelectorAll('.rule-section').length + 1;
+  const div  = document.createElement('div');
+  div.className = 'rule-section card mb-3';
+  div.style.borderRadius = '13px';
+  div.innerHTML = `
+    <div class="card-body p-3">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span style="background:rgba(88,101,242,.15);color:var(--accent2);border:1px solid rgba(88,101,242,.25);border-radius:7px;padding:.15rem .55rem;font-size:.75rem;font-weight:700" class="section-num">${n}</span>
+        <input type="text" name="title" required class="form-control form-control-sm" style="font-weight:600;font-size:.88rem" placeholder="Abschnittstitel">
+        <button type="button" class="btn btn-sm ms-auto" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2);border-radius:7px;padding:.2rem .5rem;flex-shrink:0" onclick="removeSection(this)" title="Abschnitt löschen">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+      <textarea name="content" rows="4" required class="form-control form-control-sm" style="font-size:.84rem;font-family:monospace;resize:vertical" placeholder="Regeltext (eine Regel pro Zeile)"></textarea>
+    </div>`;
+  list.appendChild(div);
+}
+
+// Nummern aktualisieren
+function updateNumbers() {
+  document.querySelectorAll('.section-num').forEach((el, i) => {
+    el.textContent = i + 1;
+  });
+}
+
+// In Discord posten
+function postToDiscord() {
+  const btn = document.getElementById('postBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Wird gepostet…';
+  fetch('/api/regelwerk/post', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        btn.innerHTML = '<i class="bi bi-check-circle me-1"></i> Gepostet!';
+        btn.style.color = '#22c55e';
+        btn.style.borderColor = 'rgba(34,197,94,.4)';
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-discord me-1"></i> Jetzt in Discord posten';
+          btn.style.color = '';
+          btn.style.borderColor = '';
+        }, 3000);
+      } else {
+        alert('Fehler: ' + (data.error || 'Unbekannt'));
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-discord me-1"></i> Jetzt in Discord posten';
+      }
+    })
+    .catch(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-discord me-1"></i> Jetzt in Discord posten';
+    });
+}
+</script>
+{% endblock %}

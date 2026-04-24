@@ -453,8 +453,13 @@
     {% endif %}
 
     <!-- Verifizierung -->
-    {% if 'verifizierung_boys' in user_features or 'verifizierung_girls' in user_features %}
+    {% if 'verifizierung_boys' in user_features or 'verifizierung_girls' in user_features or 'regelwerk_editor' in user_features %}
     <div class="sb-section">Verifizierung</div>
+    {% if 'regelwerk_editor' in user_features %}
+    <a class="sb-link {% if request.endpoint == 'regelwerk_editor_page' %}active{% endif %}" href="/regelwerk-editor">
+      <i class="bi bi-pencil-square" style="color:#f59e0b"></i> Regelwerk
+    </a>
+    {% endif %}
     {% if 'verifizierung_boys' in user_features %}
     <a class="sb-link {% if request.endpoint == 'verifizierung' and request.view_args.get('prefix') == 'boys' %}active{% endif %}" href="/verifizierung/boys">
       <i class="bi bi-gender-male" style="color:#818cf8"></i> Boys

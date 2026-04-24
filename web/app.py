@@ -82,7 +82,45 @@ FEATURES = {
     "rolle_berechtigungen": {"label": "Rollen-Berechtigungen",   "icon": "bi-shield-lock",     "desc": "Zugriffsrechte der Rollen konfigurieren"},
     "server_log":           {"label": "Server-Log",              "icon": "bi-journal-text",    "desc": "Alle Server-Ereignisse einsehen"},
     "verified":             {"label": "Verifizierte Nutzer",     "icon": "bi-check-circle",    "desc": "Liste aller Nutzer die die Regeln akzeptiert haben"},
-}
+    "regelwerk_editor":     {"label": "Regelwerk-Editor",        "icon": "bi-pencil-square",   "desc": "Server-Regeln bearbeiten und in Discord posten"},
+} = [
+    {"title": "I. Respekt & Verhalten",
+     "content": "➜ Behandle alle Mitglieder mit Respekt und Höflichkeit.\n➜ Beleidigungen, Diskriminierung, Hassrede oder Mobbing sind strikt verboten.\n➜ Provokationen, Trolling oder absichtliches Stören der Community werden nicht toleriert."},
+    {"title": "II. Spam & Inhalte",
+     "content": "➜ Kein Spam (z. B. wiederholte Nachrichten, unnötige Tags, Capslock-Missbrauch).\n➜ Keine Werbung ohne vorherige Erlaubnis des Teams.\n➜ Poste Inhalte nur in den dafür vorgesehenen Channels.\n➜ Vermeide Off-Topic in themenspezifischen Kanälen."},
+    {"title": "III. NSFW & unangemessene Inhalte",
+     "content": "➜ NSFW-, pornografische oder verstörende Inhalte sind verboten.\n➜ Keine gewaltverherrlichenden oder extremistischen Inhalte."},
+    {"title": "IV. Datenschutz & Sicherheit",
+     "content": "➜ Teile keine privaten Informationen (deine oder die anderer).\n➜ Scams oder Betrugsversuche führen zum sofortigen Bann.\n➜ Melde verdächtige Aktivitäten dem Team per Ticket."},
+    {"title": "V. Umgang mit Moderation",
+     "content": "➜ Folge den Anweisungen des Moderationsteams.\n➜ Das Ausnutzen von Lücken in den Regeln wird nicht toleriert.\n➜ Respektiere Entscheidungen – sie dienen dem Schutz der Community."},
+    {"title": "VI. Sprache & Kommunikation",
+     "content": "➜ Nutze eine angemessene Sprache (keine übermäßigen Beleidigungen oder vulgäre Ausdrucksweise).\n➜ Vermeide übermäßiges Ping/Tagging von Personen oder Rollen."},
+    {"title": "VII. Voice-Chat Regeln",
+     "content": "➜ Kein Schreien, Stören oder absichtliches Überlagern anderer.\n➜ Respektiere die Gespräche anderer Teilnehmer."},
+    {"title": "VIII. Namen & Profile",
+     "content": "➜ Keine beleidigenden, diskriminierenden oder unangemessenen Namen/Bilder/Bios.\n➜ Keine Nachahmung von Teammitgliedern oder anderen Nutzern."},
+    {"title": "IX. Konsequenzen bei Regelverstößen",
+     "content": "➜ Verwarnung.\n➜ Zeitlich begrenzter Mute/Kick.\n➜ Permanenter Bann.\n*(Die Strafe richtet sich nach Schwere des Verstoßes.)*"},
+    {"title": "X. Sonstiges",
+     "content": "➜ Das Team behält sich vor, Regeln jederzeit anzupassen.\n➜ Unwissenheit schützt nicht vor Strafe.\n➜ Mit dem Beitritt zum Server akzeptierst du diese Regeln."},
+]
+
+
+def _load_regelwerk() -> list[dict]:
+    import json as _j
+    try:
+        db = get_db()
+        row = db.execute("SELECT value FROM bot_settings WHERE key='regelwerk_rules'").fetchone()
+        db.close()
+        if row:
+            data = _j.loads(row[0])
+            if isinstance(data, list) and data:
+                return data
+    except Exception:
+        pass
+    return _REGELWERK_DEFAULTS
+
 
 # Endpoint-Name → Feature
 # Verifizierung-Routen sind NICHT hier — die prüfen ihr Feature selbst im Handler
@@ -103,6 +141,7 @@ FEATURE_ROUTES: dict[str, set] = {
     "rolle_berechtigungen": {"role_permissions", "api_role_permissions_save"},
     "server_log":           {"server_log_page", "api_log_clear"},
     "verified":             {"verified_page", "api_verified_delete"},
+    "regelwerk_editor":     {"regelwerk_editor_page", "api_regelwerk_save", "api_regelwerk_post"},
 }
 
 # Reverse-Map: endpoint → feature (wird beim Import gebaut)
@@ -116,9 +155,11 @@ DEFAULT_PERMISSIONS: dict[str, list] = {
     "owner":           list(FEATURES.keys()),
     "co-owner":        ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
                         "verifizierung_boys", "verifizierung_girls",
-                        "broadcast", "willkommen", "cogs", "templates", "einstellungen", "server_log", "verified"],
+                        "broadcast", "willkommen", "cogs", "templates", "einstellungen", "server_log",
+                        "verified", "regelwerk_editor"],
     "admin":           ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
-                        "verifizierung_boys", "verifizierung_girls", "broadcast", "willkommen", "server_log", "verified"],
+                        "verifizierung_boys", "verifizierung_girls", "broadcast", "willkommen",
+                        "server_log", "verified", "regelwerk_editor"],
     "moderator":       ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
                         "verifizierung_boys", "verifizierung_girls", "server_log", "verified"],
     "b-verifizierung": ["verifizierung_boys"],
@@ -1664,6 +1705,76 @@ def api_role_permissions_save():
                  f"🔘  **Status:** {'✅' if enabled else '⛔'} {action}\n"
                  f"🌐  **Von:** {session.get('username')}")
     return jsonify({"ok": True})
+
+
+# ── Regelwerk-Editor ──────────────────────────────────────────────────────────
+
+@app.route("/regelwerk-editor", methods=["GET", "POST"])
+@login_required
+def regelwerk_editor_page():
+    import json as _j
+    rules = _load_regelwerk()
+    if request.method == "POST":
+        titles   = request.form.getlist("title")
+        contents = request.form.getlist("content")
+        new_rules = [
+            {"title": t.strip(), "content": c.strip()}
+            for t, c in zip(titles, contents)
+            if t.strip()
+        ]
+        if new_rules:
+            db = get_db()
+            db.execute(
+                "INSERT INTO bot_settings (key, value) VALUES ('regelwerk_rules', ?)"
+                " ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (_j.dumps(new_rules),)
+            )
+            db.commit()
+            db.close()
+            _discord_log("📜 Regelwerk aktualisiert",
+                         f"📝  **Abschnitte:** {len(new_rules)}\n"
+                         f"🌐  **Von:** {session.get('username')}")
+        return redirect(url_for("regelwerk_editor_page"))
+    return render_template("regelwerk_editor.html", rules=rules)
+
+
+@app.route("/api/regelwerk/post", methods=["POST"])
+@login_required
+def api_regelwerk_post():
+    import json as _j
+    bot  = current_app.config.get("BOT")
+    loop = current_app.config.get("LOOP")
+    if not bot or not loop:
+        return jsonify({"error": "Bot nicht verfügbar"}), 503
+
+    async def _post():
+        import sys as _sys, os as _os, discord as _d
+        _sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), '..'))
+        from cogs.regelwerk import RulesAcceptView, _load_rules, RULES_CHANNEL_ID
+
+        channel = bot.get_channel(RULES_CHANNEL_ID)
+        if not channel:
+            raise ValueError(f"Kanal {RULES_CHANNEL_ID} nicht gefunden")
+
+        embed = _d.Embed(
+            title="📜 Discord Server Regeln",
+            description=(
+                "Bitte lies die folgenden Regeln sorgfältig durch.\n"
+                "Mit dem Klick auf den Button unten bestätigst du, dass du sie gelesen und akzeptiert hast."
+            ),
+            color=_d.Color.from_rgb(88, 101, 242),
+        )
+        for name, value in _load_rules():
+            embed.add_field(name=name, value=value, inline=False)
+        embed.set_footer(text="Durch den Klick auf ✅ bekommst du Zugang zum Server.")
+        await channel.send(embed=embed, view=RulesAcceptView())
+
+    try:
+        asyncio.run_coroutine_threadsafe(_post(), loop).result(timeout=15)
+        _discord_log("📜 Regelwerk in Discord gepostet", f"🌐  **Von:** {session.get('username')}")
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ── Verified ──────────────────────────────────────────────────────────────────
