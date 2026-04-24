@@ -136,7 +136,37 @@ def delete_template(name: str) -> bool:
     return False
 
 
-AUTO_KEEP = 48   # Wie viele Auto-Snapshots behalten (48 × 30 min = 24 h)
+AUTO_KEEP    = 14   # Wie viele Auto-Snapshots behalten (14 × 12 h = 7 Tage)
+COOLDOWN_H   = 12   # Stunden zwischen manuellen Templates
+
+
+def _last_manual_created_at() -> datetime | None:
+    """Gibt den Zeitstempel des zuletzt manuell erstellten Templates zurück."""
+    _ensure_dir()
+    latest = None
+    for fname in os.listdir(TEMPLATES_DIR):
+        if not fname.endswith(".json") or fname.startswith("auto_"):
+            continue
+        try:
+            with open(os.path.join(TEMPLATES_DIR, fname), encoding="utf-8") as f:
+                ts = json.load(f).get("meta", {}).get("created_at")
+            if ts:
+                dt = datetime.fromisoformat(ts)
+                if latest is None or dt > latest:
+                    latest = dt
+        except Exception:
+            pass
+    return latest
+
+
+def _cooldown_remaining() -> int:
+    """Gibt verbleibende Sekunden bis zum nächsten erlaubten Template zurück (0 = frei)."""
+    from datetime import timedelta
+    last = _last_manual_created_at()
+    if last is None:
+        return 0
+    delta = (last + timedelta(hours=COOLDOWN_H) - datetime.now()).total_seconds()
+    return max(0, int(delta))
 
 
 class TemplatesCog(commands.Cog, name="Templates"):
@@ -149,9 +179,9 @@ class TemplatesCog(commands.Cog, name="Templates"):
 
     # ── Auto-Snapshot ─────────────────────────────────────────────────────────
 
-    @tasks.loop(minutes=30)
+    @tasks.loop(hours=12)
     async def auto_snapshot(self):
-        """Automatischer Snapshot alle 30 Minuten."""
+        """Automatischer Snapshot alle 12 Stunden."""
         from utils import send_log
         name = "auto_" + datetime.now().strftime("%Y-%m-%d_%H-%M")
         for guild in self.bot.guilds:
@@ -306,6 +336,11 @@ class TemplatesCog(commands.Cog, name="Templates"):
 
     @template_cmd.command(name="create", aliases=["erstellen"])
     async def template_create(self, ctx, *, name: str = None):
+        wait = _cooldown_remaining()
+        if wait > 0:
+            h, m = divmod(wait // 60, 60)
+            await ctx.send(f"⏳ Templates können nur alle {COOLDOWN_H}h erstellt werden. Noch **{h}h {m}m** warten.")
+            return
         if not name:
             name = datetime.now().strftime("%Y-%m-%d_%H-%M")
         name = name.replace(" ", "_").replace("/", "-")[:50]

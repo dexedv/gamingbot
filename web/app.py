@@ -939,6 +939,11 @@ def api_templates_create():
     bot = current_app.config.get("BOT")
     if not bot or not bot.guilds:
         return jsonify({"error": "Bot nicht verfügbar"}), 503
+    m = _tpl_module()
+    wait = m._cooldown_remaining()
+    if wait > 0:
+        h, mins = divmod(wait // 60, 60)
+        return jsonify({"error": f"Templates können nur alle 12h erstellt werden. Noch {h}h {mins}m warten."}), 429
     data = request.get_json() or {}
     name = data.get("name", "").strip()
     if not name:
