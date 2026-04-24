@@ -1735,16 +1735,23 @@ def regelwerk_editor_page():
 @app.route("/api/regelwerk/post", methods=["POST"])
 @login_required
 def api_regelwerk_post():
-    import json as _j
     bot  = current_app.config.get("BOT")
     loop = current_app.config.get("LOOP")
     if not bot or not loop:
         return jsonify({"error": "Bot nicht verfügbar"}), 503
 
+    # Regeln im Flask-Thread laden (kein DB-Zugriff im Bot-Loop nötig)
+    rules = _load_regelwerk()
+
     async def _post():
-        import sys as _sys, os as _os, discord as _d
-        _sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), '..'))
-        from cogs.regelwerk import RulesAcceptView, _load_rules, RULES_CHANNEL_ID
+        import discord as _d
+        import sys as _sys
+        # Cog ist bereits vom Bot geladen → direkt aus sys.modules holen
+        mod = _sys.modules.get("cogs.regelwerk")
+        if mod is None:
+            raise RuntimeError("Regelwerk-Cog nicht geladen")
+        RulesAcceptView  = mod.RulesAcceptView
+        RULES_CHANNEL_ID = mod.RULES_CHANNEL_ID
 
         channel = bot.get_channel(RULES_CHANNEL_ID)
         if not channel:
@@ -1758,8 +1765,8 @@ def api_regelwerk_post():
             ),
             color=_d.Color.from_rgb(88, 101, 242),
         )
-        for name, value in _load_rules():
-            embed.add_field(name=name, value=value, inline=False)
+        for rule in rules:
+            embed.add_field(name=rule["title"], value=rule["content"], inline=False)
         embed.set_footer(text="Durch den Klick auf ✅ bekommst du Zugang zum Server.")
         await channel.send(embed=embed, view=RulesAcceptView())
 
