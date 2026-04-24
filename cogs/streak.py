@@ -100,7 +100,7 @@ class StreakCog(commands.Cog, name="Streak"):
         import aiosqlite
         if scheduled:
             await send_log(self.bot, "🔄 Nickname-Update gestartet",
-                           "⏰  Automatischer **5h-Lauf** wurde gestartet…",
+                           "⏰  Automatischer **12h-Lauf** wurde gestartet…",
                            discord.Color.from_rgb(251, 146, 60))
 
         async with aiosqlite.connect(self.bot.db.db_path) as db:
@@ -121,7 +121,7 @@ class StreakCog(commands.Cog, name="Streak"):
                     skipped += 1
 
         if scheduled or force:
-            label = "5h-Lauf" if scheduled else "Manueller Lauf"
+            label = "12h-Lauf" if scheduled else "Manueller Lauf"
             await send_log(
                 self.bot,
                 "✅ Nickname-Update abgeschlossen",
@@ -131,9 +131,9 @@ class StreakCog(commands.Cog, name="Streak"):
                 discord.Color.from_rgb(34, 197, 94),
             )
 
-    @tasks.loop(hours=5)
+    @tasks.loop(hours=12)
     async def nickname_loop(self):
-        """Alle 5 Stunden alle Nicknames aktualisieren."""
+        """Alle 12 Stunden alle Nicknames aktualisieren."""
         await self.run_nickname_update(scheduled=True)
 
     @nickname_loop.before_loop
