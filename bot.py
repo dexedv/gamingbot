@@ -44,6 +44,7 @@ COGS = [
     "cogs.knast",
     "cogs.kummerkasten",
     "cogs.verifizierung",
+    "cogs.regelwerk",
     "cogs.gif_limit",
     "cogs.logger",
     "cogs.stats_channel",
