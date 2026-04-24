@@ -83,7 +83,9 @@ FEATURES = {
     "server_log":           {"label": "Server-Log",              "icon": "bi-journal-text",    "desc": "Alle Server-Ereignisse einsehen"},
     "verified":             {"label": "Verifizierte Nutzer",     "icon": "bi-check-circle",    "desc": "Liste aller Nutzer die die Regeln akzeptiert haben"},
     "regelwerk_editor":     {"label": "Regelwerk-Editor",        "icon": "bi-pencil-square",   "desc": "Server-Regeln bearbeiten und in Discord posten"},
-} = [
+}
+
+_REGELWERK_DEFAULTS = [
     {"title": "I. Respekt & Verhalten",
      "content": "➜ Behandle alle Mitglieder mit Respekt und Höflichkeit.\n➜ Beleidigungen, Diskriminierung, Hassrede oder Mobbing sind strikt verboten.\n➜ Provokationen, Trolling oder absichtliches Stören der Community werden nicht toleriert."},
     {"title": "II. Spam & Inhalte",
