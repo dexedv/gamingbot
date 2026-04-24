@@ -292,9 +292,13 @@ class RegelwerkCog(commands.Cog, name="Regelwerk"):
             if isinstance(ch, (discord.TextChannel, discord.VoiceChannel,
                                 discord.CategoryChannel, discord.ForumChannel,
                                 discord.StageChannel)):
+                # War der Kanal für @everyone bereits gesperrt? Dann nicht anfassen.
+                already_denied = ch.overwrites_for(guild.default_role).view_channel is False
                 try:
                     await ch.set_permissions(guild.default_role, view_channel=False)
-                    await ch.set_permissions(role, view_channel=True)
+                    if not already_denied:
+                        # Nur Kanäle freischalten die vorher für alle sichtbar waren
+                        await ch.set_permissions(role, view_channel=True)
                     count += 1
                 except discord.Forbidden:
                     errors += 1
@@ -338,6 +342,39 @@ class RegelwerkCog(commands.Cog, name="Regelwerk"):
         )
         if errors:
             result += f"❌ **{errors}** konnten nicht zugewiesen werden (fehlende Rechte)"
+        await msg.edit(content=result)
+
+    @regelwerk_cmd.command(name="reparieren")
+    @commands.has_permissions(administrator=True)
+    async def cmd_reparieren(self, ctx: commands.Context):
+        """Entfernt Verifiziert-Zugriff von Kanälen die @everyone bereits vorher nicht sehen konnte."""
+        guild = ctx.guild
+        role  = discord.utils.get(guild.roles, name=VERIFIED_ROLE_NAME)
+        if not role:
+            await ctx.send(f"❌ Rolle **{VERIFIED_ROLE_NAME}** nicht gefunden.")
+            return
+
+        msg     = await ctx.send("⏳ Bereinige falsch gesetzte Rechte…")
+        removed = 0
+        errors  = 0
+
+        for ch in guild.channels:
+            if ch.id == RULES_CHANNEL_ID:
+                continue
+            # Prüfen ob @everyone deny gesetzt ist UND Verifiziert einen allow hat
+            everyone_ow  = ch.overwrites_for(guild.default_role)
+            verified_ow  = ch.overwrites_for(role)
+            if everyone_ow.view_channel is False and verified_ow.view_channel is True:
+                # Das war ein bereits gesperrter Kanal — Verifiziert-Allow entfernen
+                try:
+                    await ch.set_permissions(role, overwrite=None)
+                    removed += 1
+                except discord.Forbidden:
+                    errors += 1
+
+        result = f"✅ **{removed}** falsch gesetzte Verifiziert-Rechte entfernt."
+        if errors:
+            result += f"\n❌ **{errors}** konnten nicht geändert werden."
         await msg.edit(content=result)
 
     @regelwerk_cmd.command(name="rolle")
