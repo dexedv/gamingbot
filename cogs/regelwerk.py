@@ -269,6 +269,42 @@ class RegelwerkCog(commands.Cog, name="Regelwerk"):
         await member.add_roles(role, reason=f"Manuell zugewiesen von {ctx.author}")
         await ctx.send(f"✅ {member.mention} hat die Rolle {role.mention} erhalten.")
 
+    @regelwerk_cmd.command(name="alle")
+    @commands.has_permissions(administrator=True)
+    async def cmd_alle(self, ctx: commands.Context):
+        """Gibt allen aktuellen Mitgliedern (ohne Bots) die Unverifiziert-Rolle."""
+        guild = ctx.guild
+        role  = discord.utils.get(guild.roles, name=UNVERIFIED_ROLE_NAME)
+        if not role:
+            await ctx.send(f"❌ Rolle **{UNVERIFIED_ROLE_NAME}** nicht gefunden. Führe erst `%regelwerk setup` aus.")
+            return
+
+        msg    = await ctx.send("⏳ Weise allen Mitgliedern die Unverifiziert-Rolle zu…")
+        added  = 0
+        skipped = 0
+        errors = 0
+
+        async for member in guild.fetch_members(limit=None):
+            if member.bot:
+                continue
+            if role in member.roles:
+                skipped += 1
+                continue
+            try:
+                await member.add_roles(role, reason=f"Massen-Zuweisung von {ctx.author}")
+                added += 1
+            except discord.Forbidden:
+                errors += 1
+
+        result = (
+            f"✅ Fertig!\n"
+            f"➕ **{added}** Mitglieder bekamen die Rolle\n"
+            f"⏩ **{skipped}** hatten sie bereits\n"
+        )
+        if errors:
+            result += f"❌ **{errors}** konnten nicht zugewiesen werden (fehlende Rechte)"
+        await msg.edit(content=result)
+
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         if member.bot:
