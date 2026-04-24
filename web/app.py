@@ -239,7 +239,8 @@ def inject_user_features():
 
 
 def _ensure_permissions():
-    """Erstellt role_permissions-Tabelle, migriert alte Features und befüllt fehlende Rollen."""
+    """Erstellt role_permissions-Tabelle und befüllt fehlende Rollen einmalig mit Defaults.
+    Bestehende Einträge werden NIE verändert — nur Developer bekommt immer alle Features."""
     import json as _j
     try:
         db = get_db()
@@ -250,7 +251,8 @@ def _ensure_permissions():
             )
         """)
         db.commit()
-        # Migration: altes 'verifizierung'-Feature → aufgeteilt in boys/girls
+
+        # Einmalige Migration: altes 'verifizierung'-Feature → boys/girls aufteilen
         for row in db.execute("SELECT role, permissions FROM role_permissions").fetchall():
             try:
                 perms = set(_j.loads(row["permissions"]))
@@ -259,7 +261,6 @@ def _ensure_permissions():
             if "verifizierung" not in perms:
                 continue
             perms.discard("verifizierung")
-            # b-verifizierung bekommt nur boys, g-verifizierung nur girls, alle anderen beide
             if row["role"] == "b-verifizierung":
                 perms.add("verifizierung_boys")
             elif row["role"] == "g-verifizierung":
@@ -270,35 +271,21 @@ def _ensure_permissions():
             db.execute("UPDATE role_permissions SET permissions=? WHERE role=?",
                        (_j.dumps(sorted(perms)), row["role"]))
         db.commit()
-        # Fehlende Rollen mit Defaults befüllen
-        existing = {r["role"] for r in db.execute("SELECT role FROM role_permissions").fetchall()}
+
+        # Fehlende Rollen einmalig mit Defaults befüllen (INSERT OR IGNORE = nie überschreiben)
         for role in VALID_ROLES:
-            if role not in existing:
-                default_p = list(FEATURES.keys()) if role == "developer" else DEFAULT_PERMISSIONS.get(role, [])
-                db.execute(
-                    "INSERT OR IGNORE INTO role_permissions (role, permissions) VALUES (?,?)",
-                    (role, _j.dumps(sorted(default_p)))
-                )
+            default_p = list(FEATURES.keys()) if role == "developer" else DEFAULT_PERMISSIONS.get(role, [])
+            db.execute(
+                "INSERT OR IGNORE INTO role_permissions (role, permissions) VALUES (?,?)",
+                (role, _j.dumps(sorted(default_p)))
+            )
         db.commit()
-        # Ungültige Features (nicht mehr in FEATURES) aus bestehenden Einträgen entfernen.
-        # Bewusst KEINE automatischen Additions — Nutzer-Konfigurationen bleiben erhalten.
-        known_features = set(FEATURES.keys())
-        for row in db.execute("SELECT role, permissions FROM role_permissions").fetchall():
-            try:
-                stored = set(_j.loads(row["permissions"]))
-            except Exception:
-                continue
-            role = row["role"]
-            if role == "developer":
-                # Developer bekommt immer alle Features
-                new_perms = known_features
-            else:
-                # Nur veraltete Features entfernen, NICHTS hinzufügen
-                new_perms = stored & known_features
-            if new_perms != stored:
-                db.execute("UPDATE role_permissions SET permissions=? WHERE role=?",
-                           (_j.dumps(sorted(new_perms)), role))
+
+        # Developer bekommt immer alle Features (einzige Auto-Anpassung)
+        all_features = _j.dumps(sorted(FEATURES.keys()))
+        db.execute("UPDATE role_permissions SET permissions=? WHERE role='developer'", (all_features,))
         db.commit()
+
         db.close()
         _invalidate_perm_cache()
     except Exception:
