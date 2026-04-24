@@ -162,6 +162,7 @@ class RegelwerkCog(commands.Cog, name="Regelwerk"):
         embed = discord.Embed(
             title="📜 Regelwerk-System",
             description=(
+                "`%regelwerk init` — Nur Verifiziert-Rolle erstellen (keine Regeln posten)\n"
                 "`%regelwerk setup` — Verifiziert-Rolle erstellen & Regeln posten\n"
                 "`%regelwerk sperren` — @everyone sperren, Verifiziert freischalten\n"
                 "`%regelwerk alle` — Alle aktuellen Mitglieder als verifiziert markieren\n"
@@ -170,6 +171,41 @@ class RegelwerkCog(commands.Cog, name="Regelwerk"):
             color=discord.Color.from_rgb(88, 101, 242),
         )
         await ctx.send(embed=embed)
+
+    @regelwerk_cmd.command(name="init")
+    @commands.has_permissions(administrator=True)
+    async def cmd_init(self, ctx: commands.Context):
+        """Erstellt nur die Verifiziert-Rolle (ohne Regeln zu posten)."""
+        guild = ctx.guild
+
+        role = discord.utils.get(guild.roles, name=VERIFIED_ROLE_NAME)
+        if not role:
+            role = await guild.create_role(
+                name=VERIFIED_ROLE_NAME,
+                color=discord.Color.from_rgb(88, 101, 242),
+                hoist=False,
+                mentionable=False,
+                reason="Regelwerk-System: Verifiziert-Rolle",
+            )
+            await ctx.send(f"✅ Rolle **{VERIFIED_ROLE_NAME}** erstellt: {role.mention}")
+        else:
+            await ctx.send(f"ℹ️ Rolle **{VERIFIED_ROLE_NAME}** existiert bereits: {role.mention}")
+
+        # Regelkanal: @everyone darf lesen (aber nicht schreiben)
+        channel = guild.get_channel(RULES_CHANNEL_ID)
+        if channel:
+            try:
+                await channel.set_permissions(
+                    guild.default_role,
+                    view_channel=True,
+                    send_messages=False,
+                    read_message_history=True,
+                )
+                await ctx.send(f"✅ {channel.mention} für @everyone auf nur-lesen gesetzt.")
+            except discord.Forbidden:
+                await ctx.send("❌ Keine Berechtigung, Kanalrechte zu setzen.")
+
+        await ctx.send(f"➡️ Führe jetzt `%regelwerk sperren` aus, dann `%regelwerk alle`.")
 
     @regelwerk_cmd.command(name="setup")
     @commands.has_permissions(administrator=True)
