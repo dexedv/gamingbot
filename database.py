@@ -110,6 +110,13 @@ class Database:
                     created_at  TEXT    DEFAULT (datetime('now'))
                 )
             """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS verified_users (
+                    user_id     INTEGER PRIMARY KEY,
+                    username    TEXT    NOT NULL,
+                    verified_at TEXT    DEFAULT (datetime('now'))
+                )
+            """)
             await db.commit()
         print("✅ Datenbank bereit")
 

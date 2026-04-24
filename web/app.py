@@ -81,6 +81,7 @@ FEATURES = {
     "web_nutzer":           {"label": "Web-Nutzer",              "icon": "bi-people-fill",     "desc": "Dashboard-Accounts verwalten"},
     "rolle_berechtigungen": {"label": "Rollen-Berechtigungen",   "icon": "bi-shield-lock",     "desc": "Zugriffsrechte der Rollen konfigurieren"},
     "server_log":           {"label": "Server-Log",              "icon": "bi-journal-text",    "desc": "Alle Server-Ereignisse einsehen"},
+    "verified":             {"label": "Verifizierte Nutzer",     "icon": "bi-check-circle",    "desc": "Liste aller Nutzer die die Regeln akzeptiert haben"},
 }
 
 # Endpoint-Name → Feature
@@ -101,6 +102,7 @@ FEATURE_ROUTES: dict[str, set] = {
     "web_nutzer":           {"web_users", "api_web_user_create", "api_web_user_edit", "api_web_user_delete"},
     "rolle_berechtigungen": {"role_permissions", "api_role_permissions_save"},
     "server_log":           {"server_log_page", "api_log_clear"},
+    "verified":             {"verified_page", "api_verified_delete"},
 }
 
 # Reverse-Map: endpoint → feature (wird beim Import gebaut)
@@ -114,11 +116,11 @@ DEFAULT_PERMISSIONS: dict[str, list] = {
     "owner":           list(FEATURES.keys()),
     "co-owner":        ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
                         "verifizierung_boys", "verifizierung_girls",
-                        "broadcast", "willkommen", "cogs", "templates", "einstellungen", "server_log"],
+                        "broadcast", "willkommen", "cogs", "templates", "einstellungen", "server_log", "verified"],
     "admin":           ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
-                        "verifizierung_boys", "verifizierung_girls", "broadcast", "willkommen", "server_log"],
+                        "verifizierung_boys", "verifizierung_girls", "broadcast", "willkommen", "server_log", "verified"],
     "moderator":       ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
-                        "verifizierung_boys", "verifizierung_girls", "server_log"],
+                        "verifizierung_boys", "verifizierung_girls", "server_log", "verified"],
     "b-verifizierung": ["verifizierung_boys"],
     "g-verifizierung": ["verifizierung_girls"],
     "supporter":       ["nutzer", "knast_log", "kummerkasten"],
@@ -237,7 +239,8 @@ def _ensure_permissions():
                     (role, _j.dumps(sorted(default_p)))
                 )
         db.commit()
-        # Migration: neue Features aus DEFAULT_PERMISSIONS in bestehende Zeilen nachtragen
+        # Ungültige Features (nicht mehr in FEATURES) aus bestehenden Einträgen entfernen.
+        # Bewusst KEINE automatischen Additions — Nutzer-Konfigurationen bleiben erhalten.
         known_features = set(FEATURES.keys())
         for row in db.execute("SELECT role, permissions FROM role_permissions").fetchall():
             try:
@@ -246,15 +249,12 @@ def _ensure_permissions():
                 continue
             role = row["role"]
             if role == "developer":
-                should_have = known_features
+                # Developer bekommt immer alle Features
+                new_perms = known_features
             else:
-                should_have = set(DEFAULT_PERMISSIONS.get(role, []))
-            # Nur Features die im DEFAULT stehen und noch nicht gespeichert sind nachtragen
-            to_add = should_have - stored
-            # Unbekannte Features (die nicht mehr in FEATURES sind) entfernen
-            to_remove = stored - known_features
-            if to_add or to_remove:
-                new_perms = (stored | to_add) - to_remove
+                # Nur veraltete Features entfernen, NICHTS hinzufügen
+                new_perms = stored & known_features
+            if new_perms != stored:
                 db.execute("UPDATE role_permissions SET permissions=? WHERE role=?",
                            (_j.dumps(sorted(new_perms)), role))
         db.commit()
@@ -1662,6 +1662,41 @@ def api_role_permissions_save():
                  f"🎭  **Rolle:** {role}\n"
                  f"🔧  **Feature:** {feat_label}\n"
                  f"🔘  **Status:** {'✅' if enabled else '⛔'} {action}\n"
+                 f"🌐  **Von:** {session.get('username')}")
+    return jsonify({"ok": True})
+
+
+# ── Verified ──────────────────────────────────────────────────────────────────
+
+@app.route("/verified")
+@login_required
+def verified_page():
+    db = get_db()
+    try:
+        rows = db.execute(
+            "SELECT user_id, username, verified_at FROM verified_users ORDER BY verified_at DESC"
+        ).fetchall()
+        users = [dict(r) for r in rows]
+    except Exception:
+        users = []
+    finally:
+        db.close()
+    return render_template("verified.html", users=users)
+
+
+@app.route("/api/verified/<int:user_id>/delete", methods=["POST"])
+@login_required
+def api_verified_delete(user_id):
+    db = get_db()
+    row = db.execute("SELECT username FROM verified_users WHERE user_id=?", (user_id,)).fetchone()
+    if not row:
+        db.close()
+        return jsonify({"error": "Nutzer nicht gefunden"}), 404
+    db.execute("DELETE FROM verified_users WHERE user_id=?", (user_id,))
+    db.commit()
+    db.close()
+    _discord_log("🗑️ Verified-Eintrag entfernt",
+                 f"👤  **Nutzer:** {row['username']} (`{user_id}`)\n"
                  f"🌐  **Von:** {session.get('username')}")
     return jsonify({"ok": True})
 

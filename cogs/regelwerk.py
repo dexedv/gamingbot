@@ -2,11 +2,13 @@ import discord
 from discord.ext import commands
 import os
 import sys
+import sqlite3
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from utils import send_log
 
-RULES_CHANNEL_ID   = 1019184912110211103
+DB_PATH          = os.path.join(os.path.dirname(__file__), '..', 'data', 'gamingbot.db')
+RULES_CHANNEL_ID = 1019184912110211103
 UNVERIFIED_ROLE_NAME = "Unverifiziert"
 
 RULE_FIELDS = [
@@ -103,6 +105,18 @@ class RulesAcceptView(discord.ui.View):
 
         try:
             await member.remove_roles(role, reason="Regeln akzeptiert")
+            # In DB speichern
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                conn.execute(
+                    "INSERT OR REPLACE INTO verified_users (user_id, username, verified_at)"
+                    " VALUES (?, ?, datetime('now'))",
+                    (member.id, member.display_name),
+                )
+                conn.commit()
+                conn.close()
+            except Exception:
+                pass
             await interaction.response.send_message(
                 "🎉 Willkommen! Du hast die Regeln akzeptiert und hast jetzt Zugriff auf den Server.",
                 ephemeral=True,

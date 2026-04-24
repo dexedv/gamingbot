@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Verifizierte Nutzer{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+  <div>
+    <h1 style="font-size:1.65rem;font-weight:800;color:#fff;margin:0">
+      <i class="bi bi-check-circle-fill me-2" style="color:#22c55e"></i>Verifizierte Nutzer
+    </h1>
+    <p style="color:var(--muted);margin:.3rem 0 0;font-size:.85rem">
+      Alle Nutzer, die die Server-Regeln akzeptiert haben
+    </p>
+  </div>
+  <span class="badge" style="background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.3);font-size:.8rem;padding:.45rem .75rem;border-radius:8px">
+    ✅ {{ users|length }} verifiziert
+  </span>
+</div>
+
+<!-- Suche -->
+<div class="mb-3">
+  <input type="text" id="searchInput" class="form-control form-control-sm"
+         placeholder="🔍 Name oder ID suchen…"
+         style="max-width:300px;border-radius:9px"
+         oninput="filterTable()">
+</div>
+
+<!-- Tabelle -->
+<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+  {% if users %}
+  <table class="table table-dark mb-0" id="verifiedTable" style="font-size:.85rem">
+    <thead>
+      <tr style="border-bottom:1px solid var(--border)">
+        <th style="color:var(--muted);font-weight:500;padding:.75rem 1rem">#</th>
+        <th style="color:var(--muted);font-weight:500">Nutzer</th>
+        <th style="color:var(--muted);font-weight:500">Discord ID</th>
+        <th style="color:var(--muted);font-weight:500;width:160px">Verifiziert am</th>
+        <th style="color:var(--muted);font-weight:500;width:80px"></th>
+      </tr>
+    </thead>
+    <tbody id="tableBody">
+      {% for u in users %}
+      <tr class="v-row"
+          data-search="{{ u.username|lower }} {{ u.user_id }}"
+          style="border-bottom:1px solid rgba(255,255,255,.04)">
+        <td style="padding:.7rem 1rem;color:var(--muted);font-size:.78rem">{{ loop.index }}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:.6rem">
+            <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#22c55e,#16a34a);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;flex-shrink:0">
+              {{ u.username[0].upper() if u.username else '?' }}
+            </div>
+            <span style="font-weight:600;color:#fff">{{ u.username }}</span>
+          </div>
+        </td>
+        <td>
+          <code style="color:var(--accent2);font-size:.82rem">{{ u.user_id }}</code>
+        </td>
+        <td style="color:var(--muted);font-size:.8rem">
+          {{ (u.verified_at or '')[:16].replace('T', ' ') }}
+        </td>
+        <td>
+          <button class="btn btn-sm"
+                  style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25);border-radius:7px;font-size:.77rem;padding:.2rem .55rem"
+                  onclick="deleteEntry({{ u.user_id }}, '{{ u.username }}', this)">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="text-center py-5" style="color:var(--muted)">
+    <i class="bi bi-check-circle" style="font-size:2rem;display:block;margin-bottom:.5rem;opacity:.4"></i>
+    Noch keine verifizierten Nutzer vorhanden.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterTable() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  document.querySelectorAll('.v-row').forEach(row => {
+    row.style.display = !q || row.dataset.search.includes(q) ? '' : 'none';
+  });
+}
+
+function deleteEntry(userId, username, btn) {
+  if (!confirm(`Eintrag von "${username}" wirklich entfernen?`)) return;
+  btn.disabled = true;
+  fetch(`/api/verified/${userId}/delete`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        btn.closest('tr').remove();
+        const badge = document.querySelector('.badge');
+        const count = document.querySelectorAll('.v-row').length;
+        if (badge) badge.textContent = `✅ ${count} verifiziert`;
+      } else {
+        alert(data.error || 'Fehler beim Löschen');
+        btn.disabled = false;
+      }
+    })
+    .catch(() => { btn.disabled = false; });
+}
+</script>
+{% endblock %}
