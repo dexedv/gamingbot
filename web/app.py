@@ -1766,7 +1766,7 @@ def api_regelwerk_post():
             color=_d.Color.from_rgb(88, 101, 242),
         )
         for rule in rules:
-            embed.add_field(name=rule["title"], value=rule["content"], inline=False)
+            embed.add_field(name=rule["title"][:256], value=rule["content"][:1024], inline=False)
         embed.set_footer(text="Durch den Klick auf ✅ bekommst du Zugang zum Server.")
         await channel.send(embed=embed, view=RulesAcceptView())
 
