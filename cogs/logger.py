@@ -1,9 +1,13 @@
 import os
+import re
 import sqlite3
 import discord
 from discord.ext import commands
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'gamingbot.db')
+
+# Nickname-Muster das der Bot setzt: "Name | 5🔥"
+_STREAK_NICK_RE = re.compile(r'\| \d+🔥$')
 
 
 def _log(
@@ -32,6 +36,19 @@ def _log(
         pass
 
 
+async def _actor_is_bot(guild: discord.Guild, action: discord.AuditLogAction, target_id: int | None = None) -> bool:
+    """Gibt True zurück wenn der letzte Audit-Log-Eintrag dieser Aktion vom Bot stammt."""
+    try:
+        async for entry in guild.audit_logs(limit=5, action=action):
+            if target_id is not None:
+                if not (hasattr(entry.target, "id") and entry.target.id == target_id):
+                    continue
+            return entry.user is not None and entry.user.bot
+    except Exception:
+        pass
+    return False
+
+
 class LoggerCog(commands.Cog, name="Logger"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -58,29 +75,38 @@ class LoggerCog(commands.Cog, name="Logger"):
 
     @commands.Cog.listener()
     async def on_member_update(self, before: discord.Member, after: discord.Member):
-        # Rollen-Änderungen
+        # ── Rollen-Änderungen ──────────────────────────────────────────────
         added_roles   = [r for r in after.roles  if r not in before.roles]
         removed_roles = [r for r in before.roles if r not in after.roles]
-        for role in added_roles:
-            _log(
-                category="moderation",
-                action="Rolle vergeben",
-                user_id=after.id,
-                username=str(after),
-                target_id=role.id,
-                target_name=role.name,
-            )
-        for role in removed_roles:
-            _log(
-                category="moderation",
-                action="Rolle entzogen",
-                user_id=after.id,
-                username=str(after),
-                target_id=role.id,
-                target_name=role.name,
-            )
-        # Nickname-Änderung
+        if added_roles or removed_roles:
+            # Nur loggen wenn ein Mensch (kein Bot) die Änderung gemacht hat
+            if not await _actor_is_bot(after.guild, discord.AuditLogAction.member_role_update, after.id):
+                for role in added_roles:
+                    _log(
+                        category="moderation",
+                        action="Rolle vergeben",
+                        user_id=after.id,
+                        username=str(after),
+                        target_id=role.id,
+                        target_name=role.name,
+                    )
+                for role in removed_roles:
+                    _log(
+                        category="moderation",
+                        action="Rolle entzogen",
+                        user_id=after.id,
+                        username=str(after),
+                        target_id=role.id,
+                        target_name=role.name,
+                    )
+
+        # ── Nickname-Änderung ──────────────────────────────────────────────
         if before.nick != after.nick:
+            # Bot-Streak-Nicknames überspringen (Format: "Name | 5🔥")
+            if after.nick and _STREAK_NICK_RE.search(after.nick):
+                return
+            if before.nick and _STREAK_NICK_RE.search(before.nick) and not after.nick:
+                return  # Bot-Nick wurde entfernt (z.B. bei Neustart)
             _log(
                 category="member",
                 action="Nickname geändert",
@@ -163,6 +189,8 @@ class LoggerCog(commands.Cog, name="Logger"):
         before: discord.VoiceState,
         after: discord.VoiceState,
     ):
+        if member.bot:
+            return
         if before.channel is None and after.channel is not None:
             _log(
                 category="voice",
@@ -196,6 +224,8 @@ class LoggerCog(commands.Cog, name="Logger"):
 
     @commands.Cog.listener()
     async def on_guild_channel_create(self, channel: discord.abc.GuildChannel):
+        if await _actor_is_bot(channel.guild, discord.AuditLogAction.channel_create):
+            return
         _log(
             category="server",
             action="Kanal erstellt",
@@ -205,6 +235,8 @@ class LoggerCog(commands.Cog, name="Logger"):
 
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel: discord.abc.GuildChannel):
+        if await _actor_is_bot(channel.guild, discord.AuditLogAction.channel_delete):
+            return
         _log(
             category="server",
             action="Kanal gelöscht",
@@ -219,6 +251,8 @@ class LoggerCog(commands.Cog, name="Logger"):
         after: discord.abc.GuildChannel,
     ):
         if before.name != after.name:
+            if await _actor_is_bot(after.guild, discord.AuditLogAction.channel_update):
+                return
             _log(
                 category="server",
                 action="Kanal umbenannt",
@@ -229,6 +263,8 @@ class LoggerCog(commands.Cog, name="Logger"):
 
     @commands.Cog.listener()
     async def on_guild_role_create(self, role: discord.Role):
+        if await _actor_is_bot(role.guild, discord.AuditLogAction.role_create):
+            return
         _log(
             category="server",
             action="Rolle erstellt",
@@ -238,6 +274,8 @@ class LoggerCog(commands.Cog, name="Logger"):
 
     @commands.Cog.listener()
     async def on_guild_role_delete(self, role: discord.Role):
+        if await _actor_is_bot(role.guild, discord.AuditLogAction.role_delete):
+            return
         _log(
             category="server",
             action="Rolle gelöscht",
@@ -248,6 +286,8 @@ class LoggerCog(commands.Cog, name="Logger"):
     @commands.Cog.listener()
     async def on_guild_role_update(self, before: discord.Role, after: discord.Role):
         if before.name != after.name:
+            if await _actor_is_bot(after.guild, discord.AuditLogAction.role_update):
+                return
             _log(
                 category="server",
                 action="Rolle umbenannt",
