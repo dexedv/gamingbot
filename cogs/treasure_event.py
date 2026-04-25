@@ -119,7 +119,7 @@ class TreasureEventCog(commands.Cog, name="TreasureEvent"):
                 ]
                 if online:
                     target = random.choice(online)
-                    cmd_text = f"/powerup {target.mention} {ch_id}"
+                    cmd_text = f"l.powerup {target.id} {ch_id}"
                     label    = f"⚡ Powerup für **{target.display_name}**"
                 else:
                     # Kein Online-User → treasure statt powerup
