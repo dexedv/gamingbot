@@ -100,12 +100,7 @@ class TreasureEventCog(commands.Cog, name="TreasureEvent"):
             except Exception:
                 pass
 
-        # Feste Verteilung: 30% Powerups, 70% Schatzkisten — gemischt
-        powerup_count  = round(count * 0.3)
-        spawn_types    = [True] * powerup_count + [False] * (count - powerup_count)
-        random.shuffle(spawn_types)
-
-        for i, use_powerup in enumerate(spawn_types):
+        for i in range(count):
             if not self.running:
                 break
 
@@ -118,6 +113,9 @@ class TreasureEventCog(commands.Cog, name="TreasureEvent"):
 
             # Zufälligen Channel wählen
             ch_id   = random.choice(TREASURE_CHANNELS)
+
+            # Entscheiden: /treasure oder /powerup
+            use_powerup = (random.random() < 0.3)  # 30% Chance für Powerup
 
             if use_powerup:
                 # Zufälligen Online-User wählen
