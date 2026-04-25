@@ -1176,12 +1176,17 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
     def _quiz_embed(self, emojis: str) -> discord.Embed:
         embed = discord.Embed(
             title="🎯  Emoji Quiz",
-            description=f"## {emojis}",
+            description=(
+                f"### Was steckt hinter diesen Emojis?\n"
+                f"## {emojis}\n\n"
+                f"Schreibe deine Antwort einfach in den Chat — wer zuerst richtig liegt, "
+                f"gewinnt **{REWARD} 🍌 Bananen**!\n\n"
+                f"💡 **Tipp** kostet **{HINT_COST} 🍌** · ⏭️ **Überspringen** kostet **{SKIP_COST} 🍌**\n"
+                f"Dein Guthaben: `%bananen` · Bestenliste: `%bananentop`"
+            ),
             color=discord.Color.from_rgb(255, 165, 0),
         )
-        embed.set_footer(
-            text=f"Tippe die Antwort! · +{REWARD} 🍌 bei richtiger Antwort · %bananen"
-        )
+        embed.set_footer(text="Groß- und Kleinschreibung wird ignoriert · Viel Spaß! 🍌")
         return embed
 
     # ── Interne Quiz-Logik ────────────────────────────────────────────────
