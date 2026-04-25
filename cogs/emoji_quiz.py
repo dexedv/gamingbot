@@ -2114,11 +2114,14 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
         if message.channel.id != QUIZ_CHANNEL_ID:
             return
 
-        # Alle User-Nachrichten im Quiz-Kanal löschen
-        try:
-            await message.delete()
-        except (discord.Forbidden, discord.NotFound):
-            pass
+        # Alle User-Nachrichten im Quiz-Kanal mit 1s Verzögerung löschen
+        async def _delayed_delete():
+            await asyncio.sleep(1)
+            try:
+                await message.delete()
+            except (discord.Forbidden, discord.NotFound):
+                pass
+        asyncio.create_task(_delayed_delete())
 
         if message.content.startswith(('%', '/', '!')):
             return
