@@ -50,7 +50,7 @@ COGS = [
     "cogs.stats_channel",
     "cogs.emoji_quiz",
     "cogs.warns",
-    "cogs.treasure_test",
+    "cogs.treasure_event",
 ]
 
 
