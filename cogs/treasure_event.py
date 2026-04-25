@@ -30,7 +30,7 @@ class TreasureEventCog(commands.Cog, name="TreasureEvent"):
     @commands.command(name="treasureevent")
     async def start_event(self, ctx: commands.Context, count: int = 10):
         """Startet das Treasure-Event — %treasureevent [anzahl]"""
-        if ctx.author.id != OWNER_ID:
+        if ctx.author.id not in (OWNER_ID, ADMIN_ID):
             return
         if self.running:
             await ctx.send("⚠️ Ein Event läuft bereits. Stoppe es zuerst mit `%stopevent`.")
@@ -58,7 +58,7 @@ class TreasureEventCog(commands.Cog, name="TreasureEvent"):
     @commands.command(name="stopevent")
     async def stop_event(self, ctx: commands.Context):
         """Stoppt das laufende Treasure-Event — %stopevent"""
-        if ctx.author.id != OWNER_ID:
+        if ctx.author.id not in (OWNER_ID, ADMIN_ID):
             return
         if not self.running:
             await ctx.send("ℹ️ Kein Event aktiv.")
