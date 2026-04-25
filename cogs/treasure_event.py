@@ -135,11 +135,21 @@ class TreasureEventCog(commands.Cog, name="TreasureEvent"):
                 cmd_text = f"l.treasure {ch_id}"
                 label    = "🎁 Schatzkiste"
 
-            embed = discord.Embed(
-                title=label,
-                description=f"```\n{cmd_text}\n```",
-                color=discord.Color.from_rgb(255, 165, 0),
-            )
+            if use_powerup and online:
+                embed = discord.Embed(
+                    title="⚡ Powerup-Spawn",
+                    description=f"```\n{cmd_text}\n```",
+                    color=discord.Color.from_rgb(88, 101, 242),
+                )
+                embed.add_field(name="👤 Spieler",  value=f"{target.display_name} (`{target.id}`)", inline=True)
+                embed.add_field(name="📍 Channel", value=f"<#{ch_id}>",                             inline=True)
+            else:
+                embed = discord.Embed(
+                    title="🎁 Schatzkisten-Spawn",
+                    description=f"```\n{cmd_text}\n```",
+                    color=discord.Color.from_rgb(255, 165, 0),
+                )
+                embed.add_field(name="📍 Channel", value=f"<#{ch_id}>", inline=True)
             embed.set_footer(text=f"Spawn {i+1}/{count} · Kopiere den Command und sende ihn im Server")
             for r in recipients:
                 try:
