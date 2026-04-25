@@ -2048,6 +2048,13 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
         self._started      = False
         self._question_msg: discord.Message | None = None
         self._hint_count   = 0
+        self._queue: list  = []     # gemischte Fragenliste
+
+    def _next_from_queue(self):
+        if not self._queue:
+            self._queue = list(QUIZ_DATA)
+            random.shuffle(self._queue)
+        return self._queue.pop()
 
     def _quiz_embed(self, emojis: str) -> discord.Embed:
         embed = discord.Embed(
@@ -2072,7 +2079,7 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
         if not channel:
             return
 
-        self.current    = random.choice(QUIZ_DATA)
+        self.current    = self._next_from_queue()
         self._hint_count = 0
         emojis, _ = self.current
         embed = self._quiz_embed(emojis)
