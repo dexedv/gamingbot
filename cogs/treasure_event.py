@@ -118,10 +118,12 @@ class TreasureEventCog(commands.Cog, name="TreasureEvent"):
             use_powerup = (random.random() < 0.3)  # 30% Chance für Powerup
 
             if use_powerup:
-                # Zufälligen Online-User wählen
+                # Zufälligen Online-User mit der required Rolle wählen
                 online = [
                     m for m in guild.members
-                    if not m.bot and m.status != discord.Status.offline
+                    if not m.bot
+                    and m.status != discord.Status.offline
+                    and any(r.id == 1497163159855825010 for r in m.roles)
                 ]
                 if online:
                     target = random.choice(online)
