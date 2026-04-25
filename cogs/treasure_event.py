@@ -107,7 +107,6 @@ class TreasureEventCog(commands.Cog, name="TreasureEvent"):
 
             # Zufälligen Channel wählen
             ch_id   = random.choice(TREASURE_CHANNELS)
-            ch_mention = f"<#{ch_id}>"
 
             # Entscheiden: /treasure oder /powerup
             use_powerup = (random.random() < 0.3)  # 30% Chance für Powerup
@@ -120,14 +119,14 @@ class TreasureEventCog(commands.Cog, name="TreasureEvent"):
                 ]
                 if online:
                     target = random.choice(online)
-                    cmd_text = f"/powerup {target.mention} {ch_mention}"
+                    cmd_text = f"/powerup {target.mention} {ch_id}"
                     label    = f"⚡ Powerup für **{target.display_name}**"
                 else:
                     # Kein Online-User → treasure statt powerup
-                    cmd_text = f"/treasure {ch_mention}"
+                    cmd_text = f"l.treasure {ch_id}"
                     label    = "🎁 Schatzkiste"
             else:
-                cmd_text = f"/treasure {ch_mention}"
+                cmd_text = f"l.treasure {ch_id}"
                 label    = "🎁 Schatzkiste"
 
             try:
