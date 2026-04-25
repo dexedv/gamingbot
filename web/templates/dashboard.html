@@ -60,19 +60,22 @@
 <!-- KPI Row -->
 <div class="row g-3 mb-4">
   {% set kpis = [
-    ('#5865f2', 'bi-people-fill',   'Nutzer',          stats.total_users,    'registriert',   True),
-    ('#f59e0b', 'bi-coin',          'Münzen',          stats.total_coins,    'im Umlauf',     True),
-    ('#06b6d4', 'bi-chat-dots-fill','Nachrichten',     stats.total_messages, 'gesamt',        True),
-    ('#10b981', 'bi-mic-fill',      'Sprachzeit',      none,                 stats.total_voice, False),
-    ('#8b5cf6', 'bi-star-fill',     'Höchstes Level',  stats.max_level,      'erreicht',      True),
-    ('#ef4444', 'bi-fire',          'Längster Streak', stats.max_streak,     'Tage',          True),
+    ('#5865f2', 'bi-people-fill',        'Nutzer',          stats.total_users,    'registriert',   True),
+    ('#f59e0b', 'bi-coin',               'Münzen',          stats.total_coins,    'im Umlauf',     True),
+    ('#06b6d4', 'bi-chat-dots-fill',     'Nachrichten',     stats.total_messages, 'gesamt',        True),
+    ('#10b981', 'bi-mic-fill',           'Sprachzeit',      none,                 stats.total_voice, False),
+    ('#8b5cf6', 'bi-star-fill',          'Höchstes Level',  stats.max_level,      'erreicht',      True),
+    ('#ef4444', 'bi-fire',               'Längster Streak', stats.max_streak,     'Tage',          True),
+    ('#f97316', 'bi-emoji-smile-fill',   'Bananen 🍌',      stats.total_bananen,  'im Quiz',       True),
+    ('#ef4444', 'bi-exclamation-triangle-fill', 'Verwarnungen', stats.total_warns,'vergeben',      True),
+    ('#6366f1', 'bi-lock-fill',          'Im Knast',        stats.knast_active,   'aktiv',         True),
   ] %}
   {% for color, icon, label, val, sub, animated in kpis %}
-  <div class="col-6 col-xl-2">
+  <div class="col-6 col-xl-4 col-xxl">
     <div class="kpi" style="--kc:{{ color }}">
       <div class="kpi-lbl">{{ label }}</div>
       {% if animated and val is not none %}
-      <div class="kpi-val" data-count="{{ val }}" style="{% if val > 9999 %}font-size:1.55rem{% endif %}">
+      <div class="kpi-val" data-count="{{ val }}" style="{% if val > 9999 %}font-size:1.45rem{% endif %}">
         {{ "{:,}".format(val) }}
       </div>
       <div class="kpi-sub">{{ sub }}</div>
@@ -99,24 +102,30 @@
   </div>
 </div>
 
-<!-- 3 Charts -->
+<!-- 4 Charts -->
 <div class="row g-3 mb-4">
-  <div class="col-lg-4">
+  <div class="col-lg-3">
     <div class="chart-card h-100">
       <div class="ch"><i class="bi bi-coin" style="color:#f59e0b"></i> Top 5 Münzen</div>
       <div class="cb"><canvas id="coinsChart" style="max-height:220px"></canvas></div>
     </div>
   </div>
-  <div class="col-lg-4">
+  <div class="col-lg-3">
     <div class="chart-card h-100">
       <div class="ch"><i class="bi bi-star-fill" style="color:#8b5cf6"></i> Top 5 Level</div>
       <div class="cb"><canvas id="levelChart" style="max-height:220px"></canvas></div>
     </div>
   </div>
-  <div class="col-lg-4">
+  <div class="col-lg-3">
     <div class="chart-card h-100">
       <div class="ch"><i class="bi bi-fire" style="color:#ef4444"></i> Top 5 Streak</div>
       <div class="cb"><canvas id="streakChart" style="max-height:220px"></canvas></div>
+    </div>
+  </div>
+  <div class="col-lg-3">
+    <div class="chart-card h-100">
+      <div class="ch"><i class="bi bi-emoji-smile-fill" style="color:#f97316"></i> Top 5 Bananen 🍌</div>
+      <div class="cb"><canvas id="bananenChart" style="max-height:220px"></canvas></div>
     </div>
   </div>
 </div>
@@ -285,5 +294,9 @@ makeHBar('levelChart',
 makeHBar('streakChart',
   {{ top_streak | map(attribute='username') | list | tojson }},
   {{ top_streak | map(attribute='streak')   | list | tojson }}, '#ef4444');
+
+makeHBar('bananenChart',
+  {{ top_bananen | map(attribute='username') | list | tojson }},
+  {{ top_bananen | map(attribute='aepfel')   | list | tojson }}, '#f97316');
 </script>
 {% endblock %}

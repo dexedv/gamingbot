@@ -409,6 +409,14 @@
     {% endif %}
     {% endif %}
 
+    <!-- Spiele -->
+    {% if 'emoji_quiz' in user_features %}
+    <div class="sb-section">Spiele</div>
+    <a class="sb-link {% if request.endpoint == 'emoji_quiz_page' %}active{% endif %}" href="/emoji-quiz">
+      <i class="bi bi-emoji-smile-fill" style="color:#f97316"></i> Emoji Quiz
+    </a>
+    {% endif %}
+
     <!-- Moderation -->
     {% if 'knast_log' in user_features or 'server_log' in user_features %}
     <div class="sb-section">Moderation</div>

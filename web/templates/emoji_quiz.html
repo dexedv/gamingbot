@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Emoji Quiz{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+  <div>
+    <h1 style="font-size:1.65rem;font-weight:800;color:#fff;margin:0">
+      <i class="bi bi-emoji-smile-fill me-2" style="color:#f97316"></i>Emoji Quiz
+    </h1>
+    <p style="color:var(--muted);margin:.3rem 0 0;font-size:.85rem">
+      Bananen-Leaderboard · Quiz-Währung 🍌
+    </p>
+  </div>
+  <div class="d-flex gap-3 flex-wrap" style="align-self:center">
+    <div style="background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.2);border-radius:11px;padding:.55rem 1.1rem;text-align:center">
+      <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700">Bananen gesamt</div>
+      <div style="font-size:1.4rem;font-weight:800;color:#fb923c">{{ "{:,}".format(stats.total_bananen) }} 🍌</div>
+    </div>
+    <div style="background:rgba(88,101,242,.08);border:1px solid rgba(88,101,242,.2);border-radius:11px;padding:.55rem 1.1rem;text-align:center">
+      <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700">Spieler</div>
+      <div style="font-size:1.4rem;font-weight:800;color:var(--accent2)">{{ stats.total_players }}</div>
+    </div>
+    <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:11px;padding:.55rem 1.1rem;text-align:center">
+      <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700">Führend</div>
+      <div style="font-size:1rem;font-weight:700;color:#fbbf24">{{ stats.top_player }}</div>
+      <div style="font-size:.75rem;color:var(--muted)">{{ "{:,}".format(stats.top_bananen) }} 🍌</div>
+    </div>
+  </div>
+</div>
+
+{% if not leaderboard %}
+<div class="card" style="border-radius:13px">
+  <div class="card-body text-center py-5" style="color:var(--muted)">
+    <i class="bi bi-emoji-smile" style="font-size:2.5rem;color:#f97316;display:block;margin-bottom:.75rem"></i>
+    Noch keine Quiz-Daten vorhanden.
+  </div>
+</div>
+{% else %}
+<div class="card" style="border-radius:13px">
+  <div class="card-header">
+    <i class="bi bi-trophy-fill" style="color:#f59e0b"></i>
+    Rangliste — Top {{ leaderboard|length }}
+  </div>
+  <div class="card-body p-0">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th style="width:60px">#</th>
+          <th>Spieler</th>
+          <th class="text-end">Bananen 🍌</th>
+          <th class="text-end" style="width:200px">Anteil</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set total = stats.total_bananen or 1 %}
+        {% for u in leaderboard %}
+        {% set pct = (u.aepfel / total * 100) | round(1) %}
+        <tr>
+          <td>
+            {% if loop.index == 1 %}
+            <span class="rank-badge rank-1">1</span>
+            {% elif loop.index == 2 %}
+            <span class="rank-badge rank-2">2</span>
+            {% elif loop.index == 3 %}
+            <span class="rank-badge rank-3">3</span>
+            {% else %}
+            <span class="rank-badge rank-n">{{ loop.index }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="display:flex;align-items:center;gap:.6rem">
+              <div style="width:32px;height:32px;border-radius:50%;background:rgba(249,115,22,.15);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fb923c;flex-shrink:0">
+                {{ u.username[0]|upper }}
+              </div>
+              <span style="font-weight:600;color:#fff">{{ u.username }}</span>
+            </div>
+          </td>
+          <td class="text-end">
+            <span style="font-weight:700;color:#fb923c;font-size:.95rem">{{ "{:,}".format(u.aepfel) }}</span>
+          </td>
+          <td class="text-end">
+            <div style="display:flex;align-items:center;gap:.5rem;justify-content:flex-end">
+              <div style="flex:1;height:6px;border-radius:99px;background:rgba(255,255,255,.07);min-width:80px">
+                <div style="width:{{ pct }}%;height:100%;border-radius:99px;background:linear-gradient(90deg,#f97316,#fb923c)"></div>
+              </div>
+              <span style="font-size:.75rem;color:var(--muted);min-width:38px;text-align:right">{{ pct }}%</span>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

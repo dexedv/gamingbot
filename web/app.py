@@ -84,6 +84,7 @@ FEATURES = {
     "verified":             {"label": "Verifizierte Nutzer",     "icon": "bi-check-circle",    "desc": "Liste aller Nutzer die die Regeln akzeptiert haben"},
     "regelwerk_editor":     {"label": "Regelwerk-Editor",        "icon": "bi-pencil-square",   "desc": "Server-Regeln bearbeiten und in Discord posten"},
     "warns":                {"label": "Verwarnungen",             "icon": "bi-exclamation-triangle", "desc": "Verwarnungen aller Nutzer einsehen und verwalten"},
+    "emoji_quiz":           {"label": "Emoji Quiz",               "icon": "bi-emoji-smile",          "desc": "Bananen-Leaderboard und Quiz-Statistiken einsehen"},
 }
 
 _REGELWERK_DEFAULTS = [
@@ -146,6 +147,7 @@ FEATURE_ROUTES: dict[str, set] = {
     "verified":             {"verified_page", "api_verified_delete"},
     "regelwerk_editor":     {"regelwerk_editor_page", "api_regelwerk_save", "api_regelwerk_post"},
     "warns":                {"warns_page", "api_warns_clear"},
+    "emoji_quiz":           {"emoji_quiz_page"},
 }
 
 # Reverse-Map: endpoint → feature (wird beim Import gebaut)
@@ -160,12 +162,12 @@ DEFAULT_PERMISSIONS: dict[str, list] = {
     "co-owner":        ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
                         "verifizierung_boys", "verifizierung_girls",
                         "broadcast", "willkommen", "cogs", "templates", "einstellungen", "server_log",
-                        "verified", "regelwerk_editor", "warns"],
+                        "verified", "regelwerk_editor", "warns", "emoji_quiz"],
     "admin":           ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
                         "verifizierung_boys", "verifizierung_girls", "broadcast", "willkommen",
-                        "server_log", "verified", "regelwerk_editor", "warns"],
+                        "server_log", "verified", "regelwerk_editor", "warns", "emoji_quiz"],
     "moderator":       ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
-                        "verifizierung_boys", "verifizierung_girls", "server_log", "verified", "warns"],
+                        "verifizierung_boys", "verifizierung_girls", "server_log", "verified", "warns", "emoji_quiz"],
     "b-verifizierung": ["verifizierung_boys"],
     "g-verifizierung": ["verifizierung_girls"],
     "supporter":       ["nutzer", "knast_log", "kummerkasten"],
@@ -429,18 +431,23 @@ def dashboard():
         "total_voice":    fmt_seconds(db.execute("SELECT SUM(voice_seconds) FROM users").fetchone()[0] or 0),
         "max_level":      db.execute("SELECT MAX(level) FROM users").fetchone()[0] or 0,
         "max_streak":     db.execute("SELECT MAX(streak) FROM users").fetchone()[0] or 0,
+        "total_bananen":  db.execute("SELECT SUM(aepfel) FROM users").fetchone()[0] or 0,
+        "total_warns":    db.execute("SELECT COALESCE(SUM(amount),0) FROM warns").fetchone()[0] or 0,
+        "knast_active":   db.execute("SELECT COUNT(*) FROM knast WHERE released_at IS NULL").fetchone()[0] or 0,
         "uptime":         fmt_uptime(time.time() - _bot_start_time),
     }
-    top_coins  = db.execute("SELECT username, coins FROM users ORDER BY coins DESC LIMIT 5").fetchall()
-    top_level  = db.execute("SELECT username, level, xp FROM users ORDER BY xp DESC LIMIT 5").fetchall()
-    top_streak = db.execute("SELECT username, streak FROM users ORDER BY streak DESC LIMIT 5").fetchall()
-    recent     = db.execute("SELECT username, coins, level, streak FROM users ORDER BY rowid DESC LIMIT 8").fetchall()
+    top_coins   = db.execute("SELECT username, coins FROM users ORDER BY coins DESC LIMIT 5").fetchall()
+    top_level   = db.execute("SELECT username, level, xp FROM users ORDER BY xp DESC LIMIT 5").fetchall()
+    top_streak  = db.execute("SELECT username, streak FROM users ORDER BY streak DESC LIMIT 5").fetchall()
+    top_bananen = db.execute("SELECT username, aepfel FROM users ORDER BY aepfel DESC LIMIT 5").fetchall()
+    recent      = db.execute("SELECT username, coins, level, streak FROM users ORDER BY rowid DESC LIMIT 8").fetchall()
     db.close()
     return render_template("dashboard.html",
         stats=stats,
         top_coins=[dict(r) for r in top_coins],
         top_level=[dict(r) for r in top_level],
         top_streak=[dict(r) for r in top_streak],
+        top_bananen=[dict(r) for r in top_bananen],
         recent=[dict(r) for r in recent],
     )
 
@@ -1861,6 +1868,30 @@ def api_warns_clear(user_id):
                  f"👤  **Nutzer:** {row['username']} (`{user_id}`)\n"
                  f"🌐  **Von:** {session.get('username')}")
     return jsonify({"ok": True})
+
+
+# ── Emoji Quiz ───────────────────────────────────────────────────────────────
+
+@app.route("/emoji-quiz")
+@login_required
+def emoji_quiz_page():
+    db = get_db()
+    try:
+        leaderboard = db.execute(
+            "SELECT username, aepfel FROM users WHERE aepfel > 0 ORDER BY aepfel DESC LIMIT 50"
+        ).fetchall()
+        leaderboard = [dict(r) for r in leaderboard]
+        stats = {
+            "total_bananen": db.execute("SELECT COALESCE(SUM(aepfel),0) FROM users").fetchone()[0] or 0,
+            "total_players": db.execute("SELECT COUNT(*) FROM users WHERE aepfel > 0").fetchone()[0] or 0,
+            "top_player":    leaderboard[0]["username"] if leaderboard else "—",
+            "top_bananen":   leaderboard[0]["aepfel"]   if leaderboard else 0,
+        }
+    except Exception:
+        leaderboard, stats = [], {"total_bananen": 0, "total_players": 0, "top_player": "—", "top_bananen": 0}
+    finally:
+        db.close()
+    return render_template("emoji_quiz.html", leaderboard=leaderboard, stats=stats)
 
 
 # ── Server-Log ────────────────────────────────────────────────────────────────
