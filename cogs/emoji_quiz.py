@@ -1092,18 +1092,44 @@ QUIZ_DATA = [
 ]
 
 
-# ── Skip-Button ───────────────────────────────────────────────────────────────
+# ── Buttons ───────────────────────────────────────────────────────────────────
+
+def _build_hint(answer: str) -> str:
+    words = answer.split()
+    parts = [w[0] + "＿" * (len(w) - 1) if len(w) > 1 else w for w in words]
+    return " ".join(parts)
+
 
 class QuizView(discord.ui.View):
     def __init__(self, cog: "EmojiQuizCog"):
         super().__init__(timeout=None)
         self.cog = cog
 
-    @discord.ui.button(
-        label=f"Aufgabe überspringen  (50 🍎)",
-        style=discord.ButtonStyle.secondary,
-        emoji="⏭️",
-    )
+    @discord.ui.button(label="Tipp  (100 🍌)", style=discord.ButtonStyle.primary, emoji="💡")
+    async def tipp_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.cog.current:
+            await interaction.response.send_message("❌ Keine aktive Frage mehr.", ephemeral=True)
+            return
+
+        _ensure_user(interaction.user.id, interaction.user.display_name)
+        if not _spend_aepfel(interaction.user.id, HINT_COST):
+            bal = _get_aepfel(interaction.user.id)
+            await interaction.response.send_message(
+                f"❌ Nicht genug Bananen! Du hast **{bal}** 🍌, brauchst **{HINT_COST}** 🍌.",
+                ephemeral=True,
+            )
+            return
+
+        _, answer = self.cog.current
+        hint = _build_hint(answer)
+        bal  = _get_aepfel(interaction.user.id)
+        await interaction.response.send_message(
+            f"💡 **Tipp** (−{HINT_COST} 🍌 · Guthaben: **{bal}** 🍌)\n"
+            f"``{hint}``  ({len(answer)} Zeichen)",
+            ephemeral=True,
+        )
+
+    @discord.ui.button(label="Überspringen  (50 🍌)", style=discord.ButtonStyle.secondary, emoji="⏭️")
     async def skip_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.cog.current:
             await interaction.response.send_message("❌ Keine aktive Frage mehr.", ephemeral=True)
@@ -1113,7 +1139,7 @@ class QuizView(discord.ui.View):
         if not _spend_aepfel(interaction.user.id, SKIP_COST):
             bal = _get_aepfel(interaction.user.id)
             await interaction.response.send_message(
-                f"❌ Nicht genug Äpfel! Du hast **{bal}** 🍎, brauchst **{SKIP_COST}** 🍎.",
+                f"❌ Nicht genug Bananen! Du hast **{bal}** 🍌, brauchst **{SKIP_COST}** 🍌.",
                 ephemeral=True,
             )
             return
@@ -1130,8 +1156,8 @@ class QuizView(discord.ui.View):
             ),
             color=discord.Color.from_rgb(150, 150, 150),
         )
-        skip_embed.add_field(name="💸 Kosten",   value=f"−{SKIP_COST} 🍎", inline=True)
-        skip_embed.add_field(name="💰 Guthaben", value=f"{bal} 🍎",         inline=True)
+        skip_embed.add_field(name="💸 Kosten",   value=f"−{SKIP_COST} 🍌", inline=True)
+        skip_embed.add_field(name="💰 Guthaben", value=f"{bal} 🍌",         inline=True)
         skip_embed.set_footer(text="Nächste Frage in 3 Sekunden…")
 
         await interaction.response.edit_message(embed=skip_embed, view=None)
@@ -1154,7 +1180,7 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
             color=discord.Color.from_rgb(255, 165, 0),
         )
         embed.set_footer(
-            text=f"Tippe die Antwort! · %tipp (−{HINT_COST} 🍎) · %äpfel · +{REWARD} 🍎 bei richtiger Antwort"
+            text=f"Tippe die Antwort! · +{REWARD} 🍌 bei richtiger Antwort · %bananen"
         )
         return embed
 
@@ -1226,8 +1252,8 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
             description=f"**{message.author.display_name}** hat **{answer}** erraten!",
             color=discord.Color.green(),
         )
-        correct_embed.add_field(name="🍎 Belohnung", value=f"+{REWARD} Äpfel", inline=True)
-        correct_embed.add_field(name="💰 Guthaben",  value=f"{bal} 🍎",         inline=True)
+        correct_embed.add_field(name="🍌 Belohnung", value=f"+{REWARD} Bananen", inline=True)
+        correct_embed.add_field(name="💰 Guthaben",  value=f"{bal} 🍌",          inline=True)
         correct_embed.set_footer(text="Nächste Frage in 5 Sekunden…")
 
         if self._question_msg:
@@ -1240,49 +1266,17 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
 
     # ── Commands ──────────────────────────────────────────────────────────
 
-    @commands.command(name="tipp")
-    async def hint_cmd(self, ctx: commands.Context):
-        """Kaufe einen Tipp für 100 Äpfel — %tipp"""
-        if ctx.channel.id != QUIZ_CHANNEL_ID:
-            return
-
-        # Befehlsnachricht wird bereits von on_message gelöscht
-        if not self.current:
-            await ctx.send("❌ Gerade keine aktive Frage.", delete_after=5)
-            return
-
-        _ensure_user(ctx.author.id, ctx.author.display_name)
-        if not _spend_aepfel(ctx.author.id, HINT_COST):
-            bal = _get_aepfel(ctx.author.id)
-            await ctx.send(
-                f"❌ Nicht genug Äpfel! Du hast **{bal}** 🍎, brauchst **{HINT_COST}** 🍎.",
-                delete_after=8,
-            )
-            return
-
-        _, answer = self.current
-        words = answer.split()
-        hint_parts = [w[0] + "＿" * (len(w) - 1) if len(w) > 1 else w for w in words]
-        hint = " ".join(hint_parts)
-        bal  = _get_aepfel(ctx.author.id)
-
-        await ctx.send(
-            f"💡 **Tipp für {ctx.author.display_name}** (−{HINT_COST} 🍎 · Guthaben: **{bal}** 🍎)\n"
-            f"``{hint}``  ({len(answer)} Zeichen)",
-            delete_after=20,
-        )
-
-    @commands.command(name="äpfel", aliases=["aepfel", "apfel"])
+    @commands.command(name="bananen", aliases=["banane", "aepfel", "äpfel"])
     async def balance_cmd(self, ctx: commands.Context, member: discord.Member = None):
-        """Zeigt dein Äpfel-Guthaben — %äpfel [@nutzer]"""
+        """Zeigt dein Bananen-Guthaben — %bananen [@nutzer]"""
         target = member or ctx.author
         _ensure_user(target.id, target.display_name)
         bal = _get_aepfel(target.id)
-        await ctx.send(f"🍎 **{target.display_name}** hat **{bal} Äpfel**.", delete_after=10)
+        await ctx.send(f"🍌 **{target.display_name}** hat **{bal} Bananen**.", delete_after=10)
 
-    @commands.command(name="äpfeltop", aliases=["aepfeltop", "quiztop"])
+    @commands.command(name="bananentop", aliases=["aepfeltop", "äpfeltop", "quiztop"])
     async def leaderboard_cmd(self, ctx: commands.Context):
-        """Top-10 Äpfel-Bestenliste — %äpfeltop"""
+        """Top-10 Bananen-Bestenliste — %bananentop"""
         conn = sqlite3.connect(DB_PATH)
         rows = conn.execute(
             "SELECT username, aepfel FROM users ORDER BY aepfel DESC LIMIT 10"
@@ -1297,14 +1291,14 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
         lines  = []
         for i, (username, aepfel) in enumerate(rows):
             prefix = medals[i] if i < 3 else f"`#{i+1}`"
-            lines.append(f"{prefix}  **{username}** — {aepfel} 🍎")
+            lines.append(f"{prefix}  **{username}** — {aepfel} 🍌")
 
         embed = discord.Embed(
-            title="🍎  Äpfel-Bestenliste  —  Top 10",
+            title="🍌  Bananen-Bestenliste  —  Top 10",
             description="\n".join(lines),
-            color=discord.Color.from_rgb(255, 80, 0),
+            color=discord.Color.from_rgb(255, 200, 0),
         )
-        embed.set_footer(text="Verdiene Äpfel im Emoji-Quiz!")
+        embed.set_footer(text="Verdiene Bananen im Emoji-Quiz!")
         await ctx.send(embed=embed, delete_after=30)
 
     @commands.command(name="quizstop", hidden=True)
