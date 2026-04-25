@@ -1679,8 +1679,11 @@ def role_permissions():
     grid: dict = {}
     for feat_key in FEATURES:
         grid[feat_key] = {role: feat_key in perms.get(role, set()) for role in VALID_ROLES}
+    # Gesperrte Features ans Ende
+    sorted_features = {k: v for k, v in FEATURES.items() if k not in _ALL_LOCKED}
+    sorted_features.update({k: v for k, v in FEATURES.items() if k in _ALL_LOCKED})
     return render_template("role_permissions.html",
-                           features=FEATURES, roles=VALID_ROLES, grid=grid)
+                           features=sorted_features, roles=VALID_ROLES, grid=grid)
 
 
 @app.route("/api/role-permissions/save", methods=["POST"])
