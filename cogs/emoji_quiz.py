@@ -1105,7 +1105,7 @@ class QuizView(discord.ui.View):
         super().__init__(timeout=None)
         self.cog = cog
 
-    @discord.ui.button(label="Tipp  (100 🍌)", style=discord.ButtonStyle.primary, emoji="💡")
+    @discord.ui.button(label="Tipp  (50 🍌)", style=discord.ButtonStyle.primary, emoji="💡")
     async def tipp_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.cog.current:
             await interaction.response.send_message("❌ Keine aktive Frage mehr.", ephemeral=True)
@@ -1129,7 +1129,7 @@ class QuizView(discord.ui.View):
             ephemeral=True,
         )
 
-    @discord.ui.button(label="Überspringen  (50 🍌)", style=discord.ButtonStyle.secondary, emoji="⏭️")
+    @discord.ui.button(label="Überspringen  (100 🍌)", style=discord.ButtonStyle.secondary, emoji="⏭️")
     async def skip_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.cog.current:
             await interaction.response.send_message("❌ Keine aktive Frage mehr.", ephemeral=True)
