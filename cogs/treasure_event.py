@@ -123,10 +123,10 @@ class TreasureEventCog(commands.Cog, name="TreasureEvent"):
                     label    = f"⚡ Powerup für **{target.display_name}**"
                 else:
                     # Kein Online-User → treasure statt powerup
-                    cmd_text = f"l.treasure {ch_id}"
+                    cmd_text = f"l.treasure channel {ch_id}"
                     label    = "🎁 Schatzkiste"
             else:
-                cmd_text = f"l.treasure {ch_id}"
+                cmd_text = f"l.treasure channel {ch_id}"
                 label    = "🎁 Schatzkiste"
 
             try:
