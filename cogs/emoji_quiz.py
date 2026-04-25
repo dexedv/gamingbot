@@ -8,8 +8,8 @@ import discord
 from discord.ext import commands
 
 QUIZ_CHANNEL_ID = 1494663152569417800
-REWARD          = 20      # Äpfel pro richtiger Antwort
-HINT_COST       = 50      # Bananen für einen Tipp
+REWARD          = 20      # Bananen pro richtiger Antwort
+HINT_COSTS      = [50, 100, 300, 900, 2700]  # Kosten pro Tipp (eskalierend)
 SKIP_COST       = 100     # Bananen für Aufgabe überspringen
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'gamingbot.db')
@@ -1095,10 +1095,17 @@ QUIZ_DATA = [
 
 # ── Buttons ───────────────────────────────────────────────────────────────────
 
-def _build_hint(answer: str) -> str:
-    words = answer.split()
-    parts = [w[0] + "＿" * (len(w) - 1) if len(w) > 1 else w for w in words]
-    return " ".join(parts)
+def _build_hint(answer: str, revealed: int) -> str:
+    """Zeigt `revealed` Nicht-Leerzeichen-Buchstaben auf, Rest als _."""
+    result = []
+    count = 0
+    for ch in answer:
+        if ch == " ":
+            result.append(" ")
+        else:
+            count += 1
+            result.append(ch if count <= revealed else "＿")
+    return "".join(result)
 
 
 class QuizView(discord.ui.View):
@@ -1112,21 +1119,35 @@ class QuizView(discord.ui.View):
             await interaction.response.send_message("❌ Keine aktive Frage mehr.", ephemeral=True)
             return
 
+        revealed  = self.cog._hint_count
+        _, answer = self.cog.current
+        max_chars = len(answer.replace(" ", ""))
+
+        if revealed >= max_chars:
+            await interaction.response.send_message("💡 Die ganze Antwort ist schon aufgedeckt!", ephemeral=True)
+            return
+
+        cost = HINT_COSTS[min(revealed, len(HINT_COSTS) - 1)]
+
         _ensure_user(interaction.user.id, interaction.user.display_name)
-        if not _spend_aepfel(interaction.user.id, HINT_COST):
+        if not _spend_aepfel(interaction.user.id, cost):
             bal = _get_aepfel(interaction.user.id)
             await interaction.response.send_message(
-                f"❌ Nicht genug Bananen! Du hast **{bal}** 🍌, brauchst **{HINT_COST}** 🍌.",
+                f"❌ Nicht genug Bananen! Du hast **{bal}** 🍌, brauchst **{cost}** 🍌.",
                 ephemeral=True,
             )
             return
 
-        _, answer = self.cog.current
-        hint = _build_hint(answer)
+        self.cog._hint_count += 1
+        hint = _build_hint(answer, self.cog._hint_count)
         bal  = _get_aepfel(interaction.user.id)
+
+        next_cost = HINT_COSTS[min(self.cog._hint_count, len(HINT_COSTS) - 1)] if self.cog._hint_count < max_chars else None
+        next_info = f" · Nächster Tipp: **{next_cost} 🍌**" if next_cost else ""
+
         await interaction.response.send_message(
-            f"💡 **Tipp** (−{HINT_COST} 🍌 · Guthaben: **{bal}** 🍌)\n"
-            f"``{hint}``  ({len(answer)} Zeichen)",
+            f"💡 **Tipp {self.cog._hint_count}** (−{cost} 🍌 · Guthaben: **{bal}** 🍌{next_info})\n"
+            f"``{hint}``  ({max_chars} Buchstaben)",
             ephemeral=True,
         )
 
@@ -1173,6 +1194,7 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
         self.current       = None   # (emojis, answer) | None
         self._started      = False
         self._question_msg: discord.Message | None = None
+        self._hint_count   = 0
 
     def _quiz_embed(self, emojis: str) -> discord.Embed:
         embed = discord.Embed(
@@ -1182,7 +1204,7 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
                 f"## {emojis}\n\n"
                 f"Schreibe deine Antwort einfach in den Chat — wer zuerst richtig liegt, "
                 f"gewinnt **{REWARD} 🍌 Bananen**!\n\n"
-                f"💡 **Tipp** kostet **{HINT_COST} 🍌** · ⏭️ **Überspringen** kostet **{SKIP_COST} 🍌**\n"
+                f"💡 **Tipp** ab **{HINT_COSTS[0]} 🍌** (wird teurer) · ⏭️ **Überspringen** kostet **{SKIP_COST} 🍌**\n"
                 f"Dein Guthaben: `%bananen` · Bestenliste: `%bananentop`"
             ),
             color=discord.Color.from_rgb(255, 165, 0),
@@ -1197,7 +1219,8 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
         if not channel:
             return
 
-        self.current = random.choice(QUIZ_DATA)
+        self.current    = random.choice(QUIZ_DATA)
+        self._hint_count = 0
         emojis, _ = self.current
         embed = self._quiz_embed(emojis)
         view  = QuizView(self)
