@@ -59,6 +59,7 @@ def create_bot() -> commands.Bot:
     intents.message_content = True  # Pflicht für Prefix-Commands
     intents.members = True           # Pflicht für on_member_join
     intents.voice_states = True      # Pflicht für Voice-Tracking
+    intents.presences = True         # Pflicht für Online-Status (Powerup-Erkennung)
 
     bot = commands.Bot(command_prefix="%", intents=intents, help_command=None)
     bot.db = Database()  # type: ignore[attr-defined]
