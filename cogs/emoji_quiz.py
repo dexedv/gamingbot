@@ -9,7 +9,7 @@ from discord.ext import commands
 QUIZ_CHANNEL_ID = 1494663152569417800
 REWARD          = 20      # Äpfel pro richtiger Antwort
 HINT_COST       = 100     # Äpfel für einen Tipp
-TIMEOUT         = 60      # Sekunden bis zur nächsten Frage
+SKIP_COST       = 50      # Äpfel für Aufgabe überspringen
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'gamingbot.db')
 
@@ -1092,18 +1092,54 @@ QUIZ_DATA = [
 ]
 
 
+# ── Skip-Button ───────────────────────────────────────────────────────────────
+
+class QuizView(discord.ui.View):
+    def __init__(self, cog: "EmojiQuizCog"):
+        super().__init__(timeout=None)
+        self.cog = cog
+
+    @discord.ui.button(
+        label=f"Aufgabe überspringen  (50 🍎)",
+        style=discord.ButtonStyle.secondary,
+        emoji="⏭️",
+    )
+    async def skip_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.cog.current:
+            await interaction.response.send_message("❌ Keine aktive Frage mehr.", ephemeral=True)
+            return
+
+        _ensure_user(interaction.user.id, interaction.user.display_name)
+        if not _spend_aepfel(interaction.user.id, SKIP_COST):
+            bal = _get_aepfel(interaction.user.id)
+            await interaction.response.send_message(
+                f"❌ Nicht genug Äpfel! Du hast **{bal}** 🍎, brauchst **{SKIP_COST}** 🍎.",
+                ephemeral=True,
+            )
+            return
+
+        _, answer = self.cog.current
+        self.cog.current = None
+
+        # Button deaktivieren
+        button.disabled = True
+        await interaction.message.edit(view=self)
+
+        bal = _get_aepfel(interaction.user.id)
+        await interaction.response.send_message(
+            f"⏭️ **{interaction.user.display_name}** hat übersprungen  (−{SKIP_COST} 🍎 · Guthaben: **{bal}** 🍎)\n"
+            f"Die Antwort war: **{answer}**"
+        )
+        asyncio.create_task(self.cog._next_question(3))
+
+
 # ── Cog ───────────────────────────────────────────────────────────────────────
 
 class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
     def __init__(self, bot: commands.Bot):
-        self.bot          = bot
-        self.current      = None   # (emojis, answer) | None
-        self._timeout_task = None
-        self._started     = False
-
-    def cog_unload(self):
-        if self._timeout_task:
-            self._timeout_task.cancel()
+        self.bot      = bot
+        self.current  = None   # (emojis, answer) | None
+        self._started = False
 
     # ── Interne Quiz-Logik ────────────────────────────────────────────────
 
@@ -1121,30 +1157,13 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
             color=discord.Color.from_rgb(255, 165, 0),
         )
         embed.set_footer(
-            text=f"Tippe die Antwort! · %tipp (−{HINT_COST} 🍎) · %äpfel · +{REWARD} 🍎 bei richtiger Antwort · {TIMEOUT}s"
+            text=f"Tippe die Antwort! · %tipp (−{HINT_COST} 🍎) · %äpfel · +{REWARD} 🍎 bei richtiger Antwort"
         )
-        await channel.send(embed=embed)
-
-        if self._timeout_task:
-            self._timeout_task.cancel()
-        self._timeout_task = asyncio.create_task(self._handle_timeout())
+        await channel.send(embed=embed, view=QuizView(self))
 
     async def _next_question(self, delay: int = 5):
         await asyncio.sleep(delay)
         await self._post_question()
-
-    async def _handle_timeout(self):
-        await asyncio.sleep(TIMEOUT)
-        if not self.current:
-            return
-        channel = self.bot.get_channel(QUIZ_CHANNEL_ID)
-        _, answer = self.current
-        self.current = None
-        if channel:
-            await channel.send(
-                f"⏰ Zeit! Niemand hat es erraten. Die Antwort war: **{answer}**"
-            )
-        asyncio.create_task(self._next_question(5))
 
     # ── Events ────────────────────────────────────────────────────────────
 
@@ -1172,8 +1191,6 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
 
         # Richtige Antwort
         self.current = None
-        if self._timeout_task:
-            self._timeout_task.cancel()
 
         _ensure_user(message.author.id, message.author.display_name)
         _add_aepfel(message.author.id, REWARD)
@@ -1184,8 +1201,8 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
             description=f"**{message.author.display_name}** hat **{answer}** erraten!",
             color=discord.Color.green(),
         )
-        embed.add_field(name="🍎 Belohnung",  value=f"+{REWARD} Äpfel",  inline=True)
-        embed.add_field(name="💰 Guthaben",   value=f"{bal} 🍎",          inline=True)
+        embed.add_field(name="🍎 Belohnung", value=f"+{REWARD} Äpfel", inline=True)
+        embed.add_field(name="💰 Guthaben",  value=f"{bal} 🍎",         inline=True)
         await message.channel.send(embed=embed)
 
         asyncio.create_task(self._next_question(5))
@@ -1211,7 +1228,6 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
             return
 
         _, answer = self.current
-        # Ersten Buchstaben zeigen, Rest verstecken
         words = answer.split()
         hint_parts = [w[0] + "＿" * (len(w) - 1) if len(w) > 1 else w for w in words]
         hint = " ".join(hint_parts)
@@ -1262,8 +1278,6 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
         """Stoppt das Quiz (nur Owner)."""
         if ctx.author.id != 307210134856400908:
             return
-        if self._timeout_task:
-            self._timeout_task.cancel()
         self.current = None
         self._started = False
         await ctx.send("⏹️ Quiz gestoppt.")
