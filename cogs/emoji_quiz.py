@@ -8,8 +8,8 @@ from discord.ext import commands
 
 QUIZ_CHANNEL_ID = 1494663152569417800
 REWARD          = 20      # Äpfel pro richtiger Antwort
-HINT_COST       = 100     # Äpfel für einen Tipp
-SKIP_COST       = 50      # Äpfel für Aufgabe überspringen
+HINT_COST       = 50      # Bananen für einen Tipp
+SKIP_COST       = 100     # Bananen für Aufgabe überspringen
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'gamingbot.db')
 
