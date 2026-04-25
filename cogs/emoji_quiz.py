@@ -2,6 +2,7 @@ import asyncio
 import os
 import random
 import sqlite3
+import unicodedata
 
 import discord
 from discord.ext import commands
@@ -1249,7 +1250,10 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
             return
 
         _, answer = self.current
-        if message.content.strip().lower() != answer.lower():
+        def _norm(s: str) -> str:
+            return unicodedata.normalize("NFD", s.strip().lower()).encode("ascii", "ignore").decode()
+
+        if _norm(message.content) != _norm(answer):
             return
 
         # Richtige Antwort
