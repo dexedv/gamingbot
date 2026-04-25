@@ -48,6 +48,7 @@ COGS = [
     "cogs.gif_limit",
     "cogs.logger",
     "cogs.stats_channel",
+    "cogs.emoji_quiz",
 ]
 
 

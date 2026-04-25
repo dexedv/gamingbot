@@ -36,6 +36,7 @@ class Database:
                 ("voice_minutes",    "INTEGER DEFAULT 0"),
                 ("voice_seconds",    "INTEGER DEFAULT 0"),
                 ("name_protected",   "INTEGER DEFAULT 0"),
+                ("aepfel",           "INTEGER DEFAULT 0"),
             ]:
                 try:
                     await db.execute(f"ALTER TABLE users ADD COLUMN {col} {definition}")
