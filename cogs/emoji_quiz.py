@@ -1259,7 +1259,7 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
         )
         correct_embed.add_field(name="🍌 Belohnung", value=f"+{REWARD} Bananen", inline=True)
         correct_embed.add_field(name="💰 Guthaben",  value=f"{bal} 🍌",          inline=True)
-        correct_embed.set_footer(text="Nächste Frage in 5 Sekunden…")
+        correct_embed.set_footer(text="Nächste Frage in 3 Sekunden…")
 
         if self._question_msg:
             try:
@@ -1267,7 +1267,7 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
             except (discord.NotFound, discord.HTTPException):
                 self._question_msg = None
 
-        asyncio.create_task(self._next_question(5))
+        asyncio.create_task(self._next_question(3))
 
     # ── Commands ──────────────────────────────────────────────────────────
 
