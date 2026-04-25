@@ -69,30 +69,36 @@ class TreasureEventCog(commands.Cog, name="TreasureEvent"):
         await ctx.send("⏹️ Treasure-Event gestoppt.")
 
     async def _run_event(self, guild: discord.Guild, count: int):
-        try:
-            admin = await self.bot.fetch_user(ADMIN_ID)
-        except Exception:
+        recipients = []
+        for uid in (ADMIN_ID, OWNER_ID):
+            try:
+                recipients.append(await self.bot.fetch_user(uid))
+            except Exception:
+                pass
+        if not recipients:
             self.running = False
             return
+        admin = recipients[0]
 
         # Gleichmäßig verteilt + etwas Zufall
         base_interval = EVENT_DURATION / count
 
-        # Startmeldung an Admin
-        try:
-            start_embed = discord.Embed(
-                title="🎁 Treasure-Event — Du bist dran!",
-                description=(
-                    f"Du bekommst jetzt **{count}x** eine Nachricht mit dem Command "
-                    f"den du im Server eingeben sollst.\n\n"
-                    f"⏱️ Über **30 Minuten** verteilt · Ungefähr alle "
-                    f"**{base_interval/60:.1f} Min**"
-                ),
-                color=discord.Color.from_rgb(255, 200, 0),
-            )
-            await admin.send(embed=start_embed)
-        except Exception:
-            pass
+        # Startmeldung an alle
+        start_embed = discord.Embed(
+            title="🎁 Treasure-Event — Du bist dran!",
+            description=(
+                f"Du bekommst jetzt **{count}x** eine Nachricht mit dem Command "
+                f"den du im Server eingeben sollst.\n\n"
+                f"⏱️ Über **30 Minuten** verteilt · Ungefähr alle "
+                f"**{base_interval/60:.1f} Min**"
+            ),
+            color=discord.Color.from_rgb(255, 200, 0),
+        )
+        for r in recipients:
+            try:
+                await r.send(embed=start_embed)
+            except Exception:
+                pass
 
         for i in range(count):
             if not self.running:
@@ -129,30 +135,31 @@ class TreasureEventCog(commands.Cog, name="TreasureEvent"):
                 cmd_text = f"l.treasure {ch_id}"
                 label    = "🎁 Schatzkiste"
 
-            try:
-                embed = discord.Embed(
-                    title=label,
-                    description=f"```\n{cmd_text}\n```",
-                    color=discord.Color.from_rgb(255, 165, 0),
-                )
-                embed.set_footer(text=f"Spawn {i+1}/{count} · Kopiere den Command und sende ihn im Server")
-                await admin.send(embed=embed)
-            except Exception:
-                pass
+            embed = discord.Embed(
+                title=label,
+                description=f"```\n{cmd_text}\n```",
+                color=discord.Color.from_rgb(255, 165, 0),
+            )
+            embed.set_footer(text=f"Spawn {i+1}/{count} · Kopiere den Command und sende ihn im Server")
+            for r in recipients:
+                try:
+                    await r.send(embed=embed)
+                except Exception:
+                    pass
 
         # Abschlussmeldung
         if self.running:
             self.running = False
-            try:
-                await admin.send(
-                    embed=discord.Embed(
-                        title="✅ Event abgeschlossen!",
-                        description=f"Alle **{count}** Schatzkisten wurden gespawnt.",
-                        color=discord.Color.green(),
-                    )
-                )
-            except Exception:
-                pass
+            end_embed = discord.Embed(
+                title="✅ Event abgeschlossen!",
+                description=f"Alle **{count}** Schatzkisten wurden gespawnt.",
+                color=discord.Color.green(),
+            )
+            for r in recipients:
+                try:
+                    await r.send(embed=end_embed)
+                except Exception:
+                    pass
 
 
 async def setup(bot: commands.Bot):
