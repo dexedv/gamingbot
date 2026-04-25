@@ -83,6 +83,7 @@ FEATURES = {
     "server_log":           {"label": "Server-Log",              "icon": "bi-journal-text",    "desc": "Alle Server-Ereignisse einsehen"},
     "verified":             {"label": "Verifizierte Nutzer",     "icon": "bi-check-circle",    "desc": "Liste aller Nutzer die die Regeln akzeptiert haben"},
     "regelwerk_editor":     {"label": "Regelwerk-Editor",        "icon": "bi-pencil-square",   "desc": "Server-Regeln bearbeiten und in Discord posten"},
+    "warns":                {"label": "Verwarnungen",             "icon": "bi-exclamation-triangle", "desc": "Verwarnungen aller Nutzer einsehen und verwalten"},
 }
 
 _REGELWERK_DEFAULTS = [
@@ -144,6 +145,7 @@ FEATURE_ROUTES: dict[str, set] = {
     "server_log":           {"server_log_page", "api_log_clear"},
     "verified":             {"verified_page", "api_verified_delete"},
     "regelwerk_editor":     {"regelwerk_editor_page", "api_regelwerk_save", "api_regelwerk_post"},
+    "warns":                {"warns_page", "api_warns_clear"},
 }
 
 # Reverse-Map: endpoint → feature (wird beim Import gebaut)
@@ -158,12 +160,12 @@ DEFAULT_PERMISSIONS: dict[str, list] = {
     "co-owner":        ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
                         "verifizierung_boys", "verifizierung_girls",
                         "broadcast", "willkommen", "cogs", "templates", "einstellungen", "server_log",
-                        "verified", "regelwerk_editor"],
+                        "verified", "regelwerk_editor", "warns"],
     "admin":           ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
                         "verifizierung_boys", "verifizierung_girls", "broadcast", "willkommen",
-                        "server_log", "verified", "regelwerk_editor"],
+                        "server_log", "verified", "regelwerk_editor", "warns"],
     "moderator":       ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
-                        "verifizierung_boys", "verifizierung_girls", "server_log", "verified"],
+                        "verifizierung_boys", "verifizierung_girls", "server_log", "verified", "warns"],
     "b-verifizierung": ["verifizierung_boys"],
     "g-verifizierung": ["verifizierung_girls"],
     "supporter":       ["nutzer", "knast_log", "kummerkasten"],
@@ -1808,6 +1810,54 @@ def api_verified_delete(user_id):
     db.commit()
     db.close()
     _discord_log("🗑️ Verified-Eintrag entfernt",
+                 f"👤  **Nutzer:** {row['username']} (`{user_id}`)\n"
+                 f"🌐  **Von:** {session.get('username')}")
+    return jsonify({"ok": True})
+
+
+# ── Verwarnungen ─────────────────────────────────────────────────────────────
+
+@app.route("/warns")
+@login_required
+def warns_page():
+    db = get_db()
+    try:
+        rows = db.execute("""
+            SELECT user_id, username,
+                   COALESCE(SUM(amount), 0) AS total,
+                   MAX(warned_at) AS last_warn
+            FROM warns
+            GROUP BY user_id
+            ORDER BY total DESC, last_warn DESC
+        """).fetchall()
+        users = [dict(r) for r in rows]
+        history = {}
+        for u in users:
+            h = db.execute("""
+                SELECT amount, reason, moderator_name, warned_at
+                FROM warns WHERE user_id = ?
+                ORDER BY warned_at DESC LIMIT 10
+            """, (u["user_id"],)).fetchall()
+            history[u["user_id"]] = [dict(r) for r in h]
+    except Exception:
+        users, history = [], {}
+    finally:
+        db.close()
+    return render_template("warns.html", users=users, history=history, auto_jail=5)
+
+
+@app.route("/api/warns/<int:user_id>/clear", methods=["POST"])
+@login_required
+def api_warns_clear(user_id):
+    db = get_db()
+    row = db.execute("SELECT username FROM warns WHERE user_id=? LIMIT 1", (user_id,)).fetchone()
+    if not row:
+        db.close()
+        return jsonify({"error": "Keine Verwarnungen gefunden"}), 404
+    db.execute("DELETE FROM warns WHERE user_id=?", (user_id,))
+    db.commit()
+    db.close()
+    _discord_log("🗑️ Verwarnungen gelöscht",
                  f"👤  **Nutzer:** {row['username']} (`{user_id}`)\n"
                  f"🌐  **Von:** {session.get('username')}")
     return jsonify({"ok": True})

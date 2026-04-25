@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Verwarnungen{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+  <div>
+    <h1 style="font-size:1.65rem;font-weight:800;color:#fff;margin:0">
+      <i class="bi bi-exclamation-triangle-fill me-2" style="color:#f59e0b"></i>Verwarnungen
+    </h1>
+    <p style="color:var(--muted);margin:.3rem 0 0;font-size:.85rem">
+      Verwarnungen aller Mitglieder · Ab <strong>{{ auto_jail }}</strong> Warns automatischer Knast
+    </p>
+  </div>
+  <div style="color:var(--muted);font-size:.84rem;align-self:center">
+    <i class="bi bi-people me-1"></i>{{ users|length }} Nutzer verwarnt
+  </div>
+</div>
+
+<!-- Suche -->
+<div class="mb-3">
+  <input type="text" id="searchInput" class="form-control form-control-sm"
+         placeholder="🔍 Nutzer suchen…"
+         style="max-width:340px;background:var(--card);border:1px solid var(--border);color:#fff;border-radius:9px">
+</div>
+
+{% if not users %}
+<div class="card" style="border-radius:13px">
+  <div class="card-body text-center py-5" style="color:var(--muted)">
+    <i class="bi bi-check-circle" style="font-size:2.5rem;color:#22c55e;display:block;margin-bottom:.75rem"></i>
+    Keine Verwarnungen vorhanden.
+  </div>
+</div>
+{% else %}
+<div id="warnList">
+{% for u in users %}
+{% set total = u.total %}
+{% set danger = total >= auto_jail %}
+<div class="card mb-3 warn-row" style="border-radius:13px;{% if danger %}border:1px solid rgba(239,68,68,.35){% endif %}"
+     data-name="{{ u.username|lower }}">
+  <div class="card-body p-3">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+
+      <!-- Avatar-Platzhalter + Name -->
+      <div style="width:40px;height:40px;border-radius:50%;background:rgba(88,101,242,.2);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--accent2);flex-shrink:0">
+        {{ u.username[0]|upper }}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;color:#fff;font-size:.93rem">{{ u.username }}</div>
+        <div style="font-size:.75rem;color:var(--muted)">ID: {{ u.user_id }}</div>
+      </div>
+
+      <!-- Warn-Balken -->
+      <div style="min-width:180px">
+        {% set filled = [total, auto_jail]|min %}
+        <div style="display:flex;gap:4px;margin-bottom:3px">
+          {% for i in range(auto_jail) %}
+          <div style="flex:1;height:8px;border-radius:4px;background:{% if i < filled %}{% if danger %}#ef4444{% else %}#f59e0b{% endif %}{% else %}rgba(255,255,255,.1){% endif %}"></div>
+          {% endfor %}
+        </div>
+        <div style="font-size:.74rem;color:{% if danger %}#ef4444{% else %}var(--muted){% endif %}">
+          {% if danger %}🔒 {{ total }} Warns — Knast{% else %}⚠️ {{ total }} / {{ auto_jail }} Warns{% endif %}
+        </div>
+      </div>
+
+      <!-- Buttons -->
+      <div class="d-flex gap-2">
+        <button class="btn btn-sm" style="background:rgba(88,101,242,.12);color:var(--accent2);border:1px solid rgba(88,101,242,.25);border-radius:7px;font-size:.78rem"
+                onclick="toggleHistory({{ u.user_id }})">
+          <i class="bi bi-clock-history me-1"></i>Verlauf
+        </button>
+        <button class="btn btn-sm" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2);border-radius:7px;font-size:.78rem"
+                onclick="clearWarns({{ u.user_id }}, '{{ u.username }}', this)">
+          <i class="bi bi-trash me-1"></i>Löschen
+        </button>
+      </div>
+    </div>
+
+    <!-- Verlauf (ausklappbar) -->
+    <div id="history-{{ u.user_id }}" style="display:none;margin-top:.9rem;border-top:1px solid var(--border);padding-top:.75rem">
+      {% set h = history.get(u.user_id, []) %}
+      {% if h %}
+      <table class="table table-sm mb-0" style="font-size:.79rem">
+        <thead>
+          <tr style="color:var(--muted)">
+            <th>Datum</th><th>Anzahl</th><th>Grund</th><th>Von</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in h %}
+          <tr>
+            <td style="color:var(--muted);white-space:nowrap">{{ row.warned_at[:16].replace('T',' ') }}</td>
+            <td><span style="background:rgba(245,158,11,.15);color:#f59e0b;border-radius:5px;padding:.1rem .4rem;font-weight:700">+{{ row.amount }}</span></td>
+            <td style="color:#e5e7eb">{{ row.reason }}</td>
+            <td style="color:var(--muted)">{{ row.moderator_name }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <span style="color:var(--muted);font-size:.8rem">Kein Verlauf.</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleHistory(uid) {
+  const el = document.getElementById('history-' + uid);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function clearWarns(uid, name, btn) {
+  if (!confirm(`Alle Verwarnungen von "${name}" löschen?`)) return;
+  btn.disabled = true;
+  fetch(`/api/warns/${uid}/clear`, { method: 'POST' })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        const row = btn.closest('.warn-row');
+        row.style.opacity = '0';
+        row.style.transition = 'opacity .3s';
+        setTimeout(() => row.remove(), 300);
+      } else {
+        alert('Fehler: ' + (d.error || 'Unbekannt'));
+        btn.disabled = false;
+      }
+    })
+    .catch(() => { btn.disabled = false; });
+}
+
+document.getElementById('searchInput').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  document.querySelectorAll('.warn-row').forEach(row => {
+    row.style.display = row.dataset.name.includes(q) ? '' : 'none';
+  });
+});
+</script>
+{% endblock %}

@@ -38,6 +38,7 @@ class Database:
                 ("name_protected",   "INTEGER DEFAULT 0"),
                 ("aepfel",           "INTEGER DEFAULT 0"),
             ]:
+
                 try:
                     await db.execute(f"ALTER TABLE users ADD COLUMN {col} {definition}")
                 except Exception:
@@ -116,6 +117,18 @@ class Database:
                     user_id     INTEGER PRIMARY KEY,
                     username    TEXT    NOT NULL,
                     verified_at TEXT    DEFAULT (datetime('now'))
+                )
+            """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS warns (
+                    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id        INTEGER NOT NULL,
+                    username       TEXT    NOT NULL,
+                    moderator_id   INTEGER NOT NULL,
+                    moderator_name TEXT    NOT NULL,
+                    amount         INTEGER DEFAULT 1,
+                    reason         TEXT    DEFAULT 'Kein Grund angegeben',
+                    warned_at      TEXT    DEFAULT (datetime('now'))
                 )
             """)
             await db.commit()

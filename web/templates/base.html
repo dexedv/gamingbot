@@ -380,7 +380,7 @@
     </a>
 
     <!-- Community -->
-    {% if 'nutzer' in user_features or 'nutzer_verwalten' in user_features or 'umfragen' in user_features or 'verified' in user_features %}
+    {% if 'nutzer' in user_features or 'nutzer_verwalten' in user_features or 'umfragen' in user_features or 'verified' in user_features or 'warns' in user_features %}
     <div class="sb-section">Community</div>
     {% if 'nutzer' in user_features %}
     <a class="sb-link {% if request.endpoint in ('users','user_detail') %}active{% endif %}" href="/users">
@@ -395,6 +395,11 @@
     {% if 'verified' in user_features %}
     <a class="sb-link {% if request.endpoint == 'verified_page' %}active{% endif %}" href="/verified">
       <i class="bi bi-check-circle-fill" style="color:#22c55e"></i> Verified
+    </a>
+    {% endif %}
+    {% if 'warns' in user_features %}
+    <a class="sb-link {% if request.endpoint == 'warns_page' %}active{% endif %}" href="/warns">
+      <i class="bi bi-exclamation-triangle-fill" style="color:#f59e0b"></i> Verwarnungen
     </a>
     {% endif %}
     {% if 'umfragen' in user_features %}

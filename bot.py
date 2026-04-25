@@ -49,6 +49,7 @@ COGS = [
     "cogs.logger",
     "cogs.stats_channel",
     "cogs.emoji_quiz",
+    "cogs.warns",
 ]
 
 
