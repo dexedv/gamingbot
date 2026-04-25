@@ -123,10 +123,10 @@ class TreasureEventCog(commands.Cog, name="TreasureEvent"):
                     label    = f"⚡ Powerup für **{target.display_name}**"
                 else:
                     # Kein Online-User → treasure statt powerup
-                    cmd_text = f"l.treasure channel {ch_id}"
+                    cmd_text = "l.treasure"
                     label    = "🎁 Schatzkiste"
             else:
-                cmd_text = f"l.treasure channel {ch_id}"
+                cmd_text = "l.treasure"
                 label    = "🎁 Schatzkiste"
 
             try:
@@ -135,6 +135,7 @@ class TreasureEventCog(commands.Cog, name="TreasureEvent"):
                     description=f"```\n{cmd_text}\n```",
                     color=discord.Color.from_rgb(255, 165, 0),
                 )
+                embed.add_field(name="📍 Channel", value=f"<#{ch_id}>", inline=False)
                 embed.set_footer(text=f"Spawn {i+1}/{count} · Kopiere den Command und sende ihn im Server")
                 await admin.send(embed=embed)
             except Exception:
