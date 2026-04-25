@@ -159,18 +159,25 @@ for _feat, _eps in FEATURE_ROUTES.items():
 # Features die ausschließlich Developer aktivieren dürfen
 DEV_ONLY_FEATURES = {"web_nutzer", "rolle_berechtigungen"}
 
+# Features die nur einer bestimmten Rolle (+ Developer) gehören
+ROLE_LOCKED_FEATURES: dict[str, str] = {
+    "verifizierung_boys":  "b-verifizierung",
+    "verifizierung_girls": "g-verifizierung",
+}
+
+# Alle gesperrten Features (darf niemand außer dem festgelegten Rang ändern)
+_ALL_LOCKED = DEV_ONLY_FEATURES | set(ROLE_LOCKED_FEATURES.keys())
+
 DEFAULT_PERMISSIONS: dict[str, list] = {
     "developer":       list(FEATURES.keys()),
-    "owner":           [f for f in FEATURES.keys() if f not in DEV_ONLY_FEATURES],
+    "owner":           [f for f in FEATURES.keys() if f not in _ALL_LOCKED],
     "co-owner":        ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
-                        "verifizierung_boys", "verifizierung_girls",
                         "broadcast", "willkommen", "cogs", "templates", "einstellungen", "server_log",
                         "verified", "regelwerk_editor", "warns", "emoji_quiz"],
     "admin":           ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
-                        "verifizierung_boys", "verifizierung_girls", "broadcast", "willkommen",
-                        "server_log", "verified", "regelwerk_editor", "warns", "emoji_quiz"],
+                        "broadcast", "willkommen", "server_log", "verified", "regelwerk_editor", "warns", "emoji_quiz"],
     "moderator":       ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
-                        "verifizierung_boys", "verifizierung_girls", "server_log", "verified", "warns", "emoji_quiz"],
+                        "server_log", "verified", "warns", "emoji_quiz"],
     "b-verifizierung": ["verifizierung_boys"],
     "g-verifizierung": ["verifizierung_girls"],
     "supporter":       ["nutzer", "knast_log", "kummerkasten"],
@@ -1690,6 +1697,8 @@ def api_role_permissions_save():
         return jsonify({"error": "Developer-Berechtigungen sind fest"}), 400
     if feature in DEV_ONLY_FEATURES:
         return jsonify({"error": "Dieses Feature ist nur für Developer verfügbar"}), 403
+    if feature in ROLE_LOCKED_FEATURES and role != ROLE_LOCKED_FEATURES[feature]:
+        return jsonify({"error": f"Dieses Feature ist nur für {ROLE_LOCKED_FEATURES[feature]} verfügbar"}), 403
     db = get_db()
     row = db.execute("SELECT permissions FROM role_permissions WHERE role=?", (role,)).fetchone()
     perms = set(_j.loads(row["permissions"])) if row else set(DEFAULT_PERMISSIONS.get(role, []))

@@ -89,25 +89,33 @@
       </thead>
       <tbody>
         {% set dev_only = ['web_nutzer', 'rolle_berechtigungen'] %}
+        {% set role_locked = {'verifizierung_boys': 'b-verifizierung', 'verifizierung_girls': 'g-verifizierung'} %}
         {% for feat_key, feat in features.items() %}
         {% set is_dev_only = feat_key in dev_only %}
-        <tr {% if is_dev_only %}style="background:rgba(168,85,247,.04)"{% endif %}>
+        {% set locked_to = role_locked.get(feat_key) %}
+        {% set is_role_locked = locked_to is not none %}
+        <tr {% if is_dev_only %}style="background:rgba(168,85,247,.04)"
+            {% elif is_role_locked %}style="background:rgba(88,101,242,.03)"{% endif %}>
           <td class="feat-col" style="padding-left:1rem">
             <div style="font-weight:500;color:#fff;font-size:.85rem">
-              <i class="bi {{ feat.icon }}" style="color:{% if is_dev_only %}#c084fc{% else %}var(--accent){% endif %};margin-right:.35rem"></i>{{ feat.label }}
-              {% if is_dev_only %}<span style="font-size:.62rem;background:rgba(168,85,247,.18);color:#c084fc;border:1px solid rgba(168,85,247,.3);border-radius:99px;padding:.05rem .4rem;margin-left:.3rem;font-weight:700">DEV ONLY</span>{% endif %}
+              <i class="bi {{ feat.icon }}" style="color:{% if is_dev_only %}#c084fc{% elif is_role_locked %}var(--accent2){% else %}var(--accent){% endif %};margin-right:.35rem"></i>{{ feat.label }}
+              {% if is_dev_only %}
+                <span style="font-size:.62rem;background:rgba(168,85,247,.18);color:#c084fc;border:1px solid rgba(168,85,247,.3);border-radius:99px;padding:.05rem .4rem;margin-left:.3rem;font-weight:700">DEV ONLY</span>
+              {% elif is_role_locked %}
+                <span style="font-size:.62rem;background:rgba(88,101,242,.15);color:#818cf8;border:1px solid rgba(88,101,242,.3);border-radius:99px;padding:.05rem .4rem;margin-left:.3rem;font-weight:700">{{ locked_to | upper }}</span>
+              {% endif %}
             </div>
             <div class="feat-desc">{{ feat.desc }}</div>
           </td>
           {% for role in roles %}
-          {% set locked = role == 'developer' or is_dev_only %}
+          {% set locked = role == 'developer' or is_dev_only or (is_role_locked and role != locked_to) %}
           <td {% if locked %}class="dev-cell"{% endif %}>
             <div class="form-check form-switch d-flex justify-content-center m-0">
               <input class="form-check-input perm-toggle" type="checkbox"
                 data-role="{{ role }}"
                 data-feature="{{ feat_key }}"
                 {% if grid[feat_key][role] %}checked{% endif %}
-                {% if locked %}disabled title="{% if is_dev_only %}Nur für Developer verfügbar{% else %}Developer hat immer vollen Zugriff{% endif %}"{% endif %}>
+                {% if locked %}disabled title="{% if is_dev_only %}Nur für Developer verfügbar{% elif is_role_locked %}Nur für {{ locked_to }} verfügbar{% else %}Developer hat immer vollen Zugriff{% endif %}"{% endif %}>
             </div>
           </td>
           {% endfor %}
