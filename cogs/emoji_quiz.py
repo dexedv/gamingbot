@@ -1221,6 +1221,13 @@ class EmojiQuizCog(commands.Cog, name="EmojiQuiz"):
         if not self._started:
             self._started = True
             await asyncio.sleep(3)
+            # Letzte Bot-Nachricht im Quiz-Channel wiederverwenden
+            channel = self.bot.get_channel(QUIZ_CHANNEL_ID)
+            if channel:
+                async for msg in channel.history(limit=20):
+                    if msg.author == self.bot.user and msg.embeds:
+                        self._question_msg = msg
+                        break
             await self._post_question()
 
     @commands.Cog.listener()
