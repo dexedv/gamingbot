@@ -156,9 +156,12 @@ for _feat, _eps in FEATURE_ROUTES.items():
     for _ep in _eps:
         _ROUTE_FEATURE[_ep] = _feat
 
+# Features die ausschließlich Developer aktivieren dürfen
+DEV_ONLY_FEATURES = {"web_nutzer", "rolle_berechtigungen"}
+
 DEFAULT_PERMISSIONS: dict[str, list] = {
     "developer":       list(FEATURES.keys()),
-    "owner":           list(FEATURES.keys()),
+    "owner":           [f for f in FEATURES.keys() if f not in DEV_ONLY_FEATURES],
     "co-owner":        ["nutzer", "knast_log", "kummerkasten", "nutzer_verwalten", "umfragen",
                         "verifizierung_boys", "verifizierung_girls",
                         "broadcast", "willkommen", "cogs", "templates", "einstellungen", "server_log",
@@ -1685,6 +1688,8 @@ def api_role_permissions_save():
         return jsonify({"error": "Ungültige Rolle oder Feature"}), 400
     if role == "developer":
         return jsonify({"error": "Developer-Berechtigungen sind fest"}), 400
+    if feature in DEV_ONLY_FEATURES:
+        return jsonify({"error": "Dieses Feature ist nur für Developer verfügbar"}), 403
     db = get_db()
     row = db.execute("SELECT permissions FROM role_permissions WHERE role=?", (role,)).fetchone()
     perms = set(_j.loads(row["permissions"])) if row else set(DEFAULT_PERMISSIONS.get(role, []))
