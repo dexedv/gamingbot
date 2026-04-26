@@ -254,6 +254,41 @@ def inject_user_features():
     return {"user_features": features}
 
 
+def _ensure_schema():
+    """Ergänzt fehlende Spalten/Tabellen die neuere Dashboard-Versionen benötigen."""
+    try:
+        db = get_db()
+        # knast.released_at — wurde nachträglich hinzugefügt
+        try:
+            db.execute("ALTER TABLE knast ADD COLUMN released_at TEXT DEFAULT NULL")
+            db.commit()
+        except Exception:
+            pass
+        # warns-Tabelle anlegen falls noch nicht vorhanden
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS warns (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id        INTEGER NOT NULL,
+                username       TEXT    NOT NULL,
+                moderator_id   INTEGER NOT NULL,
+                moderator_name TEXT    NOT NULL,
+                amount         INTEGER DEFAULT 1,
+                reason         TEXT    DEFAULT 'Kein Grund angegeben',
+                warned_at      TEXT    DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # aepfel-Spalte in users
+        try:
+            db.execute("ALTER TABLE users ADD COLUMN aepfel INTEGER DEFAULT 0")
+            db.commit()
+        except Exception:
+            pass
+        db.commit()
+        db.close()
+    except Exception:
+        pass
+
+
 def _ensure_permissions():
     """Erstellt role_permissions-Tabelle und befüllt fehlende Rollen einmalig mit Defaults.
     Bestehende Einträge werden NIE verändert — nur Developer bekommt immer alle Features."""
@@ -351,6 +386,7 @@ def _ensure_admin_user():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    _ensure_schema()
     _ensure_admin_user()
     error = None
     if request.method == "POST":
@@ -1984,6 +2020,9 @@ def api_log_clear():
                  f"📂  **Kategorie:** {category}\n🌐  **Von:** {session.get('username')}")
     return jsonify({"ok": True})
 
+
+with app.app_context():
+    _ensure_schema()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
